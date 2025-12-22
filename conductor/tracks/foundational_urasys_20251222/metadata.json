@@ -1,0 +1,8 @@
+{
+  "track_id": "foundational_urasys_20251222",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2025-12-22T10:00:00Z",
+  "updated_at": "2025-12-22T10:00:00Z",
+  "description": "Foundational URASys Infrastructure: Build the Next.js/FastAPI scaffolding and implement the core dual-retrieval agent logic (Manager, Document, and FAQ Agents) using the POE and Gemini APIs."
+}
