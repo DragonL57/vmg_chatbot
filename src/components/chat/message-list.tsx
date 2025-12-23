@@ -10,11 +10,14 @@ interface MessageListProps {
 
 const TypingIndicator = () => (
   <div className="flex justify-start mb-4 animate-in fade-in slide-in-from-left-2 duration-300">
-    <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
-      <div className="flex gap-1.5">
-        <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce"></div>
+    <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm shadow-slate-200/50">
+      <div className="flex items-center gap-2">
+        <div className="relative overflow-hidden group">
+          <p className="text-xs font-medium text-slate-400 italic">
+            (Tôi đang soạn, bạn chờ một tí nhé)
+          </p>
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/60 to-transparent -translate-x-full animate-[shimmer_2s_infinite] skew-x-[-20deg]"></div>
+        </div>
       </div>
     </div>
   </div>
