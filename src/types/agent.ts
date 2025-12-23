@@ -5,6 +5,9 @@ import { z } from 'zod';
  */
 export const QueryDecompositionSchema = z.object({
   isAmbiguous: z.boolean(),
+  isSafe: z.boolean().default(true),
+  canAnswerFromStatic: z.boolean().default(false),
+  safetyReason: z.string().nullable().optional(),
   clarificationQuestion: z.string().nullable().optional(),
   subQueries: z.array(z.string()),
   reasoning: z.string(),

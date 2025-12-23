@@ -24,14 +24,12 @@ export async function POST(req: Request) {
         return new Response('No messages provided', { status: 400 });
     }
 
-    // 0. Policy Check (Guardrails)
-    const guardrail = await GuardrailsService.validate(lastMessage.content);
-    if (!guardrail.safe) {
-      return new Response(guardrail.reason || "Yêu cầu của bạn bị từ chối do vi phạm chính sách.", { status: 400 });
-    }
-
-    // 1. Manager Analysis
+    // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
     const decomposition = await ManagerService.decompose(messages);
+
+    if (!decomposition.isSafe) {
+      return new Response(decomposition.safetyReason || "Yêu cầu bị từ chối do vi phạm chính sách.", { status: 400 });
+    }
 
     // Load static knowledge from file
     let staticKnowledgeContent = "";
@@ -56,6 +54,10 @@ ${MASTER_OUTPUT_CONSTRAINTS}
 
     if (decomposition.isAmbiguous) {
       systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_AMBIGUOUS(decomposition.clarificationQuestion || '')}`;
+    } else if (decomposition.canAnswerFromStatic) {
+      // 2. BYPASS RAG (Static Knowledge is sufficient)
+      systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
+      console.log('--- BYPASSING RAG: Answer found in static knowledge ---');
     } else {
       // 2. Retrieval (Parallel Execution)
       const primaryQuery = decomposition.subQueries[0] || lastMessage.content;

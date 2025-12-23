@@ -41,55 +41,42 @@ async function main() {
   
   const currentFiles = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.md'));
   
-  const filesToIndex: string[] = [];
-  const filesToRemove: string[] = [];
+  // 2b. Sync with Qdrant to find "ghost" embeddings (files deleted but not in state)
+  process.stdout.write('Syncing with Qdrant to detect ghost embeddings... ');
+  const ghostSources = new Set<string>();
+  for (const collection of [COLLECTIONS.DOCUMENTS, COLLECTIONS.FAQS]) {
+      const response = await qdrant.scroll(collection, { limit: 500, with_payload: true });
+      response.points.forEach(p => {
+          const src = p.payload?.source as string;
+          if (src && !currentFiles.includes(src)) {
+              ghostSources.add(src);
+          }
+      });
+  }
+  console.log(ghostSources.size > 0 ? `Found ${ghostSources.size} ghost sources.` : 'Clean.');
 
-  // Identify Removed Files
+  const filesToIndex: string[] = [];
+  const filesToRemove = new Set<string>(ghostSources);
+
+  // Identify Removed Files from State
   for (const indexedFile of Object.keys(state)) {
     if (!currentFiles.includes(indexedFile)) {
-      filesToRemove.push(indexedFile);
+      filesToRemove.add(indexedFile);
     }
   }
 
-  // Identify New/Modified Files
-  for (const file of currentFiles) {
-    const content = fs.readFileSync(path.join(DATA_DIR, file), 'utf-8');
-    const hash = crypto.createHash('md5').update(content).digest('hex');
-
-    // If file is new, or hash changed, or it was partially processed
-    if (!state[file] || state[file].hash !== hash) {
-      filesToIndex.push(file);
-    } else if (state[file].lastChunkIndex > -1) {
-        // Checking if it was fully completed? 
-        // We'll assume if hash matches, we check if we need to resume.
-        // Actually, let's just push it if we want to support resuming.
-        // But logic below handles resuming if state exists.
-        // For simplicity: if hash matches, we assume done UNLESS we implement a 'completed' flag.
-        // Let's rely on lastChunkIndex. If we finished, we can set it to -1 or total chunks?
-        // Better: store total chunks? 
-        // Let's stick to: if hash changed, full re-index. If hash same, skip.
-        // But we want to RESUME.
-    }
-  }
-  
-  // Refined Logic for Resuming:
-  // We iterate ALL current files.
-  // If hash differs -> Full Re-index (delete old points, start from chunk 0).
-  // If hash same -> Check if we finished? 
-  //   Actually, simpler: 
-  //   If state[file] matches hash, we might need to resume if it wasn't finished.
-  //   Let's assume if it's in 'state', it might be partial.
-  
-  // Let's just process the list.
-
-  console.log(`Checking ${currentFiles.length} files...`);
+  console.log(`Checking ${currentFiles.length} local files...`);
 
   // 3. Process Removals
-  for (const file of filesToRemove) {
-    console.log(`Removing embeddings for deleted file: ${file}`);
-    await deletePointsForSource(file);
-    delete state[file];
-    saveState(state);
+  if (filesToRemove.size > 0) {
+    console.log(`\nDetected ${filesToRemove.size} source(s) to remove. Cleaning up...`);
+    for (const file of filesToRemove) {
+      process.stdout.write(`- Removing embeddings for: ${file}... `);
+      await deletePointsForSource(file);
+      if (state[file]) delete state[file];
+      saveState(state);
+      console.log('Done.');
+    }
   }
 
   // 4. Process Additions/Updates
@@ -268,65 +255,45 @@ async function deletePointsForSource(filename: string) {
 }
 
 async function ensureCollection(name: string) {
-
     try {
-
         const info = await qdrant.getCollection(name);
-
-        // Check if vector params match our new model (1024)
-
         const size = info.config?.params?.vectors?.size;
 
-        
-
         if (size !== 1024) {
-
             console.log(`Collection '${name}' exists but has wrong size (${size}). Recreating for 1024 dimensions...`);
-
             await qdrant.deleteCollection(name);
-
             throw new Error('Recreating');
-
         }
 
         console.log(`Collection '${name}' exists and is valid.`);
-
-    } catch {
-
-        console.log(`Creating collection '${name}'...`);
-
-        // Mistral Embed is 1024 dimensions
-
-                await qdrant.createCollection(name, {
-
-                    vectors: {
-
-                        size: 1024,
-
-                        distance: 'Cosine'
-
-                    }
-
-                });
-
-                console.log(`Collection '${name}' created.`);
-
         
-
-                // Create payload index for 'source' to allow filtered deletions
-
-                console.log(`Creating payload index for 'source' in '${name}'...`);
-
-                await qdrant.createPayloadIndex(name, {
-
-                    field_name: 'source',
-
-                    field_schema: 'keyword'
-
-                });
-
-            }
-
+        // Ensure index exists for 'source' field
+        const indexes = await qdrant.getCollection(name).then(res => res.payload_schema || {});
+        if (!indexes['source']) {
+            console.log(`Creating missing payload index for 'source' in '${name}'...`);
+            await qdrant.createPayloadIndex(name, {
+                field_name: 'source',
+                field_schema: 'keyword'
+            });
         }
+
+    } catch (err: any) {
+        if (err.message === 'Recreating' || err.status === 404) {
+            console.log(`Creating collection '${name}'...`);
+            await qdrant.createCollection(name, {
+                vectors: { size: 1024, distance: 'Cosine' }
+            });
+            console.log(`Collection '${name}' created.`);
+            
+            console.log(`Creating payload index for 'source' in '${name}'...`);
+            await qdrant.createPayloadIndex(name, {
+                field_name: 'source',
+                field_schema: 'keyword'
+            });
+        } else {
+            throw err;
+        }
+    }
+}
 
 main().catch(console.error);

@@ -129,13 +129,13 @@ export const ChatInterface: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <button 
-             onClick={() => window.location.href = 'tel:1900636838'}
+           <a 
+             href="tel:1900636838"
              className="p-2 text-slate-400 hover:text-[#D32F2F] transition-colors"
              title="Gọi Hotline"
            >
              <Phone className="w-5 h-5" />
-           </button>
+           </a>
            <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
              <Info className="w-5 h-5" />
            </button>

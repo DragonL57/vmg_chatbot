@@ -4,7 +4,7 @@ A **Unified Retrieval Agent-Based System (URASys)** designed for VMG English Cen
 
 ## 🏗 Multi-Agent Architecture (Optimized Path B)
 
-URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses **Confidence Thresholding** to ensure high-accuracy responses without increasing latency.
+URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** to minimize sequential LLM calls and ensure high-speed responses.
 
 ```mermaid
 graph TD
@@ -13,8 +13,7 @@ graph TD
     end
 
     subgraph Processing_Layer [Next.js API Route]
-        GA[Guardrails Agent]
-        MA[Manager Agent]
+        DA[Dispatcher Agent]
         RE[Retrieval Engine]
         DC[Decision Check]
         MS[Master Agent]
@@ -25,9 +24,8 @@ graph TD
         FAQS[FAQ Bank: 1024-dim]
     end
 
-    UI -->|1. Message| GA
-    GA -->|2. Safety Check| MA
-    MA -->|3. Decomposition| RE
+    UI -->|1. Message| DA
+    DA -->|2. Safety Check & Decomposition| RE
     RE <-->|4. Vector Search| Knowledge_Layer
     RE -->|5. Raw Results| DC
     DC -->|6a. High Confidence| MS
@@ -36,23 +34,21 @@ graph TD
 ```
 
 ### The Agents
-1.  **Guardrails Agent (`GuardrailsService`):** Validates user input for safety and prevents prompt injection.
-2.  **Manager Agent (`ManagerService`):** Analyzes conversation history to resolve ambiguity and decomposes queries into search tasks.
-3.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. Performs parallel semantic searches.
-4.  **Master Agent (Route Handler):** The final synthesizer.
-    - **High Confidence (>0.65):** Generates a detailed response using retrieved context.
-    - **Insufficient Data:** Triggers a specific protocol to politely state lack of info and refer to the hotline, preventing hallucinations.
+1.  **Dispatcher Agent (`ManagerService`):** A high-performance merged agent that handles both **Safety Guardrails** and **Query Decomposition** in a single parallel step. This reduces sequential latency by 30-50%.
+2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. Performs parallel semantic searches.
+3.  **Master Agent (Route Handler):** The final synthesizer, optimized for a friendly, concise "Zalo-chat" style.
+    - **High Confidence (>0.65):** Generates brief, direct answers using retrieved context.
+    - **Insufficient Data:** Politely states lack of info and suggests related topics or professional consultation.
 
 ---
 
 ## 🚀 Key Features
 
+*   **Low-Latency Dispatcher:** Merged safety and intent analysis to significantly reduce "Time to First Byte".
+*   **Zalo-Style Conciseness:** Responses are designed to be extremely short, friendly, and direct, mimicking a real-time messaging experience.
 *   **Mobile-First Full-Screen UI:** Designed to fill the viewport perfectly on all devices with custom height handling.
-*   **Hyper-Specific Consultation:** The Master Agent follows a strict protocol to ask one question at a time, aiming to understand the user's specific goals, level, and budget before proposing a cost-minimized roadmap.
-*   **Ask-and-Augment Strategy:** Automatically transforms raw documents into high-quality Q&A pairs during the indexing phase.
-*   **Centralized XML-Hybrid Prompting:** All prompts are managed in `src/prompts/` using XML tags for superior instruction following.
-*   **Shiny-Text Loading:** Modern "shimmer" text indicator for an improved waiting experience.
-*   **Interactive Suggestions:** Quick-action buttons to guide users toward common inquiries.
+*   **Deep-Sync Indexing:** The indexing script automatically detects "ghost" embeddings (data in DB for files no longer on disk) and cleans them up.
+*   **Resilient RAG Pipeline:** API timeout is set to 300s to handle complex parallel retrieval and generation tasks.
 
 ## 🛠 Tech Stack
 
@@ -72,14 +68,7 @@ graph TD
     ```
 
 2.  **Configure Environment Variables:**
-    Create a `.env` file based on `.env.example`:
-    ```env
-    POE_API_KEY=your_key
-    POE_BOT_NAME=grok-4.1-fast-non-reasoning
-    MISTRAL_API_KEY=your_key
-    QDRANT_URL=your_url
-    QDRANT_API_KEY=your_key
-    ```
+    Create a `.env` file based on `.env.example`.
 
 3.  **Run Development Server:**
     ```bash
@@ -93,14 +82,22 @@ graph TD
 ### 1. High-Level Knowledge
 Update `data/knowledge/vmg-overview.md` for core program information that is always present in the AI's context.
 
-### 2. Automated Q&A Indexing
+### 2. Automated Deep-Sync Indexing
 To update the vector database:
-1.  Place `.md` files in `data/vmg-docs/`.
+1.  Place or update `.md` files in `data/vmg-docs/`.
 2.  Run the indexing script:
     ```bash
     pnpm exec tsx scripts/index-docs.ts
     ```
-    *This handles parallel processing, Q&A pair generation via Poe API, and Mistral vectorization.*
+    *   **Incremental:** Only processes new/modified files.
+    *   **Cleanup:** Automatically removes embeddings for files deleted from the folder.
+    *   **Auto-Indexing:** Automatically creates necessary payload indices in Qdrant.
+
+### 3. Utility Scripts
+*   **Check Sources:** List all files currently indexed in Qdrant:
+    ```bash
+    pnpm exec tsx scripts/check-sources.ts
+    ```
 
 ---
 

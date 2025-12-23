@@ -93,3 +93,51 @@ Dựa trên tài liệu chuyên môn, VMG English hiện cung cấp **5 chương
 
 ### Khu vực Bình Phước
 12. **CN Đồng Nai 12 (Bình Phước):** Lô 6-7, KP Tân Đồng I, Đường Phú Riềng Đỏ, Phường Tân Thiện, TP. Đồng Xoài, Bình Phước.
+
+## PHẦN 4: KỊCH BẢN TƯ VẤN THEO TÂM LÝ TỪNG ĐỘ TUỔI
+
+Đây là phần hướng dẫn chi tiết cách tiếp cận khách hàng dựa trên tâm lý đặc thù của từng nhóm tuổi, giúp tư vấn viên linh hoạt điều chỉnh trọng tâm cuộc trò chuyện.
+
+1. Độ tuổi Mầm non và Tiền tiểu học (4 đến 6 tuổi)
+Đối tượng: Chương trình E-Pioneer và E-Contender.
+Tâm lý phụ huynh: Lo sợ con bị áp lực học hành quá sớm, sợ con chán học hoặc sợ con nhút nhát.
+Lưu ý khi tư vấn:
+Tuyệt đối hạn chế nhắc đến điểm số, bài thi nặng nề hay việc ép buộc học thuộc lòng từ vựng.
+Hãy tập trung nhấn mạnh vào sự vui vẻ, hào hứng và phương pháp học tự nhiên.
+Cách nói chuyện:
+Chương trình được thiết kế dạng vừa học vừa chơi thông qua bài hát, hình dán sticker và các hoạt động vận động.
+Mục tiêu chính là giúp con dạn dĩ, tự tin mở miệng nói tiếng Anh và yêu thích việc đến lớp mỗi ngày.
+Giáo trình Learn with Ollie và Happy Campers rất nhiều hình ảnh sinh động, giúp bé tiếp thu ngôn ngữ như tiếng mẹ đẻ mà không cảm thấy đang phải đi học.
+
+2. Độ tuổi Thiếu nhi (6 đến 11 tuổi)
+Đối tượng: Chương trình E-Genius.
+Tâm lý phụ huynh: Bắt đầu quan tâm đến kết quả học tập thực tế và muốn có thước đo năng lực của con so với bạn bè đồng trang lứa.
+Lưu ý khi tư vấn:
+Cần cân bằng giữa yếu tố vui học và kết quả học thuật.
+Bắt đầu lồng ghép các khái niệm về chuẩn đầu ra quốc tế để phụ huynh thấy sự chuyên nghiệp.
+Cách nói chuyện:
+Ở độ tuổi này, bên cạnh môi trường học tập sôi động, các con sẽ được rèn luyện theo lộ trình chuẩn Cambridge.
+Kết quả học tập được đo lường rõ ràng qua các cấp độ Starters, Movers, Flyers, giúp phụ huynh dễ dàng thấy được sự tiến bộ của con qua từng khóa.
+Điểm đặc biệt là VMG tặng thêm giờ luyện thi để đảm bảo con tự tin đạt chứng chỉ mà không tạo áp lực quá lớn.
+
+3. Độ tuổi Thiếu niên (12 đến 17 tuổi)
+Đối tượng: Chương trình NextGen IELTS.
+Tâm lý phụ huynh và học viên: Rất thực dụng, chịu áp lực lớn về thi cử, xét tuyển đại học, du học. Họ cần sự chắc chắn và cam kết.
+Lưu ý khi tư vấn:
+Hạn chế nói lan man về các hoạt động vui chơi giải trí. Đây là giai đoạn cần sự tập trung cao độ.
+Phải nhấn mạnh vào điểm số, kết quả đầu ra và giá trị của tấm bằng IELTS.
+Cách nói chuyện:
+Chương trình tập trung hoàn toàn vào mục tiêu đạt điểm số IELTS như cam kết để phục vụ việc miễn thi tốt nghiệp hoặc xét tuyển đại học.
+Chúng tôi có cam kết đầu ra bằng văn bản để đảm bảo quyền lợi cho học viên.
+Học viên sẽ được rèn luyện kỹ năng làm bài thi, chiến thuật giải đề và làm quen với áp lực phòng thi thật ngay tại lớp.
+
+4. Độ tuổi Sinh viên và Người đi làm (Trên 17 tuổi)
+Đối tượng: Chương trình E-Plus.
+Tâm lý học viên: Bận rộn, sợ sai, ngại nói, cần học nhanh để dùng ngay cho công việc.
+Lưu ý khi tư vấn:
+Không đi sâu vào ngữ pháp hàn lâm hay lý thuyết sách vở.
+Tập trung vào tính ứng dụng, thời gian học ngắn và khả năng phản xạ.
+Cách nói chuyện:
+Khóa học được thiết kế tinh gọn, cắt bỏ các phần lý thuyết rườm rà để tối ưu thời gian cho người bận rộn.
+Anh chị sẽ được học với 50% giáo viên bản xứ để chỉnh sửa phát âm và rèn luyện phản xạ nghe nói thực tế.
+Mục tiêu là học xong có thể áp dụng ngay vào việc phỏng vấn, họp hành, viết email hoặc giao tiếp với đối tác nước ngoài.
