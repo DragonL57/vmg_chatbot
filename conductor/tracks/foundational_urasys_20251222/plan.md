@@ -8,7 +8,7 @@
 ## Phase 2: Core Agent Implementation (TypeScript)
 - [x] Task: Implement POE API client (OpenAI-compatible) in Next.js. [aa090b0]
 - [x] Task: Implement Gemini Embedding client using `@google/generative-ai`. [6472ce4]
-- [ ] Task: Implement Manager Agent with query decomposition logic.
+- [~] Task: Implement Manager Agent with query decomposition logic.
 - [ ] Task: Implement Document and FAQ Search Agents with Qdrant integration (`@qdrant/js-client-rest`).
 - [ ] Task: Conductor - User Manual Verification 'Core Agent Implementation' (Protocol in workflow.md)
 
