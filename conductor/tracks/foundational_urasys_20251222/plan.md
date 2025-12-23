@@ -12,11 +12,11 @@
 - [x] Task: Implement Document and FAQ Search Agents with Qdrant integration (`@qdrant/js-client-rest`). [d9e6f35]
 - [x] Task: Conductor - User Manual Verification 'Core Agent Implementation' (Protocol in workflow.md) [730f0a8]
 
-## Phase 3: Dual-Phase Indexing Pipeline (Initial)
+## Phase 3: Dual-Phase Indexing Pipeline (Initial) [checkpoint: 827b23a]
 - [x] Task: Implement semantic chunking and Title Assigner logic. [07101f2]
 - [x] Task: Implement FAQ Creator and Expander logic for 'Ask-and-Augment'. [180711e]
 - [x] Task: Create initial index of sample VMG documents. [70a21b2]
-- [ ] Task: Conductor - User Manual Verification 'Dual-Phase Indexing Pipeline' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Dual-Phase Indexing Pipeline' (Protocol in workflow.md) [827b23a]
 
 ## Phase 4: UI & Integration
 - [ ] Task: Build the chat interface in Next.js with Red/White VMG theme.
