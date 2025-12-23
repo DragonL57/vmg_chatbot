@@ -142,21 +142,29 @@ async function main() {
           // 1. Parallel LLM calls (Title and FAQ generation)
           const batchResults = await Promise.all(batchChunks.map(async (chunk, batchIdx) => {
               const globalIdx = i + batchIdx;
-              process.stdout.write(`    [Chunk ${globalIdx}] Generating title & FAQs... `);
+              process.stdout.write(`    [Chunk ${globalIdx}] Generating title & Q&A pairs... `);
               
-              const [title, faqs] = await Promise.all([
+              const [title, pairs] = await Promise.all([
                   TitleAssignerService.generateTitle(chunk),
                   FAQGeneratorService.generate(chunk)
               ]);
               
-              let allFaqs = faqs;
-              if (faqs.length > 0) {
-                  const expanded = await FAQGeneratorService.expand(faqs);
-                  allFaqs = [...new Set([...faqs, ...expanded])];
+              const allQAPairs = [...pairs];
+              
+              // Still expand questions for better vector coverage
+              if (pairs.length > 0) {
+                  const questions = pairs.map(p => p.question);
+                  const expanded = await FAQGeneratorService.expand(questions);
+                  expanded.forEach(v => {
+                      // Map variation to the same answer as the original
+                      // For simplicity, we just pick the first answer in the batch or match index?
+                      // Actually, better to just push variations with the chunk as answer.
+                      allQAPairs.push({ question: v, answer: chunk });
+                  });
               }
               
               console.log('Done.');
-              return { chunk, title, allFaqs, globalIdx };
+              return { chunk, title, allQAPairs, globalIdx };
           }));
 
           // 2. Batch Embedding for Documents
@@ -183,11 +191,11 @@ async function main() {
 
           // 4. Batch Embedding for FAQs
           const allFaqItems = batchResults.flatMap(r => 
-              r.allFaqs.map(q => ({ question: q, answer: r.chunk, title: r.title }))
+              r.allQAPairs.map(p => ({ question: p.question, answer: p.answer, title: r.title }))
           );
 
           if (allFaqItems.length > 0) {
-              process.stdout.write(`  - Batch embedding ${allFaqItems.length} FAQs... `);
+              process.stdout.write(`  - Batch embedding ${allFaqItems.length} Q&A pairs... `);
               const faqQuestions = allFaqItems.map(item => item.question);
               const faqVectors = await EmbeddingService.embedMany(faqQuestions);
               console.log('Done.');

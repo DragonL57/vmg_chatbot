@@ -4,8 +4,10 @@ import { z } from 'zod';
  * Schema for generated FAQs from a chunk.
  */
 export const FAQGenerationSchema = z.object({
-  questions: z.array(z.string()).min(1),
-  reasoning: z.string().optional(),
+  pairs: z.array(z.object({
+    question: z.string(),
+    answer: z.string()
+  })).min(1),
 });
 
 export type FAQGeneration = z.infer<typeof FAQGenerationSchema>;

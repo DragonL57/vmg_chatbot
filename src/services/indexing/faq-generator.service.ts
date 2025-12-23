@@ -9,27 +9,21 @@ import { ChatCompletion } from 'openai/resources/chat/completions';
 export class FAQGeneratorService {
   private static readonly GENERATOR_PROMPT = `
 You are an expert at creating FAQ banks for English centers.
-Given a text chunk from an academic or administrative policy document, generate 3-5 clear, concise questions that this chunk answers directly.
+Given a text chunk from an academic or administrative policy document, generate 3-5 high-quality Q&A pairs that a customer would likely ask.
+The answer should be concise, helpful, and based STRICTLY on the provided text.
 Respond ONLY in the following JSON format:
 {
-  "questions": ["Question 1?", "Question 2?", ...]
-}
-`.trim();
-
-  private static readonly EXPANDER_PROMPT = `
-You are an expert in linguistics and search optimization.
-Given a list of questions, generate 2-3 paraphrased variations for each question to increase semantic search coverage.
-The variations should use different synonyms or sentence structures but keep the same meaning.
-Respond ONLY in the following JSON format:
-{
-  "variations": ["Variation 1", "Variation 2", ...]
+  "pairs": [
+    { "question": "Question 1?", "answer": "Answer 1" },
+    ...
+  ]
 }
 `.trim();
 
   /**
-   * Generates initial questions from a chunk.
+   * Generates initial Q&A pairs from a chunk.
    */
-  static async generate(chunk: string): Promise<string[]> {
+  static async generate(chunk: string): Promise<{ question: string, answer: string }[]> {
     try {
       const messages = [
         { role: 'system' as const, content: this.GENERATOR_PROMPT },
@@ -39,10 +33,8 @@ Respond ONLY in the following JSON format:
       const response = (await PoeService.chat(messages)) as ChatCompletion;
       const content = response.choices[0].message.content || '';
       
-      const parsed = safeJsonParse<{ questions: string[] }>(content);
-      const result = FAQGenerationSchema.safeParse(parsed);
-      
-      return result.success ? result.data.questions : [];
+      const parsed = safeJsonParse<{ pairs: { question: string, answer: string }[] }>(content);
+      return parsed?.pairs || [];
     } catch (error) {
       console.error('Error generating FAQs:', error);
       return [];

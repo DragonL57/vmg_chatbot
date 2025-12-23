@@ -1,0 +1,95 @@
+Dưới đây là tài liệu tổng hợp toàn diện về **Lộ trình đào tạo** và **Hệ thống chi nhánh** của VMG English, được biên soạn lại để thuận tiện cho việc tư vấn khách hàng.
+
+---
+
+# TỔNG QUAN CHƯƠNG TRÌNH ĐÀO TẠO & HỆ THỐNG VMG ENGLISH
+
+Dựa trên tài liệu chuyên môn, VMG English hiện cung cấp **5 chương trình đào tạo chính**, bao phủ từ độ tuổi mầm non đến người đi làm. Các ước tính thời gian dưới đây được tính dựa trên lịch học tiêu chuẩn phổ biến (3 buổi/tuần, mỗi buổi 1.5 giờ).
+
+## PHẦN 1: CHI TIẾT LỘ TRÌNH HỌC
+
+### 1. E-PIONEER (Tiếng Anh Mầm Non)
+*   **Đối tượng:** 4 - 6 tuổi.
+*   **Mục tiêu:** Phát triển tư duy, làm quen tiếng Anh tự nhiên, rèn luyện kỹ năng mềm.
+*   **Giáo trình:** Learn with Ollie.
+*   **Cấu trúc & Thời gian:**
+    *   **Tổng quan:** 3 Cấp độ lớn (Level 1, 2, 3). Mỗi cấp độ gồm 4 khóa nhỏ.
+    *   **Thời lượng:** 76.5 giờ/Level.
+    *   **Thời gian hoàn thành:** Khoảng **4.5 tháng/Level**. (Tổng lộ trình trọn vẹn khoảng 13-14 tháng).
+
+### 2. E-CONTENDER (Tiếng Anh Tiền Tiểu Học - Tiểu Học)
+*   **Đối tượng:** 5 - 6 tuổi (Giai đoạn chuyển tiếp lên tiểu học).
+*   **Mục tiêu:** Xây dựng nền tảng vững chắc, chuẩn bị cho hành trình chinh phục Starters/Movers/Flyers.
+*   **Giáo trình:** Happy Campers.
+*   **Cấu trúc & Thời gian:**
+    *   **Tổng quan:** 2 Cấp độ (Happy Campers 1 & 2). Mỗi cấp độ gồm 2 khóa nhỏ.
+    *   **Thời lượng:** 36 giờ/khóa nhỏ.
+    *   **Thời gian hoàn thành:**
+        *   Mỗi khóa nhỏ: Khoảng **2 tháng**.
+        *   Trọn vẹn 1 Cấp độ: Khoảng **4 tháng**.
+
+### 3. E-GENIUS (Tiếng Anh Thiếu Nhi)
+*   **Đối tượng:** 6 - 11 tuổi.
+*   **Mục tiêu:** Chinh phục chứng chỉ Cambridge (Starters, Movers, Flyers) và phát triển toàn diện 4 kỹ năng.
+*   **Giáo trình:** Share It!
+*   **Điểm đặc biệt:** Được tặng thêm 54 giờ luyện thi Cambridge miễn phí.
+*   **Cấu trúc & Thời gian:**
+    *   **Lộ trình:** 3 Cấp độ (Starters - Movers - Flyers). Mỗi cấp độ gồm 4 khóa nhỏ (ví dụ: e-Genius 1, 2, 3, 4).
+    *   **Thời lượng:** 36 giờ/khóa nhỏ (Tổng 1 Level lớn là 144 giờ).
+    *   **Thời gian hoàn thành:**
+        *   Mỗi khóa nhỏ: Khoảng **2 tháng**.
+        *   Trọn vẹn 1 Cấp độ (VD: xong hết Starters): Khoảng **8 - 9 tháng**.
+
+### 4. NEXTGEN IELTS (Tiếng Anh Thiếu Niên - Định hướng IELTS)
+*   **Đối tượng:** 12 - 17 tuổi.
+*   **Mục tiêu:** Xây dựng nền tảng học thuật và đạt điểm IELTS mục tiêu (từ 3.0 đến 7.0+).
+*   **Cấu trúc & Thời gian:**
+    *   **Nhóm Nền tảng (IELTS Onset, Premier+, Milestone 4.0+):**
+        *   Thời lượng: 42 giờ/khóa.
+        *   Thời gian hoàn thành: Khoảng **2.5 tháng/khóa**.
+    *   **Nhóm Tăng tốc (IELTS Milestone 5.0, 6.0, 7.0):**
+        *   Thời lượng: 54 giờ/khóa.
+        *   Thời gian hoàn thành: Khoảng **3 tháng/khóa**.
+
+### 5. E-PLUS (Tiếng Anh Giao Tiếp)
+*   **Đối tượng:** Từ 17 tuổi trở lên (Sinh viên, Người đi làm).
+*   **Mục tiêu:** Giao tiếp tự tin, phản xạ nhanh, phục vụ công việc và đời sống.
+*   **Điểm đặc biệt:** 50% thời lượng học với Giáo viên bản xứ, tập trung Nghe - Nói.
+*   **Cấu trúc & Thời gian:**
+    *   **Lộ trình:** 5 Cấp độ (Pre E-Plus đến E-Plus 4).
+    *   **Thời lượng:** 36 giờ/khóa.
+    *   **Thời gian hoàn thành:** Khoảng **1 - 2 tháng/khóa** (Lộ trình linh hoạt 4-8 tuần tùy tần suất học).
+
+---
+
+## PHẦN 2: BẢNG TÓM TẮT DÀNH CHO TƯ VẤN VIÊN
+*(Lưu ý: Thời gian ước tính dựa trên lịch học 3 buổi/tuần)*
+
+| Chương trình | Đối tượng | Thời gian xong 1 Khóa lẻ (để chốt sales) | Thời gian xong 1 Cấp độ lớn (để cam kết lộ trình) |
+| :--- | :--- | :--- | :--- |
+| **E-PIONEER** | Mầm non | N/A (Học theo Level lớn) | **~4.5 tháng** / Level |
+| **E-CONTENDER** | Tiền Tiểu học | **~2 tháng** / Khóa | **~4 tháng** / Cấp độ (Happy Campers) |
+| **E-GENIUS** | Thiếu nhi | **~2 tháng** / Khóa | **~8 - 9 tháng** / Cấp độ (Starters...) |
+| **IELTS (Cơ bản)** | Thiếu niên | **~2.5 tháng** / Khóa | Tùy mục tiêu điểm số |
+| **IELTS (Cao cấp)**| Thiếu niên | **~3 tháng** / Khóa | Tùy mục tiêu điểm số |
+| **E-PLUS** | Giao tiếp | **1 - 2 tháng** / Khóa | Tùy năng lực đầu vào |
+
+---
+
+## PHẦN 3: DANH SÁCH HỆ THỐNG TRUNG TÂM VMG
+
+### Khu vực Đồng Nai (Biên Hòa & Các huyện)
+1.  **CN Đồng Nai 1:** E99 Võ Thị Sáu, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
+2.  **CN Đồng Nai 2:** 1209 Phạm Văn Thuận, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
+3.  **CN Đồng Nai 3:** 388 Nguyễn Khuyến, Phường Trảng Dài, TP. Biên Hòa.
+4.  **CN Đồng Nai 4:** 23 Trương Định, Phường Tam Hiệp, TP. Biên Hòa.
+5.  **CN Đồng Nai 5:** 438C Đinh Quang Ân, Phường Phước Tân, TP. Biên Hòa.
+6.  **CN Đồng Nai 6:** 1 Nguyễn Trãi, Phường Xuân Hòa, TP. Long Khánh.
+7.  **CN Đồng Nai 7:** 505 Lê Duẩn, Thị trấn Long Thành, Huyện Long Thành.
+8.  **CN Đồng Nai 8:** Số 668 đường Trần Phú, Xã Nhơn Trạch, Huyện Nhơn Trạch.
+9.  **CN Đồng Nai 9:** Số 132 đường Hùng Vương, Thị trấn Gia Ray, Huyện Xuân Lộc.
+10. **CN Đồng Nai 10:** Số 15 - 17, đường 30/4, Thị trấn Trảng Bom, Huyện Trảng Bom.
+11. **CN Đồng Nai 11:** A33 Lý Thái Tổ, Xã Đại Phước, Huyện Nhơn Trạch.
+
+### Khu vực Bình Phước
+12. **CN Đồng Nai 12 (Bình Phước):** Lô 6-7, KP Tân Đồng I, Đường Phú Riềng Đỏ, Phường Tân Thiện, TP. Đồng Xoài, Bình Phước.
