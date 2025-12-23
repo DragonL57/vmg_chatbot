@@ -7,6 +7,7 @@
 3. **Heavy Linting & Type Safety:** Rely on strict TypeScript types and comprehensive linting (ESLint, Prettier) to ensure code quality.
 4. **User Experience First:** Every decision should prioritize user experience
 5. **Non-Interactive & CI-Aware:** Prefer non-interactive commands. Use `CI=true` for watch-mode tools (linters) to ensure single execution.
+6. **User Execution Model:** The agent operates in WSL, while the user operates in Windows. Therefore, the agent **MUST NOT** execute commands directly (e.g., `npm install`, `pnpm run dev`, `create-next-app`). Instead, the agent **MUST** provide the exact PowerShell command for the user to run. The user will execute the command and paste the output back to the agent.
 
 ## Task Workflow
 
@@ -19,12 +20,20 @@ All tasks follow a strict lifecycle:
 2. **Mark In Progress:** Before beginning work, edit `plan.md` and change the task from `[ ]` to `[~]`
 
 3. **Implement Functionality:**
-   - Write the application code for the task.
-   - Ensure code adheres to strict TypeScript types and linting rules.
+   - Write the application code for the task using file manipulation tools (`write_file`, `replace`).
+   - **For Command Execution:** If a shell command is needed (e.g., installing packages, initializing projects), **do not run it**.
+     - **Action:** Output the command clearly for the user.
+     - **Example:** "Please run the following command in your PowerShell terminal and paste the output here:"
+       ```powershell
+       pnpm install specific-package
+       ```
+     - **Action:** Wait for the user to provide the output.
 
 4. **Lint & Type Check:**
-   - Run linting and type checking commands.
-   - Fix all errors and warnings.
+   - **Action:** Request the user to run linting and type checking commands.
+   - **Command:** `pnpm run lint` and `pnpm exec tsc --noEmit`
+   - **Action:** Analyze the pasted output.
+   - Fix all errors and warnings via file manipulation tools.
 
 5. **Document Deviations:** If implementation differs from tech stack:
    - **STOP** implementation
@@ -35,24 +44,24 @@ All tasks follow a strict lifecycle:
 6. **Commit Code Changes:**
    - Stage all code changes related to the task.
    - Propose a clear, concise commit message e.g, `feat(ui): Create basic HTML structure for calculator`.
-   - Perform the commit.
+   - **Action:** Request the user to perform the commit.
 
 7. **Attach Task Summary with Git Notes:**
-   - **Step 7.1: Get Commit Hash:** Obtain the hash of the *just-completed commit* (`git log -1 --format="%H"`).
-   - **Step 7.2: Draft Note Content:** Create a detailed summary for the completed task. This should include the task name, a summary of changes, a list of all created/modified files, and the core "why" for the change.
-   - **Step 7.3: Attach Note:** Use the `git notes` command to attach the summary to the commit.
-     ```bash
+   - **Step 7.1: Request Commit Hash:** Ask the user for the hash of the *just-completed commit*.
+   - **Step 7.2: Draft Note Content:** Create a detailed summary for the completed task.
+   - **Step 7.3: Request Note Attachment:** Ask the user to run the `git notes` command.
+     ```powershell
      # The note content from the previous step is passed via the -m flag.
      git notes add -m "<note content>" <commit_hash>
      ```
 
 8. **Get and Record Task Commit SHA:**
-    - **Step 8.1: Update Plan:** Read `plan.md`, find the line for the completed task, update its status from `[~]` to `[x]`, and append the first 7 characters of the *just-completed commit's* commit hash.
+    - **Step 8.1: Update Plan:** Read `plan.md`, find the line for the completed task, update its status from `[~]` to `[x]`, and append the first 7 characters of the *just-completed commit's* commit hash provided by the user.
     - **Step 8.2: Write Plan:** Write the updated content back to `plan.md`.
 
 9. **Commit Plan Update:**
     - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Commit this change with a descriptive message (e.g., `conductor(plan): Mark task 'Create user model' as complete`).
+    - **Action:** Request the user to commit this change with a descriptive message (e.g., `conductor(plan): Mark task 'Create user model' as complete`).
 
 ### Phase Completion Verification and Checkpointing Protocol
 
@@ -61,8 +70,8 @@ All tasks follow a strict lifecycle:
 1.  **Announce Protocol Start:** Inform the user that the phase is complete and the verification and checkpointing protocol has begun.
 
 2.  **Ensure Linting & Type Safety for Phase Changes:**
-    -   Execute `pnpm run lint` and `pnpm exec tsc --noEmit` to verify the phase.
-    -   If errors occur, you **must** inform the user and begin debugging. You may attempt to propose a fix a **maximum of two times**. If the checks still fail after your second proposed fix, you **must stop**, report the persistent failure, and ask the user for guidance.
+    -   Request the user to execute `pnpm run lint` and `pnpm exec tsc --noEmit` to verify the phase.
+    -   If errors occur, you **must** inform the user and begin debugging by modifying files. You may attempt to propose a fix a **maximum of two times**. If the checks still fail after your second proposed fix, you **must stop**, report the persistent failure, and ask the user for guidance.
 
 3.  **Propose a Detailed, Actionable Manual Verification Plan:**
     -   **CRITICAL:** To generate the plan, first analyze `product.md`, `product-guidelines.md`, and `plan.md` to determine the user-facing goals of the completed phase.
@@ -83,21 +92,21 @@ All tasks follow a strict lifecycle:
     -   **PAUSE** and await the user's response. Do not proceed without an explicit yes or confirmation.
 
 5.  **Create Checkpoint Commit:**
-    -   Stage all changes. If no changes occurred in this step, proceed with an empty commit.
-    -   Perform the commit with a clear and concise message (e.g., `conductor(checkpoint): Checkpoint end of Phase X`).
+    -   Request the user to stage all changes. If no changes occurred in this step, request an empty commit.
+    -   Request the commit with a clear and concise message (e.g., `conductor(checkpoint): Checkpoint end of Phase X`).
 
 6.  **Attach Auditable Verification Report using Git Notes:**
     -   **Step 6.1: Draft Note Content:** Create a detailed verification report including the lint/type check results, the manual verification steps, and the user's confirmation.
-    -   **Step 6.2: Attach Note:** Use the `git notes` command and the full commit hash from the previous step to attach the full report to the checkpoint commit.
+    -   **Step 6.2: Attach Note:** Request the user to use the `git notes` command and the full commit hash from the previous step to attach the full report to the checkpoint commit.
 
 7.  **Get and Record Phase Checkpoint SHA:**
-    -   **Step 7.1: Get Commit Hash:** Obtain the hash of the *just-created checkpoint commit* (`git log -1 --format="%H"`).
+    -   **Step 7.1: Request Commit Hash:** Obtain the hash of the *just-created checkpoint commit* from the user.
     -   **Step 7.2: Update Plan:** Read `plan.md`, find the heading for the completed phase, and append the first 7 characters of the commit hash in the format `[checkpoint: <sha>]`.
     -   **Step 7.3: Write Plan:** Write the updated content back to `plan.md`.
 
 8. **Commit Plan Update:**
     - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Commit this change with a descriptive message following the format `conductor(plan): Mark phase '<PHASE NAME>' as complete`.
+    - **Action:** Request the user to commit this change with a descriptive message following the format `conductor(plan): Mark phase '<PHASE NAME>' as complete`.
 
 9.  **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been created, with the detailed verification report attached as a git note.
 

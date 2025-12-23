@@ -1,7 +1,7 @@
 # Plan: Foundational URASys Infrastructure
 
 ## Phase 1: Project Scaffolding
-- [ ] Task: Initialize Next.js fullstack project with Tailwind CSS and pnpm.
+- [~] Task: Initialize Next.js fullstack project with Tailwind CSS and pnpm.
 - [ ] Task: Set up environment variable handling for POE, Gemini, and Qdrant.
 - [ ] Task: Conductor - User Manual Verification 'Project Scaffolding' (Protocol in workflow.md)
 

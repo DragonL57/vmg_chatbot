@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Foundational URASys Infrastructure
+## [~] Track: Foundational URASys Infrastructure
 *Link: [./conductor/tracks/foundational_urasys_20251222/](./conductor/tracks/foundational_urasys_20251222/)*
