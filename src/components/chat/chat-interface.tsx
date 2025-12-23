@@ -95,15 +95,15 @@ export const ChatInterface: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col bg-slate-50 w-full md:max-w-4xl mx-auto overflow-hidden md:shadow-2xl md:my-4 md:rounded-2xl md:border border-slate-200"
+      className="flex flex-col bg-slate-50 w-full mx-auto overflow-hidden"
       style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
     >
       {/* VMG Brand Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="bg-[#D32F2F] p-2 rounded-xl shadow-sm">
-              <GraduationCap className="w-6 h-6 text-white" />
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 h-11 w-11 flex items-center justify-center overflow-hidden">
+              <img src="/apple-icon.svg" alt="VMG Logo" className="h-9 w-9 object-contain" />
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
