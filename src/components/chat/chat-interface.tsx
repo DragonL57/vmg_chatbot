@@ -111,8 +111,8 @@ export const ChatInterface: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col bg-slate-50 w-full mx-auto overflow-hidden"
-      style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+      className="flex flex-col bg-slate-50 w-full mx-auto overflow-hidden fixed inset-0 md:relative"
+      style={{ height: 'var(--vv-height, 100vh)' }}
     >
       {/* VMG Brand Header */}
       <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
