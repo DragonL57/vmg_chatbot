@@ -1,50 +1,50 @@
-import React, { useState, KeyboardEvent } from 'react';
+import React, { KeyboardEvent } from 'react';
 
 interface ChatInputProps {
-  onSendMessage: (content: string) => void;
+  input: string;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
 }
 
 /**
  * Input component for the chat interface.
  * Handles text input, Enter key submission, and loading state.
+ * Integrated with Vercel AI SDK.
  * 
  * @param {ChatInputProps} props - The component props
- * @param {(content: string) => void} props.onSendMessage - Callback function when a message is sent
+ * @param {string} props.input - Current input value
+ * @param {function} props.handleInputChange - Handler for input changes
+ * @param {function} props.handleSubmit - Handler for form submission
  * @param {boolean} props.isLoading - Whether the chat is currently waiting for a response
  * @returns {JSX.Element} The rendered chat input
  */
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
-  const [input, setInput] = useState('');
-
-  const handleSend = () => {
-    if (input.trim() && !isLoading) {
-      onSendMessage(input.trim());
-      setInput('');
-    }
-  };
-
+export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, handleSubmit, isLoading }) => {
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      // Create a synthetic form event to trigger submit
+      const form = e.currentTarget.closest('form');
+      if (form) {
+        form.requestSubmit();
+      }
     }
   };
 
   return (
     <div className="border-t bg-white p-4">
-      <div className="flex items-end gap-2 max-w-4xl mx-auto">
+      <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-4xl mx-auto">
         <textarea
           rows={1}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyPress}
           placeholder="Nhập câu hỏi của bạn tại đây..."
           disabled={isLoading}
           className="flex-1 resize-none rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D32F2F] disabled:bg-gray-50"
         />
         <button
-          onClick={handleSend}
+          type="submit"
           disabled={!input.trim() || isLoading}
           className="bg-[#D32F2F] text-white rounded-lg p-2 hover:bg-[#B71C1C] disabled:bg-gray-300 transition-colors"
           title="Gửi"
@@ -62,7 +62,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
             </svg>
           )}
         </button>
-      </div>
+      </form>
     </div>
   );
 };

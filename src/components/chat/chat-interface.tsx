@@ -8,40 +8,86 @@ import { v4 as uuidv4 } from 'uuid';
 
 /**
  * The main chat interface component for URASys.
- * Handles message state, simulates backend responses (for now),
- * and coordinates the message list and input components.
+ * Handles message state and streams backend responses manually.
  * 
  * @returns {JSX.Element} The rendered chat interface
  */
 export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendMessage = async (content: string) => {
-    // Add user message
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+  };
+
+  const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
     const userMessage: Message = {
       id: uuidv4(),
       role: 'user',
-      content,
+      content: input.trim(),
       timestamp: new Date(),
     };
+
     setMessages((prev) => [...prev, userMessage]);
-    
-    // Set loading for assistant response
+    setInput('');
     setIsLoading(true);
 
-    // TODO: Integrate with actual backend in next task
-    // For now, simulate a response
-    setTimeout(() => {
+    try {
+      // Prepare messages for backend (exclude ID and timestamp)
+      const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      // Initialize assistant message
+      const assistantId = uuidv4();
       const assistantMessage: Message = {
-        id: uuidv4(),
+        id: assistantId,
         role: 'assistant',
-        content: `Cảm ơn bạn đã quan tâm. Tôi là trợ lý ảo của VMG English Center. Tôi đã nhận được câu hỏi: "${content}". Tính năng trả lời tự động đang được tích hợp.`,
+        content: '',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Read the stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: !done });
+        
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.id === assistantId 
+              ? { ...msg, content: msg.content + chunkValue } 
+              : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      alert('An error occurred while sending your message. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -68,7 +114,12 @@ export const ChatInterface: React.FC = () => {
       <MessageList messages={messages} />
 
       {/* Chat Input */}
-      <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+      <ChatInput 
+        input={input}
+        handleInputChange={handleInputChange}
+        handleSubmit={handleSendMessage}
+        isLoading={isLoading} 
+      />
       
       {/* Footer */}
       <footer className="bg-gray-50 text-[10px] text-gray-400 p-2 text-center border-t">
