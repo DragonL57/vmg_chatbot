@@ -297,22 +297,36 @@ async function ensureCollection(name: string) {
 
         // Mistral Embed is 1024 dimensions
 
-        await qdrant.createCollection(name, {
+                await qdrant.createCollection(name, {
 
-            vectors: {
+                    vectors: {
 
-                size: 1024,
+                        size: 1024,
 
-                distance: 'Cosine'
+                        distance: 'Cosine'
+
+                    }
+
+                });
+
+                console.log(`Collection '${name}' created.`);
+
+        
+
+                // Create payload index for 'source' to allow filtered deletions
+
+                console.log(`Creating payload index for 'source' in '${name}'...`);
+
+                await qdrant.createPayloadIndex(name, {
+
+                    field_name: 'source',
+
+                    field_schema: 'keyword'
+
+                });
 
             }
 
-        });
-
-        console.log(`Collection '${name}' created.`);
-
-    }
-
-}
+        }
 
 main().catch(console.error);
