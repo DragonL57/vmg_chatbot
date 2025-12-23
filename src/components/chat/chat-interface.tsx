@@ -103,8 +103,8 @@ export const ChatInterface: React.FC = () => {
       {/* VMG Header */}
       <header className="bg-[#D32F2F] text-white p-4 shadow-md flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-white p-1 rounded-full text-[#D32F2F] font-bold text-xl h-10 w-10 flex items-center justify-center">
-            V
+          <div className="bg-white p-1 rounded-full h-10 w-10 flex items-center justify-center overflow-hidden">
+            <img src="/apple-icon.svg" alt="VMG Logo" className="h-8 w-8 object-contain" />
           </div>
           <div>
             <h1 className="font-serif text-lg font-bold leading-tight">VMG English Center</h1>
