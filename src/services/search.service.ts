@@ -15,8 +15,11 @@ export class SearchService {
   static async searchDocuments(query: string, limit: number = 5): Promise<SearchResult[]> {
     try {
       // 1. Generate embedding for the query
-      // Use RETRIEVAL_QUERY task type for better matching against documents
       const vector = await EmbeddingService.embed(query, 'RETRIEVAL_QUERY');
+
+      if (!vector) {
+        return [];
+      }
 
       // 2. Perform vector search in Qdrant
       const results = await qdrant.search(COLLECTIONS.DOCUMENTS, {
@@ -49,6 +52,10 @@ export class SearchService {
     try {
       // Use RETRIEVAL_QUERY task type
       const vector = await EmbeddingService.embed(query, 'RETRIEVAL_QUERY');
+
+      if (!vector) {
+        return [];
+      }
 
       const results = await qdrant.search(COLLECTIONS.FAQS, {
         vector,

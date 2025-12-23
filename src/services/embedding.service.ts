@@ -1,81 +1,117 @@
-import { google } from '@/lib/gemini';
-import { embed, embedMany } from 'ai';
+import { env } from '@/env';
 
 /**
- * Task types supported by Google Generative AI embedding models.
- */
-export type EmbeddingTaskType = 
-  | 'SEMANTIC_SIMILARITY' 
-  | 'CLASSIFICATION' 
-  | 'CLUSTERING' 
-  | 'RETRIEVAL_DOCUMENT' 
-  | 'RETRIEVAL_QUERY' 
-  | 'QUESTION_ANSWERING' 
-  | 'FACT_VERIFICATION'
-  | 'CODE_RETRIEVAL_QUERY';
-
-/**
- * Service for generating text embeddings using Google Gemini via Vercel AI SDK.
+ * Service for generating text embeddings using Mistral AI API.
+ * Model: mistral-embed
+ * Dimensions: 1024
  */
 export class EmbeddingService {
-  private static readonly MODEL_ID = 'gemini-embedding-001';
+  private static readonly API_URL = "https://api.mistral.ai/v1/embeddings";
+  private static readonly cache = new Map<string, number[]>();
 
   /**
-   * Generates an embedding for a single text.
-   * 
-   * @param text - The text to embed.
-   * @param taskType - Optional task type to optimize the embedding.
-   * @returns The embedding vector (number[]).
+   * Generates an embedding for a given text.
+   * Includes simple caching to avoid redundant API calls.
    */
-  static async embed(
-    text: string,
-    taskType?: EmbeddingTaskType
-  ): Promise<number[]> {
+  public static async embed(text: string, taskType?: string): Promise<number[]> {
+    const cleanText = text.trim().replace(/\n/g, " ");
+    if (!cleanText) return [];
+
+    if (this.cache.has(cleanText)) {
+      return this.cache.get(cleanText)!;
+    }
+
     try {
-      const { embedding } = await embed({
-        model: google.embedding(this.MODEL_ID),
-        value: text,
-        providerOptions: {
-          google: {
-            taskType,
-            outputDimensionality: 768,
-          },
+      const response = await fetch(this.API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.MISTRAL_API_KEY}`,
         },
+        body: JSON.stringify({
+          model: "mistral-embed",
+          input: [cleanText],
+        }),
       });
 
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Mistral API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+      }
+
+      const result = await response.json();
+      const embedding = result.data?.[0]?.embedding;
+
+      if (!Array.isArray(embedding) || embedding.length !== 1024) {
+        throw new Error("Invalid embedding format or dimension from Mistral");
+      }
+
+      this.cache.set(cleanText, embedding);
       return embedding;
     } catch (error) {
-      console.error('Error in EmbeddingService.embed:', error);
+      console.error("Error generating embedding:", error);
       throw error;
     }
   }
 
   /**
-   * Generates embeddings for multiple texts in batch
-   * 
-   * @param texts - Array of strings to embed.
-   * @param taskType - Optional task type to optimize the embeddings.
-   * @returns Array of embedding vectors (number[][]).
+   * Generates embeddings for multiple texts in a single batch.
    */
-  static async embedMany(
-    texts: string[],
-    taskType?: EmbeddingTaskType
-  ): Promise<number[][]> {
+  public static async embedMany(texts: string[], taskType?: string): Promise<number[][]> {
+    const results: (number[] | null)[] = new Array(texts.length).fill(null);
+    const toFetch: { text: string; index: number }[] = [];
+
+    // Check cache first
+    texts.forEach((text, i) => {
+      const cleanText = text.trim().replace(/\n/g, " ");
+      if (this.cache.has(cleanText)) {
+        results[i] = this.cache.get(cleanText)!;
+      } else if (cleanText) {
+        toFetch.push({ text: cleanText, index: i });
+      } else {
+        results[i] = new Array(1024).fill(0);
+      }
+    });
+
+    if (toFetch.length === 0) return results as number[][];
+
     try {
-      const { embeddings } = await embedMany({
-        model: google.embedding(this.MODEL_ID),
-        values: texts,
-        providerOptions: {
-          google: {
-            taskType,
-            outputDimensionality: 768,
-          },
+      // Mistral supports batching
+      const response = await fetch(this.API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.MISTRAL_API_KEY}`,
         },
+        body: JSON.stringify({
+          model: "mistral-embed",
+          input: toFetch.map((f) => f.text),
+        }),
       });
 
-      return embeddings;
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Mistral API Error: ${response.status} ${response.statusText} - ${errorBody}`);
+      }
+
+      const result = await response.json();
+      const data = result.data;
+
+      if (Array.isArray(data)) {
+        data.forEach((item: any, i: number) => {
+          const embedding = item.embedding;
+          if (Array.isArray(embedding) && embedding.length === 1024) {
+            const originalIndex = toFetch[i].index;
+            results[originalIndex] = embedding;
+            this.cache.set(toFetch[i].text, embedding);
+          }
+        });
+      }
+
+      // Fill any remaining nulls with zero vectors just in case
+      return results.map(r => r || new Array(1024).fill(0)) as number[][];
     } catch (error) {
-      console.error('Error in EmbeddingService.embedMany:', error);
+      console.error("Error generating batch embeddings:", error);
       throw error;
     }
   }

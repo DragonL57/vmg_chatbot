@@ -1,6 +1,7 @@
 import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
 import { ManagerService } from '@/services/manager.service';
 import { SearchService } from '@/services/search.service';
+import { GuardrailsService } from '@/services/guardrails.service';
 
 export const maxDuration = 60; // Allow 60s for RAG operations
 
@@ -11,6 +12,12 @@ export async function POST(req: Request) {
 
     if (!lastMessage) {
         return new Response('No messages provided', { status: 400 });
+    }
+
+    // 0. Policy Check (Guardrails)
+    const guardrail = await GuardrailsService.validate(lastMessage.content);
+    if (!guardrail.safe) {
+      return new Response(guardrail.reason || "Yêu cầu của bạn bị từ chối do vi phạm chính sách.", { status: 400 });
     }
 
     // 1. Manager Analysis
@@ -43,6 +50,7 @@ Mỗi câu trả lời của bạn cần ngầm định giải quyết các mố
 
 # RÀNG BUỘC PHỦ ĐỊNH (NEGATIVE CONSTRAINTS)
 - **HỌC PHÍ:** Tuyệt đối KHÔNG thảo luận chi tiết về giá tiền hoặc học phí cụ thể trên web. Khi khách hàng hỏi về học phí, bạn phải trả lời rằng: "Trên trang web không tiện trao đổi về học phí, bạn hãy liên hệ số hotline là **1900636838** để được tư vấn chi tiết về học phí nhé".
+- **BẢO MẬT KHÓA HỌC:** KHÔNG tiết lộ chi tiết nội dung giáo trình, mã bài học hay tài liệu nội bộ cụ thể. Chỉ tập trung tư vấn **Lộ trình học (Roadmap)** và **Định hướng đầu ra**.
 - KHÔNG tự bịa ra thông tin (hallucination). Nếu không có trong Context, hãy mời khách để lại thông tin hoặc gọi Hotline.
 - KHÔNG nhắc đến các thuật ngữ nội bộ như "hệ thống tra cứu", "chunk dữ liệu", "context".
 - KHÔNG so sánh tiêu cực với các trung tâm khác.

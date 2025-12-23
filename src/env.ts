@@ -6,7 +6,7 @@ export const env = createEnv({
   server: {
     POE_API_KEY: z.string().min(1),
     POE_BOT_NAME: z.string().min(1),
-    GOOGLE_API_KEY: z.string().min(1),
+    MISTRAL_API_KEY: z.string().min(1),
     QDRANT_URL: z.string().url(),
     QDRANT_API_KEY: z.string().optional(),
   },

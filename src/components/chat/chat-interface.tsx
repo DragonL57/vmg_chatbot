@@ -115,15 +115,14 @@ export const ChatInterface: React.FC = () => {
           <div>
             <h1 className="font-serif text-lg font-bold leading-tight">VMG English Center</h1>
             <div className="flex items-center gap-2">
-              <p className="text-[10px] uppercase tracking-widest opacity-80">Unified Retrieval Agent-Based System</p>
               <a 
                 href="https://openreview.net/pdf?id=AgntWJqRZG" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-[10px] bg-white/20 hover:bg-white/30 px-1 rounded transition-colors"
+                className="text-[10px] uppercase tracking-widest opacity-80 hover:opacity-100 transition-opacity underline-offset-2 hover:underline"
                 title="Read the URASys Paper"
               >
-                Paper 📄
+                Unified Retrieval Agent-Based System
               </a>
             </div>
           </div>
