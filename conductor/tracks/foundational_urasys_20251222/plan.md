@@ -9,7 +9,7 @@
 - [x] Task: Implement POE API client (OpenAI-compatible) in Next.js. [aa090b0]
 - [x] Task: Implement Gemini Embedding client using `@google/generative-ai`. [6472ce4]
 - [x] Task: Implement Manager Agent with query decomposition logic. [522b435]
-- [~] Task: Implement Document and FAQ Search Agents with Qdrant integration (`@qdrant/js-client-rest`).
+- [x] Task: Implement Document and FAQ Search Agents with Qdrant integration (`@qdrant/js-client-rest`). [d9e6f35]
 - [ ] Task: Conductor - User Manual Verification 'Core Agent Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Dual-Phase Indexing Pipeline (Initial)
