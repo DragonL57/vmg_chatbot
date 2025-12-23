@@ -17,7 +17,6 @@ export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isClarifying, setIsClarifying] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -37,7 +36,6 @@ export const ChatInterface: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    setIsClarifying(false);
 
     try {
       const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
@@ -51,13 +49,15 @@ export const ChatInterface: React.FC = () => {
       if (!response.ok) throw new Error('Network response was not ok');
       if (!response.body) throw new Error('No response body');
 
+      // Check for ambiguity header
       const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
-      if (ambiguousHeader === 'true') setIsClarifying(true);
-
+      
+      // Read the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
       let assistantId = '';
+      let fullContent = '';
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -65,6 +65,7 @@ export const ChatInterface: React.FC = () => {
         const chunkValue = decoder.decode(value, { stream: !done });
         
         if (chunkValue) {
+          fullContent += chunkValue;
           if (!assistantId) {
             assistantId = uuidv4();
             const assistantMessage: Message = {
@@ -84,6 +85,18 @@ export const ChatInterface: React.FC = () => {
             );
           }
         }
+      }
+
+      // If ambiguous, append the clarification reminder
+      if (ambiguousHeader === 'true') {
+        const reminderId = uuidv4();
+        const reminderMessage: Message = {
+          id: reminderId,
+          role: 'assistant',
+          content: 'Dạ, bạn vui lòng phản hồi câu hỏi phía trên để mình tư vấn chính xác nhất nhé 😊',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, reminderMessage]);
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -129,20 +142,6 @@ export const ChatInterface: React.FC = () => {
       {/* Message List Area */}
       <div className="flex-1 overflow-hidden flex flex-col relative">
         <MessageList messages={messages} isLoading={isLoading} />
-        
-        {/* Clarification Overlay/Indicator */}
-        {isClarifying && !isLoading && (
-          <div className="absolute bottom-2 left-2 right-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 shadow-lg flex items-start gap-2.5">
-              <div className="bg-amber-100 p-1.5 rounded-md shrink-0">
-                <MessageSquare className="w-4 h-4 text-amber-600" />
-              </div>
-              <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
-                Dạ, bạn vui lòng phản hồi câu hỏi phía trên để mình tư vấn chính xác nhất nhé 😊
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Chat Input Area */}

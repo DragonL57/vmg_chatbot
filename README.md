@@ -1,84 +1,107 @@
 # URASys - VMG English Center Chatbot
 
-A Unified Retrieval Agent-Based System (URASys) designed for VMG English Center to provide precise, context-aware answers regarding courses, tuition, and policies. It leverages a dual-retrieval pipeline (Document Search + FAQ Search) and an agentic workflow to handle user queries effectively.
+A Unified Retrieval Agent-Based System (URASys) designed for VMG English Center to provide precise, context-aware answers regarding courses, tuition, and policies. It leverages a multi-agent orchestration layer and a dual-retrieval pipeline.
+
+## 🏗 Multi-Agent Architecture
+
+URASys operates through a collaborative ecosystem of specialized agents, each handling a specific part of the user journey.
+
+```mermaid
+graph TD
+    subgraph User_Interface [Mobile-First UI]
+        UI[Next.js Chat Interface]
+    end
+
+    subgraph Processing_Layer [Next.js API Route]
+        GA[Guardrails Agent]
+        MA[Manager Agent]
+        RE[Retrieval Engine]
+        MS[Master Agent]
+    end
+
+    subgraph Knowledge_Layer [Qdrant Vector DB]
+        DC[Documents: 1024-dim]
+        FC[FAQ Bank: 1024-dim]
+    end
+
+    UI -->|1. Message| GA
+    GA -->|2. Safety Check| MA
+    MA -->|3. Decomposition| RE
+    RE <-->|4. Vector Search| Knowledge_Layer
+    RE -->|5. Context| MS
+    MS -->|6. Final Response| UI
+```
+
+### The Agents
+1.  **Guardrails Agent (`GuardrailsService`):** The first line of defense. It validates user input for safety, harmful content, and prompt injection attempts.
+2.  **Manager Agent (`ManagerService`):** The orchestrator. It analyzes the conversation history to resolve ambiguity (Query Refinement) and decomposes complex questions into optimized sub-queries for retrieval.
+3.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. It performs parallel semantic searches across unstructured document chunks and a high-precision Q&A Bank.
+4.  **Master Agent (Route Handler):** The synthesizer. It combines the retrieved context, static program overview (`vmg-overview.md`), and VMG's specific persona guidelines into a coherent, helpful, and branded response.
+
+---
 
 ## 🚀 Key Features
 
-*   **Study Advisor Persona:** An empathetic and professional AI agent that focuses on user outcomes, quality, and convenience.
-*   **Dual-Phase Retrieval:** Combines semantic search over unstructured documents with a high-precision FAQ lookup.
-*   **Interactive Clarification:** Proactively asks follow-up questions when user intent is ambiguous.
-*   **Incremental Indexing:** Efficiently updates the knowledge base by processing only new or modified files.
-*   **Streaming Responses:** Provides real-time, typewriter-style responses for a better user experience.
-*   **VMG Branding:** Custom UI with VMG's Red/White color scheme and specific tone/style guidelines.
+*   **Mobile-First Design:** Fully responsive UI with custom viewport handling to fix common mobile browser layout issues.
+*   **Dual-Phase Retrieval:** Combines "Document Search" for detail with "FAQ Search" for high-precision matching.
+*   **Ask-and-Augment Strategy:** Automatically transforms raw documents into searchable Q&A pairs during indexing.
+*   **XML-Hybrid Prompting:** System prompts are structured using XML tags for superior LLM instruction following.
+*   **Incremental Indexing:** Smart indexing that only processes new or modified files, respecting rate limits and storage.
 
 ## 🛠 Tech Stack
 
-*   **Frontend:** Next.js 14 (App Router), Tailwind CSS, React Markdown
-*   **Backend:** Next.js Route Handlers (Serverless)
-*   **LLM:** Poe API (OpenAI-compatible) - `grok-4.1-fast-non-reasoning`
-*   **Embeddings:** Google Gemini API - `gemini-embedding-001`
-*   **Vector Database:** Qdrant (Managed Cloud)
+*   **Frontend:** Next.js 14 (App Router), Tailwind CSS, Lucide Icons, React Markdown
+*   **LLM Orchestration:** Poe API (OpenAI-compatible) - `grok-4.1-fast-non-reasoning`
+*   **Embeddings:** Mistral AI - `mistral-embed` (1024 dimensions)
+*   **Vector Database:** Qdrant Cloud
 *   **Language:** TypeScript
+
+---
 
 ## 📦 Setup & Installation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/DragonL57/vmg_chatbot.git
-    cd vmg_chatbot
-    ```
-
-2.  **Install dependencies:**
+1.  **Install dependencies:**
     ```bash
     pnpm install
     ```
 
-3.  **Configure Environment Variables:**
-    Create a `.env` file in the root directory and add the following keys:
+2.  **Configure Environment Variables:**
+    Create a `.env` file based on `.env.example`:
     ```env
     # POE API
-    POE_API_KEY=your_poe_api_key
+    POE_API_KEY=your_key
     POE_BOT_NAME=grok-4.1-fast-non-reasoning
 
-    # Qdrant
-    QDRANT_URL=your_qdrant_url
-    QDRANT_API_KEY=your_qdrant_api_key
+    # Mistral AI
+    MISTRAL_API_KEY=your_key
 
-    # Google Gemini
-    GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
+    # Qdrant
+    QDRANT_URL=your_url
+    QDRANT_API_KEY=your_key
     ```
 
-4.  **Run Development Server:**
+3.  **Run Development Server:**
     ```bash
     pnpm dev
     ```
-    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 📚 Knowledge Base Indexing
+---
 
-URASys uses a script to index markdown documents from the `data/vmg-docs` directory into Qdrant.
+## 📚 Knowledge Management
 
-### Incremental Indexing
-The indexing script is **incremental**, meaning it saves time and resources by:
-1.  **Tracking State:** It maintains a `data/indexing-state.json` file to track the content hash of every indexed file.
-2.  **Detecting Changes:** It only re-indexes files that are **new** or **modified**.
-3.  **Handling Deletions:** It automatically removes embeddings for files that have been **deleted** from the `data/vmg-docs` folder.
+### 1. High-Level Knowledge
+Edit `data/knowledge/vmg-overview.md` to update core program information that the AI should *always* remember without needing retrieval.
 
-### How to Run Indexing
-To update the knowledge base, simply add, edit, or remove `.md` files in `data/vmg-docs` and run:
+### 2. Document Indexing
+To update the vector database with detailed policies:
+1.  Place `.md` files in `data/vmg-docs/`.
+2.  Run the incremental indexing script:
+    ```bash
+    pnpm exec tsx scripts/index-docs.ts
+    ```
+    *Note: This script will automatically handle chunking, title generation, and Q&A expansion.*
 
-```bash
-pnpm exec tsx scripts/index-docs.ts
-```
-
-The script will output a summary of actions (To Index vs. To Remove) and process them automatically.
-
-## 🤝 Contribution
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feat/new-feature`).
-3.  Commit your changes (`git commit -m "feat: add new feature"`).
-4.  Push to the branch (`git push origin feat/new-feature`).
-5.  Open a Pull Request.
+---
 
 ## 📄 License
-[MIT](LICENSE)
+© 2025 VMG English Center. All rights reserved.
