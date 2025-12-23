@@ -6,7 +6,7 @@
 - [x] Task: Conductor - User Manual Verification 'Project Scaffolding' (Protocol in workflow.md) [a733861]
 
 ## Phase 2: Core Agent Implementation (TypeScript)
-- [ ] Task: Implement POE API client (OpenAI-compatible) in Next.js.
+- [~] Task: Implement POE API client (OpenAI-compatible) in Next.js.
 - [ ] Task: Implement Gemini Embedding client using `@google/generative-ai`.
 - [ ] Task: Implement Manager Agent with query decomposition logic.
 - [ ] Task: Implement Document and FAQ Search Agents with Qdrant integration (`@qdrant/js-client-rest`).
