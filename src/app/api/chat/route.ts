@@ -73,6 +73,7 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
+        'X-URASys-Ambiguous': decomposition.isAmbiguous ? 'true' : 'false',
       },
     });
 

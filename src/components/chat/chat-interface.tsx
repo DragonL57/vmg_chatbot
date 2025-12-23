@@ -16,6 +16,7 @@ export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isClarifying, setIsClarifying] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -35,6 +36,7 @@ export const ChatInterface: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setIsClarifying(false); // Reset clarification state for new message
 
     try {
       // Prepare messages for backend (exclude ID and timestamp)
@@ -52,6 +54,12 @@ export const ChatInterface: React.FC = () => {
 
       if (!response.body) {
         throw new Error('No response body');
+      }
+
+      // Check for ambiguity header
+      const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
+      if (ambiguousHeader === 'true') {
+        setIsClarifying(true);
       }
 
       // Initialize assistant message
@@ -112,6 +120,16 @@ export const ChatInterface: React.FC = () => {
 
       {/* Message List */}
       <MessageList messages={messages} />
+
+      {/* Clarification Indicator */}
+      {isClarifying && !isLoading && (
+        <div className="px-4 py-2 bg-yellow-50 border-t border-b border-yellow-100 flex items-center gap-2">
+          <span className="text-yellow-600">💡</span>
+          <p className="text-[11px] text-yellow-800 italic">
+            Trợ lý cần thêm thông tin để trả lời chính xác nhất. Vui lòng phản hồi câu hỏi trên.
+          </p>
+        </div>
+      )}
 
       {/* Chat Input */}
       <ChatInput 
