@@ -51,7 +51,7 @@ export class EmbeddingService {
   }
 
   /**
-   * Generates embeddings for multiple texts in batch.
+   * Generates embeddings for multiple texts in batch
    * 
    * @param texts - Array of strings to embed.
    * @param taskType - Optional task type to optimize the embeddings.
