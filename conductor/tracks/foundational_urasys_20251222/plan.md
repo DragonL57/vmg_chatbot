@@ -13,7 +13,7 @@
 - [x] Task: Conductor - User Manual Verification 'Core Agent Implementation' (Protocol in workflow.md) [730f0a8]
 
 ## Phase 3: Dual-Phase Indexing Pipeline (Initial)
-- [ ] Task: Implement semantic chunking and Title Assigner logic.
+- [~] Task: Implement semantic chunking and Title Assigner logic.
 - [ ] Task: Implement FAQ Creator and Expander logic for 'Ask-and-Augment'.
 - [ ] Task: Create initial index of sample VMG documents.
 - [ ] Task: Conductor - User Manual Verification 'Dual-Phase Indexing Pipeline' (Protocol in workflow.md)
