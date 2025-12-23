@@ -62,33 +62,39 @@ export const ChatInterface: React.FC = () => {
         setIsClarifying(true);
       }
 
-      // Initialize assistant message
-      const assistantId = uuidv4();
-      const assistantMessage: Message = {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-
       // Read the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
+      let assistantId = '';
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         const chunkValue = decoder.decode(value, { stream: !done });
         
-        setMessages((prev) => 
-          prev.map((msg) => 
-            msg.id === assistantId 
-              ? { ...msg, content: msg.content + chunkValue } 
-              : msg
-          )
-        );
+        if (chunkValue) {
+          if (!assistantId) {
+            // Initialize assistant message on first chunk
+            assistantId = uuidv4();
+            const assistantMessage: Message = {
+              id: assistantId,
+              role: 'assistant',
+              content: chunkValue,
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, assistantMessage]);
+          } else {
+            // Append subsequent chunks
+            setMessages((prev) => 
+              prev.map((msg) => 
+                msg.id === assistantId 
+                  ? { ...msg, content: msg.content + chunkValue } 
+                  : msg
+              )
+            );
+          }
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -130,7 +136,7 @@ export const ChatInterface: React.FC = () => {
       </header>
 
       {/* Message List */}
-      <MessageList messages={messages} />
+      <MessageList messages={messages} isLoading={isLoading} />
 
       {/* Clarification Indicator */}
       {isClarifying && !isLoading && (
