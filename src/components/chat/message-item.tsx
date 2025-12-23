@@ -9,58 +9,53 @@ interface MessageItemProps {
 
 /**
  * Individual message component that renders a single chat message.
- * Styles differ based on whether the message is from the user or the assistant.
- * 
- * @param {MessageItemProps} props - The component props
- * @param {Message} props.message - The message object to render
- * @returns {JSX.Element} The rendered message item
  */
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex w-full mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[80%] rounded-lg px-4 py-2 text-sm shadow-sm ${
+        className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative ${
           isUser
-            ? 'bg-[#D32F2F] text-white rounded-br-none'
-            : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+            ? 'bg-[#D32F2F] text-white rounded-tr-sm'
+            : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-slate-200/50'
         }`}
       >
-        <div className="leading-normal">
+        <div className="leading-relaxed">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              p: ({ children }) => <p className="m-0 mb-1 last:mb-0">{children}</p>,
-              ul: ({ children }) => <ul className="list-disc pl-4 m-0 mb-1 last:mb-0">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal pl-4 m-0 mb-1 last:mb-0">{children}</ol>,
-              li: ({ children }) => <li className="m-0 p-0 mb-0.5 last:mb-0">{children}</li>,
-              strong: ({ children }) => <span className="font-bold">{children}</span>,
+              p: ({ children }) => <p className="m-0 mb-1.5 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc pl-5 m-0 mb-1.5 last:mb-0 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-5 m-0 mb-1.5 last:mb-0 space-y-1">{children}</ol>,
+              li: ({ children }) => <li className="m-0 p-0">{children}</li>,
+              strong: ({ children }) => <span className="font-bold text-inherit">{children}</span>,
               a: ({ href, children }) => (
                 <a 
                   href={href} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className={`underline ${isUser ? 'text-white' : 'text-[#D32F2F]'}`}
+                  className={`underline font-medium underline-offset-2 ${isUser ? 'text-white' : 'text-[#D32F2F]'}`}
                 >
                   {children}
                 </a>
               ),
               table: ({ children }) => (
-                <div className="overflow-x-auto my-2">
-                  <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+                <div className="overflow-x-auto my-3 -mx-1">
+                  <table className="min-w-full divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden">
                     {children}
                   </table>
                 </div>
               ),
-              thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+              thead: ({ children }) => <thead className="bg-slate-50">{children}</thead>,
               th: ({ children }) => (
-                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900 border-b border-gray-300">
+                <th className="px-3 py-2 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                   {children}
                 </th>
               ),
               td: ({ children }) => (
-                <td className="px-3 py-2 text-sm text-gray-700 border-b border-gray-200">
+                <td className="px-3 py-2 text-xs text-slate-600 border-b border-slate-100 last:border-0">
                   {children}
                 </td>
               ),
@@ -70,11 +65,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           </ReactMarkdown>
         </div>
         <div
-          className={`text-[10px] mt-1 opacity-70 ${
-            isUser ? 'text-white' : 'text-gray-500'
+          className={`text-[9px] mt-1.5 font-medium flex items-center gap-1 ${
+            isUser ? 'text-white/70' : 'text-slate-400'
           }`}
         >
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {isUser && <span className="text-[8px]">✓</span>}
         </div>
       </div>
     </div>

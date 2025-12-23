@@ -5,14 +5,15 @@ import { Message } from '@/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
 import { v4 as uuidv4 } from 'uuid';
+import { useViewportHeight } from '@/hooks/use-viewport-height';
+import { Info, MessageSquare, Phone, GraduationCap } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
  * Handles message state and streams backend responses manually.
- * 
- * @returns {JSX.Element} The rendered chat interface
  */
 export const ChatInterface: React.FC = () => {
+  useViewportHeight();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,10 +37,9 @@ export const ChatInterface: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    setIsClarifying(false); // Reset clarification state for new message
+    setIsClarifying(false);
 
     try {
-      // Prepare messages for backend (exclude ID and timestamp)
       const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
 
       const response = await fetch('/api/chat', {
@@ -48,21 +48,12 @@ export const ChatInterface: React.FC = () => {
         body: JSON.stringify({ messages: apiMessages }),
       });
 
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
+      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.body) throw new Error('No response body');
 
-      if (!response.body) {
-        throw new Error('No response body');
-      }
-
-      // Check for ambiguity header
       const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
-      if (ambiguousHeader === 'true') {
-        setIsClarifying(true);
-      }
+      if (ambiguousHeader === 'true') setIsClarifying(true);
 
-      // Read the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
@@ -75,7 +66,6 @@ export const ChatInterface: React.FC = () => {
         
         if (chunkValue) {
           if (!assistantId) {
-            // Initialize assistant message on first chunk
             assistantId = uuidv4();
             const assistantMessage: Message = {
               id: assistantId,
@@ -85,7 +75,6 @@ export const ChatInterface: React.FC = () => {
             };
             setMessages((prev) => [...prev, assistantMessage]);
           } else {
-            // Append subsequent chunks
             setMessages((prev) => 
               prev.map((msg) => 
                 msg.id === assistantId 
@@ -98,67 +87,78 @@ export const ChatInterface: React.FC = () => {
       }
     } catch (error) {
       console.error('Chat error:', error);
-      alert('An error occurred while sending your message. Please try again.');
+      alert('Đã có lỗi xảy ra. Vui lòng thử lại sau.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white max-w-4xl mx-auto shadow-2xl">
-      {/* VMG Header */}
-      <header className="bg-[#D32F2F] text-white p-4 shadow-md flex items-center justify-between">
+    <div 
+      className="flex flex-col bg-slate-50 w-full md:max-w-4xl mx-auto overflow-hidden md:shadow-2xl md:my-4 md:rounded-2xl md:border border-slate-200"
+      style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+    >
+      {/* VMG Brand Header */}
+      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="bg-white p-1 rounded-full h-10 w-10 flex items-center justify-center overflow-hidden">
-            <img src="/apple-icon.svg" alt="VMG Logo" className="h-8 w-8 object-contain" />
+          <div className="relative">
+            <div className="bg-[#D32F2F] p-2 rounded-xl shadow-sm">
+              <GraduationCap className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
           <div>
-            <h1 className="font-serif text-lg font-bold leading-tight">VMG English Center</h1>
-            <div className="flex items-center gap-2">
-              <a 
-                href="https://openreview.net/pdf?id=AgntWJqRZG" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-[10px] uppercase tracking-widest opacity-80 hover:opacity-100 transition-opacity underline-offset-2 hover:underline"
-                title="Read the URASys Paper"
-              >
-                Unified Retrieval Agent-Based System
-              </a>
-            </div>
+            <h1 className="text-sm font-bold text-slate-800 leading-none mb-1">VMG English Center</h1>
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Tư vấn viên AI</p>
           </div>
         </div>
-        <div className="text-white opacity-80">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
-          </svg>
+        <div className="flex items-center gap-2">
+           <button 
+             onClick={() => window.location.href = 'tel:1900636838'}
+             className="p-2 text-slate-400 hover:text-[#D32F2F] transition-colors"
+             title="Gọi Hotline"
+           >
+             <Phone className="w-5 h-5" />
+           </button>
+           <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+             <Info className="w-5 h-5" />
+           </button>
         </div>
       </header>
 
-      {/* Message List */}
-      <MessageList messages={messages} isLoading={isLoading} />
+      {/* Message List Area */}
+      <div className="flex-1 overflow-hidden flex flex-col relative">
+        <MessageList messages={messages} isLoading={isLoading} />
+        
+        {/* Clarification Overlay/Indicator */}
+        {isClarifying && !isLoading && (
+          <div className="absolute bottom-2 left-2 right-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 shadow-lg flex items-start gap-2.5">
+              <div className="bg-amber-100 p-1.5 rounded-md shrink-0">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                Dạ, bạn vui lòng phản hồi câu hỏi phía trên để mình tư vấn chính xác nhất nhé 😊
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* Clarification Indicator */}
-      {isClarifying && !isLoading && (
-        <div className="px-4 py-2 bg-yellow-50 border-t border-b border-yellow-100 flex items-center gap-2">
-          <span className="text-yellow-600">💡</span>
-          <p className="text-[11px] text-yellow-800 italic">
-            Trợ lý cần thêm thông tin để trả lời chính xác nhất. Vui lòng phản hồi câu hỏi trên.
-          </p>
+      {/* Chat Input Area */}
+      <div className="shrink-0 bg-white border-t border-slate-200">
+        <ChatInput 
+          input={input}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSendMessage}
+          isLoading={isLoading} 
+        />
+        <div className="px-4 pb-2 text-center">
+           <p className="text-[9px] text-slate-400 font-medium">
+             &copy; 2025 VMG English Center • Powered by URASys
+           </p>
         </div>
-      )}
-
-      {/* Chat Input */}
-      <ChatInput 
-        input={input}
-        handleInputChange={handleInputChange}
-        handleSubmit={handleSendMessage}
-        isLoading={isLoading} 
-      />
-      
-      {/* Footer */}
-      <footer className="bg-gray-50 text-[10px] text-gray-400 p-2 text-center border-t">
-        &copy; 2025 VMG English Center. All rights reserved. Powered by URASys.
-      </footer>
+      </div>
     </div>
   );
 };

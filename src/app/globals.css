@@ -6,7 +6,18 @@
   --background-end-rgb: 255, 255, 255;
 }
 
+html,
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: fixed; /* Prevents bounce scroll on iOS */
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: white;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }

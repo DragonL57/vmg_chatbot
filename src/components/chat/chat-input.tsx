@@ -1,4 +1,5 @@
-import React, { KeyboardEvent } from 'react';
+import React, { KeyboardEvent, useRef, useEffect } from 'react';
+import { Send, Loader2 } from 'lucide-react';
 
 interface ChatInputProps {
   input: string;
@@ -9,21 +10,21 @@ interface ChatInputProps {
 
 /**
  * Input component for the chat interface.
- * Handles text input, Enter key submission, and loading state.
- * Integrated with Vercel AI SDK.
- * 
- * @param {ChatInputProps} props - The component props
- * @param {string} props.input - Current input value
- * @param {function} props.handleInputChange - Handler for input changes
- * @param {function} props.handleSubmit - Handler for form submission
- * @param {boolean} props.isLoading - Whether the chat is currently waiting for a response
- * @returns {JSX.Element} The rendered chat input
  */
 export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, handleSubmit, isLoading }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-expand textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  }, [input]);
+
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && window.innerWidth >= 768) {
       e.preventDefault();
-      // Create a synthetic form event to trigger submit
       const form = e.currentTarget.closest('form');
       if (form) {
         form.requestSubmit();
@@ -32,34 +33,30 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
   };
 
   return (
-    <div className="border-t bg-white p-4">
+    <div className="p-3 bg-white">
       <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-4xl mx-auto">
-        <textarea
-          rows={1}
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyPress}
-          placeholder="Nhập câu hỏi của bạn tại đây..."
-          disabled={isLoading}
-          className="flex-1 resize-none rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D32F2F] disabled:bg-gray-50"
-        />
+        <div className="flex-1 relative bg-slate-100 rounded-2xl border border-slate-200 focus-within:border-[#D32F2F] focus-within:ring-1 focus-within:ring-[#D32F2F] transition-all">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyPress}
+            placeholder="Bạn cần hỗ trợ gì ạ?..."
+            disabled={isLoading}
+            className="w-full max-h-[120px] resize-none bg-transparent py-3 px-4 text-sm focus:outline-none disabled:opacity-50"
+          />
+        </div>
         <button
           type="submit"
           disabled={!input.trim() || isLoading}
-          className="bg-[#D32F2F] text-white rounded-lg p-2 hover:bg-[#B71C1C] disabled:bg-gray-300 transition-colors"
+          className="bg-[#D32F2F] text-white rounded-2xl w-11 h-11 flex items-center justify-center shrink-0 hover:bg-[#B71C1C] active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md shadow-[#D32F2F]/10"
           title="Gửi"
         >
           {isLoading ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-5 h-5"
-            >
-              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-            </svg>
+            <Send className="w-5 h-5" />
           )}
         </button>
       </form>
