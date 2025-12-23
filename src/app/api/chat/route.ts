@@ -9,7 +9,8 @@ import {
   MASTER_CUSTOMER_INSIGHT, 
   MASTER_OUTPUT_CONSTRAINTS, 
   MASTER_EXECUTION_PROTOCOL_AMBIGUOUS, 
-  MASTER_EXECUTION_PROTOCOL_RESPONSE 
+  MASTER_EXECUTION_PROTOCOL_RESPONSE,
+  MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA
 } from '@/prompts/master';
 
 export const maxDuration = 60; // Allow 60s for RAG operations
@@ -51,7 +52,7 @@ ${staticKnowledgeContent}
 ${MASTER_CUSTOMER_INSIGHT}
 
 ${MASTER_OUTPUT_CONSTRAINTS}
-`
+`.trim();
 
     if (decomposition.isAmbiguous) {
       systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_AMBIGUOUS(decomposition.clarificationQuestion || '')}`;
@@ -63,6 +64,13 @@ ${MASTER_OUTPUT_CONSTRAINTS}
         SearchService.searchDocuments(primaryQuery),
         SearchService.searchFaqs(lastMessage.content)
       ]);
+
+      // Calculate Confidence (Optimized URASys Path B)
+      const maxDocScore = docResults.length > 0 ? docResults[0].score : 0;
+      const maxFaqScore = faqResults.length > 0 ? faqResults[0].score : 0;
+      const confidenceThreshold = 0.65; // Bar for "useful" information
+
+      const hasSufficientData = maxDocScore > confidenceThreshold || maxFaqScore > confidenceThreshold;
 
       const contextBlock = docResults.length > 0 
         ? docResults.map(r => r.content).join('\n\n')
@@ -79,9 +87,14 @@ ${contextBlock}
 
 [CÂU HỎI THƯỜNG GẶP]
 ${faqBlock}
-</retrieved_context>
+</retrieved_context>`;
 
-${MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
+      if (hasSufficientData) {
+        systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
+      } else {
+        // Signal insufficient data protocol to prevent hallucinations
+        systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
+      }
     }
 
     // 3. Generate Response Stream

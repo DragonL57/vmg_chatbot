@@ -6,7 +6,7 @@ import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Info, MessageSquare, Phone, GraduationCap } from 'lucide-react';
+import { Info, Phone } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
@@ -22,14 +22,16 @@ export const ChatInterface: React.FC = () => {
     setInput(e.target.value);
   };
 
-  const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const onSuggestionClick = (text: string) => {
+    if (isLoading) return;
+    sendMessage(text);
+  };
 
+  const sendMessage = async (content: string) => {
     const userMessage: Message = {
       id: uuidv4(),
       role: 'user',
-      content: input.trim(),
+      content: content.trim(),
       timestamp: new Date(),
     };
 
@@ -49,15 +51,12 @@ export const ChatInterface: React.FC = () => {
       if (!response.ok) throw new Error('Network response was not ok');
       if (!response.body) throw new Error('No response body');
 
-      // Check for ambiguity header
       const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
       
-      // Read the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
       let assistantId = '';
-      let fullContent = '';
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -65,7 +64,6 @@ export const ChatInterface: React.FC = () => {
         const chunkValue = decoder.decode(value, { stream: !done });
         
         if (chunkValue) {
-          fullContent += chunkValue;
           if (!assistantId) {
             assistantId = uuidv4();
             const assistantMessage: Message = {
@@ -87,7 +85,6 @@ export const ChatInterface: React.FC = () => {
         }
       }
 
-      // If ambiguous, append the clarification reminder
       if (ambiguousHeader === 'true') {
         const reminderId = uuidv4();
         const reminderMessage: Message = {
@@ -104,6 +101,12 @@ export const ChatInterface: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+    sendMessage(input);
   };
 
   return (
@@ -141,7 +144,7 @@ export const ChatInterface: React.FC = () => {
 
       {/* Message List Area */}
       <div className="flex-1 overflow-hidden flex flex-col relative">
-        <MessageList messages={messages} isLoading={isLoading} />
+        <MessageList messages={messages} isLoading={isLoading} onSuggestionClick={onSuggestionClick} />
       </div>
 
       {/* Chat Input Area */}

@@ -1,10 +1,10 @@
 # URASys - VMG English Center Chatbot
 
-A Unified Retrieval Agent-Based System (URASys) designed for VMG English Center to provide precise, context-aware answers regarding courses, tuition, and policies. It leverages a multi-agent orchestration layer and a dual-retrieval pipeline.
+A **Unified Retrieval Agent-Based System (URASys)** designed for VMG English Center to provide precise, context-aware answers regarding courses, tuition, and policies. It leverages a multi-agent orchestration layer and an optimized dual-retrieval pipeline.
 
-## 🏗 Multi-Agent Architecture
+## 🏗 Multi-Agent Architecture (Optimized Path B)
 
-URASys operates through a collaborative ecosystem of specialized agents, each handling a specific part of the user journey.
+URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses **Confidence Thresholding** to ensure high-accuracy responses without increasing latency.
 
 ```mermaid
 graph TD
@@ -16,41 +16,47 @@ graph TD
         GA[Guardrails Agent]
         MA[Manager Agent]
         RE[Retrieval Engine]
+        DC[Decision Check]
         MS[Master Agent]
     end
 
     subgraph Knowledge_Layer [Qdrant Vector DB]
-        DC[Documents: 1024-dim]
-        FC[FAQ Bank: 1024-dim]
+        DOCS[Documents: 1024-dim]
+        FAQS[FAQ Bank: 1024-dim]
     end
 
     UI -->|1. Message| GA
     GA -->|2. Safety Check| MA
     MA -->|3. Decomposition| RE
     RE <-->|4. Vector Search| Knowledge_Layer
-    RE -->|5. Context| MS
-    MS -->|6. Final Response| UI
+    RE -->|5. Raw Results| DC
+    DC -->|6a. High Confidence| MS
+    DC -->|6b. Low Confidence| MS
+    MS -->|7. Synthesized Response| UI
 ```
 
 ### The Agents
-1.  **Guardrails Agent (`GuardrailsService`):** The first line of defense. It validates user input for safety, harmful content, and prompt injection attempts.
-2.  **Manager Agent (`ManagerService`):** The orchestrator. It analyzes the conversation history to resolve ambiguity (Query Refinement) and decomposes complex questions into optimized sub-queries for retrieval.
-3.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. It performs parallel semantic searches across unstructured document chunks and a high-precision Q&A Bank.
-4.  **Master Agent (Route Handler):** The synthesizer. It combines the retrieved context, static program overview (`vmg-overview.md`), and VMG's specific persona guidelines into a coherent, helpful, and branded response.
+1.  **Guardrails Agent (`GuardrailsService`):** Validates user input for safety and prevents prompt injection.
+2.  **Manager Agent (`ManagerService`):** Analyzes conversation history to resolve ambiguity and decomposes queries into search tasks.
+3.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. Performs parallel semantic searches.
+4.  **Master Agent (Route Handler):** The final synthesizer.
+    - **High Confidence (>0.65):** Generates a detailed response using retrieved context.
+    - **Insufficient Data:** Triggers a specific protocol to politely state lack of info and refer to the hotline, preventing hallucinations.
 
 ---
 
 ## 🚀 Key Features
 
-*   **Mobile-First Design:** Fully responsive UI with custom viewport handling to fix common mobile browser layout issues.
-*   **Dual-Phase Retrieval:** Combines "Document Search" for detail with "FAQ Search" for high-precision matching.
-*   **Ask-and-Augment Strategy:** Automatically transforms raw documents into searchable Q&A pairs during indexing.
-*   **XML-Hybrid Prompting:** System prompts are structured using XML tags for superior LLM instruction following.
-*   **Incremental Indexing:** Smart indexing that only processes new or modified files, respecting rate limits and storage.
+*   **Mobile-First Full-Screen UI:** Designed to fill the viewport perfectly on all devices with custom height handling.
+*   **Hyper-Specific Consultation:** The Master Agent follows a strict protocol to ask one question at a time, aiming to understand the user's specific goals, level, and budget before proposing a cost-minimized roadmap.
+*   **Ask-and-Augment Strategy:** Automatically transforms raw documents into high-quality Q&A pairs during the indexing phase.
+*   **Centralized XML-Hybrid Prompting:** All prompts are managed in `src/prompts/` using XML tags for superior instruction following.
+*   **Shiny-Text Loading:** Modern "shimmer" text indicator for an improved waiting experience.
+*   **Interactive Suggestions:** Quick-action buttons to guide users toward common inquiries.
 
 ## 🛠 Tech Stack
 
-*   **Frontend:** Next.js 14 (App Router), Tailwind CSS, Lucide Icons, React Markdown
+*   **Frontend:** Next.js 15 (App Router), Tailwind CSS v4, Lucide Icons
 *   **LLM Orchestration:** Poe API (OpenAI-compatible) - `grok-4.1-fast-non-reasoning`
 *   **Embeddings:** Mistral AI - `mistral-embed` (1024 dimensions)
 *   **Vector Database:** Qdrant Cloud
@@ -68,14 +74,9 @@ graph TD
 2.  **Configure Environment Variables:**
     Create a `.env` file based on `.env.example`:
     ```env
-    # POE API
     POE_API_KEY=your_key
     POE_BOT_NAME=grok-4.1-fast-non-reasoning
-
-    # Mistral AI
     MISTRAL_API_KEY=your_key
-
-    # Qdrant
     QDRANT_URL=your_url
     QDRANT_API_KEY=your_key
     ```
@@ -90,16 +91,16 @@ graph TD
 ## 📚 Knowledge Management
 
 ### 1. High-Level Knowledge
-Edit `data/knowledge/vmg-overview.md` to update core program information that the AI should *always* remember without needing retrieval.
+Update `data/knowledge/vmg-overview.md` for core program information that is always present in the AI's context.
 
-### 2. Document Indexing
-To update the vector database with detailed policies:
+### 2. Automated Q&A Indexing
+To update the vector database:
 1.  Place `.md` files in `data/vmg-docs/`.
-2.  Run the incremental indexing script:
+2.  Run the indexing script:
     ```bash
     pnpm exec tsx scripts/index-docs.ts
     ```
-    *Note: This script will automatically handle chunking, title generation, and Q&A expansion.*
+    *This handles parallel processing, Q&A pair generation via Poe API, and Mistral vectorization.*
 
 ---
 
