@@ -1,10 +1,10 @@
 /**
  * Service for splitting text into semantic chunks.
- * Implements a Recursive Character Text Splitter strategy.
+ * Implements a specific Markdown-aware strategy + Recursive Character Text Splitter.
  */
 export class ChunkingService {
   /**
-   * Splits text into chunks based on recursive separators.
+   * Splits text into chunks, prioritizing Markdown structure.
    * 
    * @param text - The text to split.
    * @param chunkSize - Target size of each chunk (in characters).
@@ -16,8 +16,55 @@ export class ChunkingService {
     chunkSize: number = 1000,
     chunkOverlap: number = 200
   ): string[] {
-    const separators = ['\n\n', '\n', '. ', ' ', ''];
-    return this.recursiveSplit(text, separators, chunkSize, chunkOverlap);
+    // 1. First pass: Semantic Split by Markdown Headers (H1-H3)
+    // We identify boundaries but DO NOT split if the resulting section is too small, 
+    // to avoid creating tiny chunks for every sub-header.
+    // However, for strict semantic separation, splitting by header is usually good.
+    
+    // Regex to find headers: Newline followed by 1-3 hashes and a space.
+    // We iterate to find split indices.
+    const headerRegex = /(^|\n)(#{1,3}\s)/g;
+    const indices: number[] = [0];
+    let match;
+    
+    while ((match = headerRegex.exec(text)) !== null) {
+      // Split at the start of the match (which includes the newline)
+      // This keeps the newline and header with the NEXT chunk.
+      if (match.index > 0) {
+        indices.push(match.index);
+      }
+    }
+    if (indices[indices.length - 1] !== text.length) {
+      indices.push(text.length);
+    }
+
+    // 2. Extract Sections
+    const sections: string[] = [];
+    for (let i = 0; i < indices.length - 1; i++) {
+      const section = text.substring(indices[i], indices[i + 1]);
+      if (section.trim()) {
+        sections.push(section);
+      }
+    }
+
+    // 3. Process each section
+    const finalChunks: string[] = [];
+    
+    for (const section of sections) {
+      // If section fits in chunk size, keep it whole (simplest semantic unit)
+      if (section.length <= chunkSize) {
+        finalChunks.push(section.trim());
+      } else {
+        // If too big, use Recursive Splitter on this section
+        const subChunks = this.recursiveSplit(section, ['\n\n', '\n', '. ', ' ', ''], chunkSize, chunkOverlap);
+        finalChunks.push(...subChunks);
+      }
+    }
+
+    // 4. Merge small adjacent chunks if they are under-filled (Optional optimization)
+    // For now, we return the semantically split chunks directly to ensure header context is preserved.
+    
+    return finalChunks;
   }
 
   private static recursiveSplit(
@@ -49,7 +96,6 @@ export class ChunkingService {
       if (s.length < chunkSize) {
         goodSplits.push(s);
       } else {
-        // If a single split is too large, recurse with the next separator
         if (goodSplits.length > 0) {
           this.mergeSplits(goodSplits, separator, chunkSize, chunkOverlap).forEach(c => finalChunks.push(c));
           goodSplits = [];
@@ -57,7 +103,6 @@ export class ChunkingService {
         if (newSeparators.length > 0) {
           this.recursiveSplit(s, newSeparators, chunkSize, chunkOverlap).forEach(c => finalChunks.push(c));
         } else {
-          // No more separators, forced split (should rarely happen with empty string separator)
           finalChunks.push(s);
         }
       }
@@ -87,7 +132,6 @@ export class ChunkingService {
           const doc = currentDoc.join(separator);
           if (doc) docs.push(doc);
           
-          // Handle overlap: keep last few items that fit within overlap budget
           while (total > chunkOverlap || (total + len > chunkSize && total > 0)) {
             total -= (currentDoc[0].length + (currentDoc.length > 1 ? separator.length : 0));
             currentDoc.shift();

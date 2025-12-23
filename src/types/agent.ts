@@ -5,8 +5,8 @@ import { z } from 'zod';
  */
 export const QueryDecompositionSchema = z.object({
   isAmbiguous: z.boolean(),
-  clarificationQuestion: z.string().optional(),
-  subQueries: z.array(z.string()).min(1),
+  clarificationQuestion: z.string().nullable().optional(),
+  subQueries: z.array(z.string()),
   reasoning: z.string(),
 });
 

@@ -22,4 +22,4 @@
 - [x] Task: Build the chat interface in Next.js with Red/White VMG theme. [6b47189]
 - [x] Task: Integrate streaming backend responses (Route Handlers) with the frontend. [73b4b42]
 - [x] Task: Implement the Interactive Clarification UI flow. [739a3a3]
-- [ ] Task: Conductor - User Manual Verification 'UI & Integration' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'UI & Integration' (Protocol in workflow.md)

@@ -12,11 +12,11 @@ import { EmbeddingService } from '@/services/embedding.service';
  * Usage: pnpm exec tsx scripts/index-docs.ts
  */
 async function main() {
-  console.log('Starting indexing process...');
+  console.log('Starting indexing process (Full Re-index)...');
 
-  // 1. Ensure collections exist
-  await ensureCollection(COLLECTIONS.DOCUMENTS);
-  await ensureCollection(COLLECTIONS.FAQS);
+  // 1. Re-initialize collections (Delete and Create)
+  await recreateCollection(COLLECTIONS.DOCUMENTS);
+  await recreateCollection(COLLECTIONS.FAQS);
 
   // 2. Read files
   const dataDir = path.join(process.cwd(), 'data', 'vmg-docs');
@@ -33,8 +33,8 @@ async function main() {
     const content = fs.readFileSync(path.join(dataDir, file), 'utf-8');
     
     // 3. Chunk
-    // 500 chars chunk size for more granular retrieval in MVP
-    const chunks = ChunkingService.split(content, 500, 100); 
+    // 4000 chars chunk size to minimize API calls and handle large tables
+    const chunks = ChunkingService.split(content, 4000, 400); 
     console.log(`- Split into ${chunks.length} chunks.`);
 
     for (const chunk of chunks) {
@@ -94,27 +94,33 @@ async function main() {
             console.log('Done.');
         }
       }
+
+      // Rate limit protection: sleep for 10 seconds between chunks
+      console.log('Sleeping for 10s to respect rate limits...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
     }
   }
   
   console.log('\nIndexing complete!');
 }
 
-async function ensureCollection(name: string) {
+async function recreateCollection(name: string) {
     try {
-        await qdrant.getCollection(name);
-        console.log(`Collection '${name}' exists.`);
+        console.log(`Deleting collection '${name}'...`);
+        await qdrant.deleteCollection(name);
     } catch {
-        console.log(`Creating collection '${name}'...`);
-        // Gemini embedding-001 is 768 dimensions
-        await qdrant.createCollection(name, {
-            vectors: {
-                size: 768,
-                distance: 'Cosine'
-            }
-        });
-        console.log(`Collection '${name}' created.`);
+        console.log(`Collection '${name}' did not exist.`);
     }
+
+    console.log(`Creating collection '${name}'...`);
+    // Gemini embedding-001 is 768 dimensions
+    await qdrant.createCollection(name, {
+        vectors: {
+            size: 768,
+            distance: 'Cosine'
+        }
+    });
+    console.log(`Collection '${name}' created.`);
 }
 
 main().catch(console.error);

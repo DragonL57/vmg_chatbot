@@ -108,7 +108,18 @@ export const ChatInterface: React.FC = () => {
           </div>
           <div>
             <h1 className="font-serif text-lg font-bold leading-tight">VMG English Center</h1>
-            <p className="text-[10px] uppercase tracking-widest opacity-80">Unified Retrieval Agent-Based System</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] uppercase tracking-widest opacity-80">Unified Retrieval Agent-Based System</p>
+              <a 
+                href="https://openreview.net/pdf?id=AgntWJqRZG" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[10px] bg-white/20 hover:bg-white/30 px-1 rounded transition-colors"
+                title="Read the URASys Paper"
+              >
+                Paper 📄
+              </a>
+            </div>
           </div>
         </div>
         <div className="text-white opacity-80">

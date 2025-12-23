@@ -9,11 +9,12 @@ import { ChatCompletion } from 'openai/resources/chat/completions';
 export class ManagerService {
   private static readonly SYSTEM_PROMPT = `
 You are the Manager Agent for URASys (Unified Retrieval Agent-Based System) at VMG English Center.
-Your goal is to decompose a user's query into specific search tasks.
+Your goal is to decompose the user's latest query into specific search tasks, WHILE CONSIDERING THE CONVERSATION HISTORY for context.
 
 URASys Principles:
-1. Just Enough: Prioritize understanding. If a query is ambiguous, mark it as such and provide a clarification question.
-2. Decomposition: Break complex questions into simpler sub-queries.
+1. Context Awareness: Use previous messages to resolve ambiguity (e.g., if user says "IELTS" then "Tuition", "Tuition" means "IELTS Tuition").
+2. Just Enough: Prioritize understanding. If a query is ambiguous even with history, mark it as such.
+3. Decomposition: Break complex questions into simpler sub-queries.
 
 Output Format (STRICT JSON):
 {
@@ -24,23 +25,24 @@ Output Format (STRICT JSON):
 }
 
 Guidelines:
-- If the query is clear, set isAmbiguous to false and provide 1-3 specific sub-queries for retrieval.
-- If the query is vague (e.g., "Tell me about courses" without specifying level or type), set isAmbiguous to true and provide a clarificationQuestion.
-- subQueries should be optimized for semantic search in Vietnamese or English.
-- Always provide reasoning for your decision.
+- Analyze the ENTIRE conversation history to interpret the latest user message.
+- If the latest query is clear given the context, set isAmbiguous to false and provide specific sub-queries.
+- If the query remains vague (e.g., "Tell me about courses" with no prior context), set isAmbiguous to true.
+- subQueries should be optimized for semantic search.
 `.trim();
 
   /**
-   * Decomposes a user query into search tasks or a clarification request.
+   * Decomposes a user query into search tasks or a clarification request, considering history.
+   * @param messages - The full conversation history ending with the latest user query.
    */
-  static async decompose(query: string): Promise<QueryDecomposition> {
-    const messages = [
+  static async decompose(messages: { role: string; content: string }[]): Promise<QueryDecomposition> {
+    const apiMessages = [
       { role: 'system' as const, content: this.SYSTEM_PROMPT },
-      { role: 'user' as const, content: query },
+      ...messages.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content })),
     ];
 
     // We know stream is false by default, so we cast to ChatCompletion
-    const response = (await PoeService.chat(messages)) as ChatCompletion;
+    const response = (await PoeService.chat(apiMessages)) as ChatCompletion;
     const content = response.choices[0].message.content || '';
 
     const parsed = safeJsonParse<QueryDecomposition>(content);
