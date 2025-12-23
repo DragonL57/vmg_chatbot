@@ -15,7 +15,7 @@ const TypingIndicator = () => (
       <div className="flex items-center gap-2">
         <div className="relative overflow-hidden group">
           <p className="text-xs font-medium text-slate-400 italic">
-            (Tôi đang soạn, bạn chờ một tí nhé)
+            (Mình đang soạn, bạn chờ một tí nhé)
           </p>
           <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/60 to-transparent -translate-x-full animate-[shimmer_2s_infinite] skew-x-[-20deg]"></div>
         </div>

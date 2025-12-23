@@ -13,7 +13,7 @@ import {
   MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA
 } from '@/prompts/master';
 
-export const maxDuration = 60; // Allow 60s for RAG operations
+export const maxDuration = 300; // Allow 300s for RAG operations
 
 export async function POST(req: Request) {
   try {
