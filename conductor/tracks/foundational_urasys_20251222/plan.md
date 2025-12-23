@@ -14,7 +14,7 @@
 
 ## Phase 3: Dual-Phase Indexing Pipeline (Initial)
 - [x] Task: Implement semantic chunking and Title Assigner logic. [07101f2]
-- [~] Task: Implement FAQ Creator and Expander logic for 'Ask-and-Augment'.
+- [x] Task: Implement FAQ Creator and Expander logic for 'Ask-and-Augment'. [180711e]
 - [ ] Task: Create initial index of sample VMG documents.
 - [ ] Task: Conductor - User Manual Verification 'Dual-Phase Indexing Pipeline' (Protocol in workflow.md)
 
