@@ -18,8 +18,8 @@
 - [x] Task: Create initial index of sample VMG documents. [70a21b2]
 - [x] Task: Conductor - User Manual Verification 'Dual-Phase Indexing Pipeline' (Protocol in workflow.md) [827b23a]
 
-## Phase 4: UI & Integration
+## Phase 4: UI & Integration [checkpoint: c39aeea]
 - [x] Task: Build the chat interface in Next.js with Red/White VMG theme. [6b47189]
 - [x] Task: Integrate streaming backend responses (Route Handlers) with the frontend. [73b4b42]
 - [x] Task: Implement the Interactive Clarification UI flow. [739a3a3]
-- [~] Task: Conductor - User Manual Verification 'UI & Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'UI & Integration' (Protocol in workflow.md) [c39aeea]
