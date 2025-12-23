@@ -38,6 +38,7 @@ export class EmbeddingService {
         providerOptions: {
           google: {
             taskType,
+            outputDimensionality: 768,
           },
         },
       });
@@ -67,6 +68,7 @@ export class EmbeddingService {
         providerOptions: {
           google: {
             taskType,
+            outputDimensionality: 768,
           },
         },
       });
