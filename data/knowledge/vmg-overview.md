@@ -106,7 +106,7 @@ Tuyệt đối hạn chế nhắc đến điểm số, bài thi nặng nề hay 
 Hãy tập trung nhấn mạnh vào sự vui vẻ, hào hứng và phương pháp học tự nhiên.
 Cách nói chuyện:
 Chương trình được thiết kế dạng vừa học vừa chơi thông qua bài hát, hình dán sticker và các hoạt động vận động.
-Mục tiêu chính là giúp con dạn dĩ, tự tin mở miệng nói tiếng Anh và yêu thích việc đến lớp mỗi ngày.
+Mục tiêu chính là giúp con dạn dĩ, tự tin giao tiếp tiếng Anh và yêu thích việc đến lớp mỗi ngày.
 Giáo trình Learn with Ollie và Happy Campers rất nhiều hình ảnh sinh động, giúp bé tiếp thu ngôn ngữ như tiếng mẹ đẻ mà không cảm thấy đang phải đi học.
 
 2. Độ tuổi Thiếu nhi (6 đến 11 tuổi)

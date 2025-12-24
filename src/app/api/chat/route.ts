@@ -1,7 +1,7 @@
 import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
 import { ManagerService } from '@/services/manager.service';
 import { SearchService } from '@/services/search.service';
-import { GuardrailsService } from '@/services/guardrails.service';
+import { LeadService } from '@/services/lead.service';
 import fs from 'fs';
 import path from 'path';
 import { 
@@ -29,6 +29,13 @@ export async function POST(req: Request) {
 
     if (!decomposition.isSafe) {
       return new Response(decomposition.safetyReason || "Yêu cầu bị từ chối do vi phạm chính sách.", { status: 400 });
+    }
+
+    // 1b. Lead Capture (Async - don't block the UI)
+    if (decomposition.extractedLead) {
+      LeadService.saveLead(decomposition.extractedLead).catch(err => 
+        console.error('Failed to save lead info:', err)
+      );
     }
 
     // Load static knowledge from file
@@ -128,11 +135,19 @@ ${faqBlock}
       },
     });
 
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-URASys-Ambiguous': decomposition.isAmbiguous ? 'true' : 'false',
+    };
+
+    if (decomposition.extractedLead && (decomposition.extractedLead.phone || decomposition.extractedLead.name)) {
+      // Encode lead data to base64 to safely pass through headers
+      const leadJson = JSON.stringify(decomposition.extractedLead);
+      responseHeaders['X-Lead-Data'] = Buffer.from(leadJson).toString('base64');
+    }
+
     return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-URASys-Ambiguous': decomposition.isAmbiguous ? 'true' : 'false',
-      },
+      headers: responseHeaders,
     });
 
   } catch (error) {

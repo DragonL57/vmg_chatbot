@@ -24,6 +24,17 @@ Output Format (STRICT JSON):
   "isAmbiguous": boolean,
   "clarificationQuestion": string | null,
   "subQueries": string[],
-  "reasoning": string
+  "reasoning": string,
+  "extractedLead": {
+    "name": string | null,
+    "phone": string | null,
+    "childName": string | null,
+    "childDob": string | null,
+    "notes": string | null
+  }
 }
+
+Guidelines:
+- extractedLead: Look through the entire history. Extract name, phone, child's name, child's DOB, and any specific notes/goals/desires the customer mentioned (e.g., "muốn bé dạn dĩ hơn", "học cấp tốc để phỏng vấn").
+- subQueries: If canAnswerFromStatic is false, break the query into optimized sub-queries for RAG.
 `.trim();

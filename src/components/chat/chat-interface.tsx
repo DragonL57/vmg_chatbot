@@ -52,6 +52,23 @@ export const ChatInterface: React.FC = () => {
       if (!response.body) throw new Error('No response body');
 
       const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
+      const leadDataHeader = response.headers.get('X-Lead-Data');
+
+      if (leadDataHeader) {
+        try {
+          const decodedData = JSON.parse(Buffer.from(leadDataHeader, 'base64').toString());
+          const leadMessage: Message = {
+            id: uuidv4(),
+            role: 'system',
+            content: 'Đã cập nhật dữ liệu khách hàng vào hệ thống VMG CRM (Mock)',
+            timestamp: new Date(),
+            leadData: decodedData
+          };
+          setMessages((prev) => [...prev, leadMessage]);
+        } catch (e) {
+          console.error('Failed to parse lead data header', e);
+        }
+      }
       
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -85,15 +102,14 @@ export const ChatInterface: React.FC = () => {
         }
       }
 
-      if (ambiguousHeader === 'true') {
-        const reminderId = uuidv4();
-        const reminderMessage: Message = {
-          id: reminderId,
-          role: 'assistant',
-          content: 'Dạ, bạn vui lòng phản hồi câu hỏi phía trên để mình tư vấn chính xác nhất nhé 😊',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, reminderMessage]);
+      if (ambiguousHeader === 'true' && assistantId) {
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.id === assistantId 
+              ? { ...msg, isAmbiguous: true } 
+              : msg
+          )
+        );
       }
     } catch (error) {
       console.error('Chat error:', error);

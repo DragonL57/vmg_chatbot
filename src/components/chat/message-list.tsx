@@ -54,11 +54,11 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
           </div>
           
           <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bắt đầu câu chuyện</p>
+             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bạn đang quan tâm...</p>
              {[
-               "Lộ trình IELTS tinh gọn cho người mới bắt đầu", 
-               "Phương pháp giúp trẻ 4-6 tuổi yêu thích tiếng Anh", 
-               "Làm sao để đạt IELTS 6.5 trong thời gian ngắn nhất?"
+               "Tìm lớp cho bé (4-11 tuổi)",
+               "Luyện thi IELTS cam kết",
+               "Tiếng Anh giao tiếp đi làm"
              ].map((text) => (
                <button 
                  key={text} 

@@ -11,6 +11,13 @@ export const QueryDecompositionSchema = z.object({
   clarificationQuestion: z.string().nullable().optional(),
   subQueries: z.array(z.string()),
   reasoning: z.string(),
+  extractedLead: z.object({
+    name: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    childName: z.string().nullable().optional(),
+    childDob: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  }).nullable().optional(),
 });
 
 export type QueryDecomposition = z.infer<typeof QueryDecompositionSchema>;

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/types/chat';
+import { Database, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface MessageItemProps {
   message: Message;
@@ -12,14 +13,43 @@ interface MessageItemProps {
  */
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
+  const [showData, setShowData] = useState(false);
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center my-4 animate-in fade-in zoom-in-95 duration-500">
+        <div className="flex flex-col items-center max-w-[90%] w-full">
+          <button 
+            onClick={() => setShowData(!showData)}
+            className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-500 hover:bg-slate-200 transition-colors shadow-sm"
+          >
+            <Database className="w-3 h-3 text-blue-500" />
+            {message.content}
+            {showData ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          
+          {showData && message.leadData && (
+            <div className="mt-2 w-full bg-slate-800 text-blue-300 p-3 rounded-xl text-[10px] font-mono overflow-x-auto shadow-inner border border-slate-700 animate-in slide-in-from-top-2 duration-300">
+              <pre>{JSON.stringify(message.leadData, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative ${
+        className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative transition-all duration-700 ${
           isUser
             ? 'bg-[#D32F2F] text-white rounded-tr-sm'
-            : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm shadow-slate-200/50'
+            : `bg-white text-slate-700 border rounded-tl-sm shadow-slate-200/50 ${
+                message.isAmbiguous 
+                  ? 'border-[#D32F2F]/60 shadow-[0_0_12px_rgba(211,47,47,0.25)]' 
+                  : 'border-slate-200'
+              }`
         }`}
       >
         <div className="leading-relaxed">
