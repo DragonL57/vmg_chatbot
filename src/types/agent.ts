@@ -16,6 +16,7 @@ export const QueryDecompositionSchema = z.object({
     phone: z.string().nullable().optional(),
     childName: z.string().nullable().optional(),
     childDob: z.string().nullable().optional(),
+    address: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
   }).nullable().optional(),
 });

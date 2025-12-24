@@ -4,59 +4,69 @@ A **Unified Retrieval Agent-Based System (URASys)** designed for VMG English Cen
 
 ## 🏗 Multi-Agent Architecture (Optimized Path B)
 
-URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** to minimize sequential LLM calls and ensure high-speed responses.
+URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** to minimize sequential LLM calls and ensure high-speed, high-accuracy responses.
 
 ```mermaid
 graph TD
-    subgraph User_Interface [Mobile-First UI]
+    subgraph UI_Layer [User Interface]
         UI[Next.js Chat Interface]
     end
 
-    subgraph Processing_Layer [Next.js API Route]
+    subgraph Dispatch_Layer [Intelligent Orchestration]
         DA[Dispatcher Agent]
+        LC[Lead Extraction Logic]
+        LS[Lead Service / CRM Mock]
+    end
+
+    subgraph Knowledge_Retrieval [Dual-Path Retrieval]
+        SK[Static Knowledge Check]
         RE[Retrieval Engine]
-        DC[Decision Check]
+        KV[(Qdrant Vector DB)]
+    end
+
+    subgraph Synthesis_Layer [Response Generation]
         MS[Master Agent]
     end
 
-    subgraph Knowledge_Layer [Qdrant Vector DB]
-        DOCS[Documents: 1024-dim]
-        FAQS[FAQ Bank: 1024-dim]
-    end
-
-    UI -->|1. Message| DA
-    DA -->|2. Safety Check & Decomposition| RE
-    RE <-->|4. Vector Search| Knowledge_Layer
-    RE -->|5. Raw Results| DC
-    DC -->|6a. High Confidence| MS
-    DC -->|6b. Low Confidence| MS
-    MS -->|7. Synthesized Response| UI
+    UI -->|1. Message + History| DA
+    
+    DA -->|2. Analysis| LC
+    LC -->|3a. Lead Data| LS
+    
+    DA -->|4. Strategy Check| SK
+    
+    SK -->|5a. Answer in Static| MS
+    SK -->|5b. Needs Detail| RE
+    
+    RE <-->|6. Vector Search| KV
+    RE -->|7. Context| MS
+    
+    MS -->|8. Final Response| UI
 ```
 
-### The Agents
-1.  **Dispatcher Agent (`ManagerService`):** A high-performance merged agent that handles both **Safety Guardrails** and **Query Decomposition** in a single parallel step. This reduces sequential latency by 30-50%.
-2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024 dimensions)**. Performs parallel semantic searches.
-3.  **Master Agent (Route Handler):** The final synthesizer, optimized for a friendly, concise "Zalo-chat" style.
-    - **High Confidence (>0.65):** Generates brief, direct answers using retrieved context.
-    - **Insufficient Data:** Politely states lack of info and suggests related topics or professional consultation.
+### The Agents & Services
+1.  **Dispatcher Agent (`ManagerService`):** The "Brain" of the system. Handles Safety, Strategy, and Lead Extraction in one pass.
+2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024D)**. Performs parallel semantic searches.
+3.  **Lead Service (`LeadService`):** Asynchronously pushes customer data (Name, Phone, Goals) to CRM/Sheets.
+4.  **Master Agent (Route Handler):** The "Voice" of VMG. Follows a 3-step consultation protocol: **Ask -> Empathize -> Hook**.
 
 ---
 
 ## 🚀 Key Features
 
-*   **Low-Latency Dispatcher:** Merged safety and intent analysis to significantly reduce "Time to First Byte".
-*   **Zalo-Style Conciseness:** Responses are designed to be extremely short, friendly, and direct, mimicking a real-time messaging experience.
-*   **Mobile-First Full-Screen UI:** Designed to fill the viewport perfectly on all devices with custom height handling.
+*   **Low-Latency Dispatcher:** Merged safety, intent, and lead analysis to significantly reduce "Time to First Byte".
+*   **Pacing & Lead Generation:** AI is trained to listen and empathize before asking for contact info, ensuring a high-trust conversion rate.
+*   **Visual Lead Confirmation:** UI displays a "System Message" (clickable) to verify captured lead data in real-time.
 *   **Deep-Sync Indexing:** The indexing script automatically detects "ghost" embeddings (data in DB for files no longer on disk) and cleans them up.
-*   **Resilient RAG Pipeline:** API timeout is set to 300s to handle complex parallel retrieval and generation tasks.
+*   **Zalo-Style UI:** Optimized for mobile viewports with shimmer indicators and guided suggestion buttons.
 
 ## 🛠 Tech Stack
 
 *   **Frontend:** Next.js 15 (App Router), Tailwind CSS v4, Lucide Icons
-*   **LLM Orchestration:** Poe API (OpenAI-compatible) - `grok-4.1-fast-non-reasoning`
+*   **LLM Orchestration:** Poe API - `grok-4.1-fast-non-reasoning`
 *   **Embeddings:** Mistral AI - `mistral-embed` (1024 dimensions)
 *   **Vector Database:** Qdrant Cloud
-*   **Language:** TypeScript
+*   **Data Capture:** Custom Lead Extraction via Dispatcher Agent
 
 ---
 
@@ -79,10 +89,7 @@ graph TD
 
 ## 📚 Knowledge Management
 
-### 1. High-Level Knowledge
-Update `data/knowledge/vmg-overview.md` for core program information that is always present in the AI's context.
-
-### 2. Automated Deep-Sync Indexing
+### 1. Automated Deep-Sync Indexing
 To update the vector database:
 1.  Place or update `.md` files in `data/vmg-docs/`.
 2.  Run the indexing script:
@@ -91,9 +98,8 @@ To update the vector database:
     ```
     *   **Incremental:** Only processes new/modified files.
     *   **Cleanup:** Automatically removes embeddings for files deleted from the folder.
-    *   **Auto-Indexing:** Automatically creates necessary payload indices in Qdrant.
 
-### 3. Utility Scripts
+### 2. Utility Scripts
 *   **Check Sources:** List all files currently indexed in Qdrant:
     ```bash
     pnpm exec tsx scripts/check-sources.ts

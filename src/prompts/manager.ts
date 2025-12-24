@@ -30,11 +30,12 @@ Output Format (STRICT JSON):
     "phone": string | null,
     "childName": string | null,
     "childDob": string | null,
+    "address": string | null,
     "notes": string | null
   }
 }
 
 Guidelines:
-- extractedLead: Look through the entire history. Extract name, phone, child's name, child's DOB, and any specific notes/goals/desires the customer mentioned (e.g., "muốn bé dạn dĩ hơn", "học cấp tốc để phỏng vấn").
+- extractedLead: Look through the entire history. Extract name, phone, child's name, child's DOB, address/location (e.g., "ở Biên Hòa", "gần Trảng Bom"), and any specific notes/goals.
 - subQueries: If canAnswerFromStatic is false, break the query into optimized sub-queries for RAG.
 `.trim();
