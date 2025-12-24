@@ -4,7 +4,7 @@ A **Unified Retrieval Agent-Based System (URASys)** designed for VMG English Cen
 
 ## 🏗 Multi-Agent Architecture (Optimized Path B)
 
-URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** to minimize sequential LLM calls and ensure high-speed, high-accuracy responses.
+URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** with **Token-Efficiency Optimizations** to ensure high-speed, cost-effective, and high-accuracy responses.
 
 ```mermaid
 graph TD
@@ -12,15 +12,16 @@ graph TD
         UI[Next.js Chat Interface]
     end
 
-    subgraph Dispatch_Layer [Intelligent Orchestration]
+    subgraph Dispatch_Layer [Intelligent Orchestration & Token Optimization]
+        CW[Context Windowing: Last 10 Messages]
         DA[Dispatcher Agent]
-        LC[Lead Extraction Logic]
+        LC[Lead Extraction: Name, Phone, Address, Goals]
         LS[Lead Service / CRM Mock]
     end
 
-    subgraph Knowledge_Retrieval [Dual-Path Retrieval]
+    subgraph Knowledge_Retrieval [Dual-Path Strategy]
         SK[Static Knowledge Check]
-        RE[Retrieval Engine]
+        RE[Retrieval Engine: Top 3 Pruning]
         KV[(Qdrant Vector DB)]
     end
 
@@ -28,27 +29,38 @@ graph TD
         MS[Master Agent]
     end
 
-    UI -->|1. Message + History| DA
+    UI -->|1. Message + Full History| CW
+    CW -->|2. Optimized History| DA
     
-    DA -->|2. Analysis| LC
-    LC -->|3a. Lead Data| LS
+    DA -->|3. Parallel Analysis| LC
+    LC -->|4a. Lead Data| LS
     
-    DA -->|4. Strategy Check| SK
+    DA -->|5. Strategy Routing| SK
     
-    SK -->|5a. Answer in Static| MS
-    SK -->|5b. Needs Detail| RE
+    SK -->|6a. Fast Path: Answer in Static| MS
+    SK -->|6b. Detailed Path: Needs Detail| RE
     
-    RE <-->|6. Vector Search| KV
-    RE -->|7. Context| MS
+    RE <-->|7. Semantic Search| KV
+    RE -->|8. Pruned Context| MS
     
-    MS -->|8. Final Response| UI
+    MS -->|9. Final Human-like Response| UI
 ```
 
 ### The Agents & Services
-1.  **Dispatcher Agent (`ManagerService`):** The "Brain" of the system. Handles Safety, Strategy, and Lead Extraction in one pass.
-2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024D)**. Performs parallel semantic searches.
-3.  **Lead Service (`LeadService`):** Asynchronously pushes customer data (Name, Phone, Goals) to CRM/Sheets.
-4.  **Master Agent (Route Handler):** The "Voice" of VMG. Follows a 3-step consultation protocol: **Ask -> Empathize -> Hook**.
+1.  **Dispatcher Agent (`ManagerService`):** The "Brain". Handles Safety, Intent, and Lead Extraction. It now identifies if **Static Knowledge** is sufficient to bypass the vector search entirely (Fast Path).
+2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024D)**. Optimized with **Retrieval Pruning** (Top 3 results) to minimize input tokens.
+3.  **Lead Service (`LeadService`):** Asynchronously pushes customer data (Name, Phone, Address, Specific Goals) to CRM/Sheets.
+4.  **Master Agent (Route Handler):** The "Voice". Follows a 3-step consultation protocol: **Ask -> Empathize -> Hook**. Uses a **Sliding Window** of history to remain cost-effective.
+
+---
+
+## 🚀 Key Features
+
+*   **Token-Efficient Context:** Only the last 10 messages are sent to agents, maintaining focus and reducing costs.
+*   **Fast Path (RAG Bypass):** 30-50% faster responses for common queries found in static knowledge.
+*   **Intelligent Lead Capture:** Automatically extracts location/address to guide customers to the nearest VMG branch.
+*   **Human-like Consultation:** Patient pacing (no premature phone number requests) and a professional yet friendly formal tone.
+*   **Visual Debugging:** System badges allow real-time inspection of captured Lead JSON data.
 
 ---
 

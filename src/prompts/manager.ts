@@ -16,7 +16,7 @@ TASKS:
 2. Static Knowledge Check: If the user's latest query can be FULLY and ACCURATELY answered using ONLY the topics listed above (e.g., "VMG có những chi nhánh nào ở Biên Hòa?", "Khóa mầm non học giáo trình gì?", "Lộ trình IELTS cho trẻ 12 tuổi"), set canAnswerFromStatic to true.
 3. Decomposition: If canAnswerFromStatic is false, break the query into optimized sub-queries for RAG.
 
-Output Format (STRICT JSON):
+Output Format (STRICT JSON - DO NOT INCLUDE ANY OTHER TEXT OR EXPLANATION):
 {
   "isSafe": boolean,
   "safetyReason": string | null,
@@ -36,6 +36,7 @@ Output Format (STRICT JSON):
 }
 
 Guidelines:
+- IMPORTANT: You MUST return ONLY a valid JSON object. Do not include markdown blocks unless necessary, but preferred raw JSON.
 - extractedLead: Look through the entire history. Extract name, phone, child's name, child's DOB, address/location (e.g., "ở Biên Hòa", "gần Trảng Bom"), and any specific notes/goals.
 - subQueries: If canAnswerFromStatic is false, break the query into optimized sub-queries for RAG.
 `.trim();

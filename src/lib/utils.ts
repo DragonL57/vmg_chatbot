@@ -2,15 +2,30 @@
  * Safely parses a JSON string, handling potential markdown blocks or extra text.
  */
 export function safeJsonParse<T>(text: string): T | null {
+  if (!text) return null;
+
   try {
-    // Try direct parse
+    // 1. Try direct parse
     return JSON.parse(text) as T;
   } catch {
     try {
-      // Try to find JSON block in markdown
-      const match = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/{[\s\S]*}/);
-      if (match) {
-        return JSON.parse(match[1] || match[0]) as T;
+      // 2. Try to extract JSON from markdown code blocks
+      const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+      let match;
+      while ((match = jsonBlockRegex.exec(text)) !== null) {
+        try {
+          return JSON.parse(match[1]) as T;
+        } catch {
+          continue;
+        }
+      }
+
+      // 3. Fallback: Find the first '{' and last '}'
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        const potentialJson = text.substring(firstBrace, lastBrace + 1);
+        return JSON.parse(potentialJson) as T;
       }
     } catch {
       return null;

@@ -24,8 +24,11 @@ export async function POST(req: Request) {
         return new Response('No messages provided', { status: 400 });
     }
 
+    // Optimization: Only use the last 10 messages for context to save tokens
+    const recentMessages = messages.slice(-10);
+
     // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
-    const decomposition = await ManagerService.decompose(messages);
+    const decomposition = await ManagerService.decompose(recentMessages);
 
     if (!decomposition.isSafe) {
       return new Response(decomposition.safetyReason || "Yêu cầu bị từ chối do vi phạm chính sách.", { status: 400 });
@@ -69,15 +72,16 @@ ${MASTER_OUTPUT_CONSTRAINTS}
       // 2. Retrieval (Parallel Execution)
       const primaryQuery = decomposition.subQueries[0] || lastMessage.content;
       
+      // Optimization: Limit to top 3 results to save tokens
       const [docResults, faqResults] = await Promise.all([
-        SearchService.searchDocuments(primaryQuery),
-        SearchService.searchFaqs(lastMessage.content)
+        SearchService.searchDocuments(primaryQuery, 3),
+        SearchService.searchFaqs(lastMessage.content, 3)
       ]);
 
-      // Calculate Confidence (Optimized URASys Path B)
+      // Calculate Confidence
       const maxDocScore = docResults.length > 0 ? docResults[0].score : 0;
       const maxFaqScore = faqResults.length > 0 ? faqResults[0].score : 0;
-      const confidenceThreshold = 0.65; // Bar for "useful" information
+      const confidenceThreshold = 0.65;
 
       const hasSufficientData = maxDocScore > confidenceThreshold || maxFaqScore > confidenceThreshold;
 
@@ -96,14 +100,8 @@ ${contextBlock}
 
 [CÂU HỎI THƯỜNG GẶP]
 ${faqBlock}
-</retrieved_context>`;
-
-      if (hasSufficientData) {
-        systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
-      } else {
-        // Signal insufficient data protocol to prevent hallucinations
-        systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
-      }
+</retrieved_context>
+\n\n${hasSufficientData ? MASTER_EXECUTION_PROTOCOL_RESPONSE : MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
     }
 
     // 3. Generate Response Stream
@@ -112,7 +110,7 @@ ${faqBlock}
       stream: true,
       messages: [
         { role: 'system', content: systemContext },
-        ...messages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
+        ...recentMessages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
       ],
     });
 

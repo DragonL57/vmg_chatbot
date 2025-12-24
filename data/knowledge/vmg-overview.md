@@ -79,20 +79,20 @@ Dựa trên tài liệu chuyên môn, VMG English hiện cung cấp **5 chương
 ## PHẦN 3: DANH SÁCH HỆ THỐNG TRUNG TÂM VMG
 
 ### Khu vực Đồng Nai (Biên Hòa & Các huyện)
-1.  **CN Đồng Nai 1:** E99 Võ Thị Sáu, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
-2.  **CN Đồng Nai 2:** 1209 Phạm Văn Thuận, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
-3.  **CN Đồng Nai 3:** 388 Nguyễn Khuyến, Phường Trảng Dài, TP. Biên Hòa.
-4.  **CN Đồng Nai 4:** 23 Trương Định, Phường Tam Hiệp, TP. Biên Hòa.
-5.  **CN Đồng Nai 5:** 438C Đinh Quang Ân, Phường Phước Tân, TP. Biên Hòa.
-6.  **CN Đồng Nai 6:** 1 Nguyễn Trãi, Phường Xuân Hòa, TP. Long Khánh.
-7.  **CN Đồng Nai 7:** 505 Lê Duẩn, Thị trấn Long Thành, Huyện Long Thành.
-8.  **CN Đồng Nai 8:** Số 668 đường Trần Phú, Xã Nhơn Trạch, Huyện Nhơn Trạch.
-9.  **CN Đồng Nai 9:** Số 132 đường Hùng Vương, Thị trấn Gia Ray, Huyện Xuân Lộc.
-10. **CN Đồng Nai 10:** Số 15 - 17, đường 30/4, Thị trấn Trảng Bom, Huyện Trảng Bom.
-11. **CN Đồng Nai 11:** A33 Lý Thái Tổ, Xã Đại Phước, Huyện Nhơn Trạch.
+1.  **VMG Võ Thị Sáu:** E99 Võ Thị Sáu, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
+2.  **VMG Phạm Văn Thuận:** 1209 Phạm Văn Thuận, Phường Thống Nhất (Trấn Biên), TP. Biên Hòa.
+3.  **VMG Nguyễn Khuyến:** 388 Nguyễn Khuyến, Phường Trảng Dài, TP. Biên Hòa.
+4.  **VMG Trương Định:** 23 Trương Định, Phường Tam Hiệp, TP. Biên Hòa.
+5.  **VMG Phước Tân:** 438C Đinh Quang Ân, Phường Phước Tân, TP. Biên Hòa.
+6.  **VMG Nguyễn Trãi:** 1 Nguyễn Trãi, Phường Xuân Hòa, TP. Long Khánh.
+7.  **VMG Lê Duẩn:** 505 Lê Duẩn, Thị trấn Long Thành, Huyện Long Thành.
+8.  **VMG Trần Phú:** Số 668 đường Trần Phú, Xã Nhơn Trạch, Huyện Nhơn Trạch.
+9.  **VMG Hùng Vương:** Số 132 đường Hùng Vương, Thị trấn Gia Ray, Huyện Xuân Lộc.
+10. **VMG Trảng Bom:** Số 15 - 17, đường 30/4, Thị trấn Trảng Bom, Huyện Trảng Bom.
+11. **VMG Đại Phước:** A33 Lý Thái Tổ, Xã Đại Phước, Huyện Nhơn Trạch.
 
 ### Khu vực Bình Phước
-12. **CN Đồng Nai 12 (Bình Phước):** Lô 6-7, KP Tân Đồng I, Đường Phú Riềng Đỏ, Phường Tân Thiện, TP. Đồng Xoài, Bình Phước.
+12. **VMG Bình Phước:** Lô 6-7, KP Tân Đồng I, Đường Phú Riềng Đỏ, Phường Tân Thiện, TP. Đồng Xoài, Bình Phước.
 
 ## PHẦN 4: KỊCH BẢN TƯ VẤN THEO TÂM LÝ TỪNG ĐỘ TUỔI
 
