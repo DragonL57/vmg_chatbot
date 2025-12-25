@@ -14,12 +14,12 @@
 - [x] Task: Implement proactive greeting logic in `ChatInterface` when switching modes [0d39468]
 - [ ] Task: Conductor - User Manual Verification 'Study Abroad Intelligence & Retrieval' (Protocol in workflow.md)
 
-## Phase 3: Enhanced Lead Capture (KYC Level 1)
+## Phase 3: Enhanced Lead Capture (KYC Level 1) [checkpoint: 3d871c8]
 - [x] Task: Update `QueryDecompositionSchema` in `src/types/agent.ts` with the 7 new Study Abroad KYC fields [8aa3786]
 - [x] Task: Update the Dispatcher prompt in `src/prompts/manager.ts` to perform multi-domain extraction [8aa3786]
 - [x] Task: Update `LeadService.saveLead` to handle incremental updates for the new KYC fields [d454e5e]
 - [x] Task: Update `MessageItem` to correctly render the expanded Lead JSON data in the system badge [3f5c333]
-- [ ] Task: Conductor - User Manual Verification 'Enhanced Lead Capture' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Enhanced Lead Capture' (Protocol in workflow.md) [3d871c8]
 
 ## Phase 4: Final Integration & Polishing
 - [ ] Task: Update Header UI to reflect the active service mode (Title, Icons)
