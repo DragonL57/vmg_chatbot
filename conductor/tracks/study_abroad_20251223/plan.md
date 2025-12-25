@@ -24,5 +24,10 @@
 ## Phase 4: Final Integration & Polishing
 - [x] Task: Update Header UI to reflect the active service mode (Title, Icons) [7fe516d]
 - [ ] Task: End-to-end testing of the "Conversational Discovery" flow for Study Abroad
-- [ ] Task: Final linting, type-checking, and performance review
 - [ ] Task: Conductor - User Manual Verification 'Final Integration & Polishing' (Protocol in workflow.md)
+
+## Phase 5: U.S. College Data Integration (College Scorecard API)
+- [ ] Task: Create `src/services/college-scorecard.service.ts` to handle U.S. school searches
+- [ ] Task: Update Dispatcher prompt to recognize U.S. college queries and generate API parameters
+- [ ] Task: Integrate College Scorecard search into the `/api/chat` route for Study Abroad mode
+- [ ] Task: Conductor - User Manual Verification 'College Data Integration' (Protocol in workflow.md)

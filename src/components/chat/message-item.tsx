@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/types/chat';
-import { Database, ChevronDown, ChevronUp } from 'lucide-react';
+import { Database, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
 interface MessageItemProps {
   message: Message;
@@ -14,6 +14,7 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const isTool = message.isToolCall;
   const [showData, setShowData] = useState(false);
 
   if (isSystem) {
@@ -21,12 +22,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       <div className="flex justify-center my-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="flex flex-col items-center max-w-[90%] w-full">
           <button 
-            onClick={() => setShowData(!showData)}
-            className="flex items-center gap-2 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-500 hover:bg-slate-200 transition-colors shadow-sm"
+            onClick={() => isTool ? null : setShowData(!showData)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-colors shadow-sm ${
+              isTool 
+                ? 'bg-blue-50 border border-blue-100 text-blue-600' 
+                : 'bg-slate-100 border border-slate-200 text-slate-500 hover:bg-slate-200'
+            }`}
           >
-            <Database className="w-3 h-3 text-blue-500" />
+            {isTool ? <Search className="w-3 h-3 animate-pulse" /> : <Database className="w-3 h-3 text-blue-500" />}
             {message.content}
-            {showData ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {!isTool && (showData ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
           </button>
           
           {showData && message.leadData && (

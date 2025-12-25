@@ -7,6 +7,7 @@ export interface Message {
   timestamp: Date;
   mode?: ServiceMode;
   isAmbiguous?: boolean;
+  isToolCall?: boolean;
   leadData?: {
     name?: string | null;
     phone?: string | null;

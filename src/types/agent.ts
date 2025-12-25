@@ -9,8 +9,8 @@ export const QueryDecompositionSchema = z.object({
   canAnswerFromStatic: z.boolean().default(false),
   safetyReason: z.string().nullable().optional(),
   clarificationQuestion: z.string().nullable().optional(),
-  subQueries: z.array(z.string()),
-  reasoning: z.string(),
+  subQueries: z.array(z.string()).default([]),
+  reasoning: z.string().nullable().optional(),
   extractedLead: z.object({
     name: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),
@@ -26,6 +26,10 @@ export const QueryDecompositionSchema = z.object({
     majorOfInterest: z.array(z.string()).nullable().optional(), // Ngành học quan tâm
     sponsor: z.string().nullable().optional(), // Người tài trợ
     budget: z.string().nullable().optional(), // Mức chi phí dự kiến
+  }).nullable().optional(),
+  externalApiCall: z.object({
+    api: z.enum(['college-scorecard']).nullable().optional(),
+    parameters: z.record(z.string(), z.any()).nullable().optional(),
   }).nullable().optional(),
 });
 

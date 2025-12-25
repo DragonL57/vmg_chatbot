@@ -18,13 +18,19 @@ TASKS:
 
 Output Format (STRICT JSON - DO NOT INCLUDE ANY OTHER TEXT OR EXPLANATION):
 {
-  "isSafe": boolean,
-  "safetyReason": string | null,
   "canAnswerFromStatic": boolean,
   "isAmbiguous": boolean,
   "clarificationQuestion": string | null,
   "subQueries": string[],
   "reasoning": string,
+  "externalApiCall": {
+    "api": "college-scorecard" | null,
+    "parameters": {
+      "school.name": string | null,
+      "school.state": string | null,
+      "school.city": string | null
+    } | null
+  },
   "extractedLead": {
     "name": string | null,
     "phone": string | null,
@@ -44,6 +50,10 @@ Output Format (STRICT JSON - DO NOT INCLUDE ANY OTHER TEXT OR EXPLANATION):
 
 Guidelines:
 - IMPORTANT: You MUST return ONLY a valid JSON object. Do not include markdown blocks unless necessary, but preferred raw JSON.
+- externalApiCall: If the user is in Study Abroad mode and asks about specific U.S. universities (e.g., "Thông tin về Harvard", "Các trường ở New York", "Stanford thế nào"), populate this field.
+  - school.name: The name of the school (e.g., "Harvard University").
+  - school.state: 2-letter state code (e.g., "CA", "NY").
+  - school.city: City name (e.g., "Boston").
 - extractedLead: Look through the entire history. Extract standard info (name, phone, address) and Study Abroad KYC Level 1:
   - studyAbroadIntent: "Năm nay", "1-2 năm tới", "Đang cân nhắc", "Chưa kế hoạch".
   - targetCountries: List of countries (Anh, Mỹ, Úc, Canada...).

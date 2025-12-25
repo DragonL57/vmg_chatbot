@@ -7,27 +7,18 @@ export class LeadService {
    * Saves or updates lead information.
    * In the future, this will call a CRM API or Google Sheets API.
    */
-  static async saveLead(data: {
-    name?: string | null;
-    phone?: string | null;
-    childName?: string | null;
-    childDob?: string | null;
-    address?: string | null;
-    notes?: string | null;
-    studyAbroadIntent?: string | null;
-    targetCountries?: string[] | null;
-    educationLevel?: string[] | null;
-    admissionTime?: string | null;
-    majorOfInterest?: string[] | null;
-    sponsor?: string | null;
-    budget?: string | null;
-  }) {
-    // Only proceed if at least one piece of info is present
-    const hasData = Object.values(data).some(v => v !== null && v !== undefined);
-    if (!hasData) return;
+  static async saveLead(data: Record<string, unknown>) {
+    // Filter out null, undefined, or empty values for logging
+    const cleanData = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => 
+        v !== null && v !== undefined && v !== '' && (!Array.isArray(v) || v.length > 0)
+      )
+    );
+
+    if (Object.keys(cleanData).length === 0) return;
 
     console.log('--- [MOCK CRM CALL] Saving Lead Info ---');
-    console.log('Data:', JSON.stringify(data, null, 2));
+    console.log('Data:', JSON.stringify(cleanData, null, 2));
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));

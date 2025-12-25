@@ -93,6 +93,7 @@ export const ChatInterface: React.FC = () => {
       const decoder = new TextDecoder();
       let done = false;
       let assistantId = '';
+      let toolCallMessageId = '';
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -100,6 +101,32 @@ export const ChatInterface: React.FC = () => {
         const chunkValue = decoder.decode(value, { stream: !done });
         
         if (chunkValue) {
+          // Check for Tool Call signals
+          if (chunkValue.includes('__TOOL_CALL_START__')) {
+            toolCallMessageId = uuidv4();
+            const toolMessage: Message = {
+              id: toolCallMessageId,
+              role: 'system',
+              content: 'Chuyên viên đang truy xuất dữ liệu từ hệ thống giáo dục Mỹ...',
+              timestamp: new Date(),
+              isToolCall: true
+            };
+            setMessages((prev) => [...prev, toolMessage]);
+            continue;
+          }
+
+          if (chunkValue.includes('__TOOL_CALL_DONE__')) {
+            // We could update the message or just let it stay. 
+            // Let's update it to "Đã hoàn tất truy xuất"
+            if (toolCallMessageId) {
+              setMessages((prev) => 
+                prev.map(msg => msg.id === toolCallMessageId ? { ...msg, content: 'Đã hoàn tất truy xuất dữ liệu từ College Scorecard' } : msg)
+              );
+            }
+            continue;
+          }
+
+          // Normal content streaming
           if (!assistantId) {
             assistantId = uuidv4();
             const assistantMessage: Message = {

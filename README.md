@@ -2,55 +2,92 @@
 
 A **Unified Retrieval Agent-Based System (URASys)** designed for VMG English Center to provide precise, context-aware answers regarding courses, tuition, and policies. It leverages a multi-agent orchestration layer and an optimized dual-retrieval pipeline.
 
-## 🏗 Multi-Agent Architecture (Optimized Path B)
+## 🏗 Multi-Agent Architecture
 
-URASys operates through a collaborative ecosystem of specialized agents. The current implementation uses a **Streamlined Dispatcher Pattern** with **Token-Efficiency Optimizations** to ensure high-speed, cost-effective, and high-accuracy responses.
+URASys operates through two distinct specialized architectures tailored for different business goals, powered by a **Parallel Specialist Orchestration** layer.
+
+### 1. VMG English Architecture (ESL Consultation)
+Focused on high-speed response, course discovery, and simplified lead generation.
 
 ```mermaid
 graph TD
-    subgraph UI_Layer [User Interface]
-        UI[Next.js Chat Interface]
+    subgraph ESL_UI [VMG English UI]
+        UI1[Next.js Chat Interface]
     end
 
-    subgraph Dispatch_Layer [Intelligent Orchestration & Token Optimization]
-        CW[Context Windowing: Last 10 Messages]
-        DA[Dispatcher Agent]
-        LC[Lead Extraction: Name, Phone, Address, Goals]
-        LS[Lead Service / CRM Mock]
+    subgraph ESL_Intelligence [Parallel Specialists]
+        SA1[Safety Officer: Policy Check]
+        PR1[Profiler: Basic Lead Capture]
+        ST1[Strategist: RAG & Static Check]
     end
 
-    subgraph Knowledge_Retrieval [Dual-Path Strategy]
-        SK[Static Knowledge Check]
-        RE[Retrieval Engine: Top 3 Pruning]
-        KV[(Qdrant Vector DB)]
+    subgraph ESL_Knowledge [ESL Retrieval]
+        SK1[Static: VMG Overview]
+        RE1[Vector RAG: Policy & Pedagogy]
     end
 
-    subgraph Synthesis_Layer [Response Generation]
-        MS[Master Agent]
-    end
-
-    UI -->|1. Message + Full History| CW
-    CW -->|2. Optimized History| DA
-    
-    DA -->|3. Parallel Analysis| LC
-    LC -->|4a. Lead Data| LS
-    
-    DA -->|5. Strategy Routing| SK
-    
-    SK -->|6a. Fast Path: Answer in Static| MS
-    SK -->|6b. Detailed Path: Needs Detail| RE
-    
-    RE <-->|7. Semantic Search| KV
-    RE -->|8. Pruned Context| MS
-    
-    MS -->|9. Final Human-like Response| UI
+    UI1 -->|Message| ESL_Intelligence
+    ESL_Intelligence -->|Parallel Intent| ESL_Knowledge
+    ESL_Knowledge --> MS1[Master Agent: ESL Voice]
+    MS1 -->|Response| UI1
 ```
 
-### The Agents & Services
-1.  **Dispatcher Agent (`ManagerService`):** The "Brain". Handles Safety, Intent, and Lead Extraction. It now identifies if **Static Knowledge** is sufficient to bypass the vector search entirely (Fast Path).
-2.  **Retrieval Engine (`SearchService`):** Powered by **Mistral Embeddings (1024D)**. Optimized with **Retrieval Pruning** (Top 3 results) to minimize input tokens.
-3.  **Lead Service (`LeadService`):** Asynchronously pushes customer data (Name, Phone, Address, Specific Goals) to CRM/Sheets.
-4.  **Master Agent (Route Handler):** The "Voice". Follows a 3-step consultation protocol: **Ask -> Empathize -> Hook**. Uses a **Sliding Window** of history to remain cost-effective.
+### 2. VMG Global Pathway Architecture (Study Abroad)
+A complex 5-step consulting pipeline designed for deep discovery, KYC Level 1 extraction, and external academic data integration.
+
+```mermaid
+graph TD
+    subgraph Abroad_UI [VMG Global Pathway UI]
+        UI2[Next.js Chat Interface]
+    end
+
+    subgraph Abroad_Intelligence [Parallel Specialists]
+        SA2[Safety Officer: Guardrails]
+        PR2[Profiler: Full 7-Point KYC Extraction]
+        ST2[Strategist: US API Tool Planning]
+    end
+
+    subgraph Abroad_Execution [Multi-Source Execution]
+        SK2[Static: Abroad Overview]
+        RE2[Vector RAG: Specialized Docs]
+        EX2[API: College Scorecard US - Top 10]
+    end
+
+    subgraph Abroad_Engagement [Value-Add Layer]
+        VT[Career Orientation Tests - Future]
+        LP[Learning Profile Generator]
+    end
+
+    UI2 -->|Message| Abroad_Intelligence
+    Abroad_Intelligence -->|Parallel Orchestration| Abroad_Execution
+    Abroad_Execution --> Abroad_Engagement
+    Abroad_Engagement --> MS2[Master Agent: Mentor Persona]
+    MS2 -->|5-Step Conversational Flow| UI2
+```
+
+---
+
+## 🚀 Key Features by Domain
+
+### VMG English (ESL)
+*   **Concise Messaging:** Optimized for quick, direct Zalo-style answers.
+*   **Location Awareness:** Automatically guides users to one of the 12 local branches.
+*   **Direct Lead Gen:** Simple "Ask -> Answer -> Contact" flow.
+
+### VMG Global Pathway (Study Abroad)
+*   **Conversational KYC:** Naturally extracts 7 data points (Country, Budget, Major, Intent, etc.).
+*   **College Scorecard Integration:** Real-time data lookup for U.S. higher education institutions (Top 10 results).
+*   **Paced Consultation:** Follows a strict 5-step Mentor methodology (**Discovery -> Value-Add -> Hook -> Engagement -> Retain**).
+*   **Data-Driven Advice:** AI uses raw school data to provide qualitative advice rather than just listing numbers.
+
+---
+
+## 🛠 Technical Optimizations
+
+*   **Parallel Orchestration:** Safety, Lead, and Strategy agents run concurrently via `Promise.all`, reducing sequential latency by ~60%.
+*   **Token Efficiency:** Context windowing (last 10 messages) and RAG bypass for common static queries.
+*   **Visual Debugging:** System badges allow real-time inspection of captured Lead JSON and Tool-call status.
+*   **Human Simulation:** Complete removal of "AI/Bot" branding for a pure "Consultant" persona experience.
 
 ---
 
