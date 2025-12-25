@@ -8,7 +8,7 @@ import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Info, Phone, Menu } from 'lucide-react';
+import { Info, Phone, Menu, GraduationCap, Plane } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
@@ -29,7 +29,10 @@ export const ChatInterface: React.FC = () => {
   const handleModeChange = (newMode: ServiceMode) => {
     if (newMode === mode) return;
     setMode(newMode);
-    setMessages([]);
+    // On mobile, close sidebar after selection
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
   };
 
   const onSuggestionClick = (text: string) => {
@@ -51,7 +54,9 @@ export const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
+      // Filter history to only include messages from the current mode
+      const relevantHistory = messages.filter(m => !m.mode || m.mode === mode);
+      const apiMessages = [...relevantHistory, userMessage].map(({ role, content }) => ({ role, content }));
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -169,11 +174,13 @@ export const ChatInterface: React.FC = () => {
               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
             </div>
             <div>
-              <h1 className="text-sm font-bold text-slate-800 leading-none mb-1">
+              <h1 className="text-sm font-bold text-slate-800 leading-none mb-1 flex items-center gap-1.5">
+                {mode === 'study-abroad' && <Plane className="w-3.5 h-3.5 text-[#D32F2F]" />}
+                {mode === 'esl' && <GraduationCap className="w-3.5 h-3.5 text-[#D32F2F]" />}
                 {mode === 'esl' ? 'VMG English Center' : 'VMG Study Abroad'}
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                {mode === 'esl' ? 'Tư vấn viên AI' : 'Chuyên viên Tư vấn Du học'}
+                {mode === 'esl' ? 'Chuyên viên Tư vấn Tuyển sinh' : 'Chuyên viên Tư vấn Du học'}
               </p>
             </div>
           </div>
@@ -193,7 +200,12 @@ export const ChatInterface: React.FC = () => {
 
         {/* Message List Area */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          <MessageList messages={messages} isLoading={isLoading} currentMode={mode} onSuggestionClick={onSuggestionClick} />
+          <MessageList 
+            messages={messages.filter(m => !m.mode || m.mode === mode)} 
+            isLoading={isLoading} 
+            currentMode={mode} 
+            onSuggestionClick={onSuggestionClick} 
+          />
         </div>
 
         {/* Chat Input Area */}
@@ -205,8 +217,8 @@ export const ChatInterface: React.FC = () => {
             isLoading={isLoading} 
           />
           <div className="px-4 pb-2 text-center">
-            <p className="text-[9px] text-slate-400 font-medium">
-              &copy; 2025 VMG English Center • Powered by URASys
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+              &copy; 2025 VMG English Center
             </p>
           </div>
         </div>

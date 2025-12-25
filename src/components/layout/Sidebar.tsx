@@ -63,7 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => {
                   onModeChange('esl');
-                  onClose();
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   currentMode === 'esl' 
@@ -81,7 +80,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => {
                   onModeChange('study-abroad');
-                  onClose();
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   currentMode === 'study-abroad' 
