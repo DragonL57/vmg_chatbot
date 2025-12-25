@@ -30,14 +30,6 @@ export const ChatInterface: React.FC = () => {
     if (newMode === mode) return;
     setMode(newMode);
     setMessages([]);
-    
-    // Proactive greeting for Study Abroad
-    if (newMode === 'study-abroad') {
-      // Small timeout to allow state to clear
-      setTimeout(() => {
-        sendMessage("Dạ chào em, mình đang quan tâm chương trình du học nào ạ?");
-      }, 100);
-    }
   };
 
   const onSuggestionClick = (text: string) => {
