@@ -9,7 +9,7 @@
 
 ## Phase 2: Study Abroad Intelligence & Retrieval
 - [x] Task: Create initial knowledge base at `data/knowledge/study-abroad-overview.md` [6a24ed7]
-- [ ] Task: Implement `src/prompts/study-abroad-master.ts` with the Consultant persona and KYC discovery logic
+- [x] Task: Implement `src/prompts/study-abroad-master.ts` with the Consultant persona and KYC discovery logic [53037f5]
 - [ ] Task: Update `SearchService` to filter results or use separate collections based on the active mode
 - [ ] Task: Implement proactive greeting logic in `ChatInterface` when switching modes
 - [ ] Task: Conductor - User Manual Verification 'Study Abroad Intelligence & Retrieval' (Protocol in workflow.md)
