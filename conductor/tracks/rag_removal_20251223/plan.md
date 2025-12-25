@@ -14,8 +14,8 @@
 - [ ] Task: Conductor - User Manual Verification 'Environment & Schema Refactoring' (Protocol in workflow.md)
 
 ## Phase 3: Prompt & Logic Refactoring
-- [ ] Task: Rewrite `src/prompts/specialists/planner.ts` to focus only on Ambiguity and Tools
-- [ ] Task: Refactor `/api/chat` route handler to remove dual-path retrieval and use only Static Knowledge
+- [x] Task: Rewrite `src/prompts/specialists/planner.ts` to focus only on Ambiguity and Tools [eceb568]
+- [x] Task: Refactor `/api/chat` route handler to remove dual-path retrieval and use only Static Knowledge [eceb568]
 - [ ] Task: Conductor - User Manual Verification 'Prompt & Logic Refactoring' (Protocol in workflow.md)
 
 ## Phase 4: Final Validation & Polishing
