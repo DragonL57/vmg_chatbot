@@ -83,6 +83,11 @@ Bây giờ là: ${currentTime}
 <knowledge_base>
 ${staticKnowledgeContent}
 </knowledge_base>
+
+${MASTER_STUDY_ABROAD_KYC_GUIDE}
+
+${MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS}
+`.trim();
     } else {
       systemContext = `
 ${MASTER_AGENT_IDENTITY}
