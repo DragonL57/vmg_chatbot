@@ -2,10 +2,10 @@
 
 ## Phase 1: Dependency & File Removal
 - [x] Task: Remove `@qdrant/js-client-rest` dependency from `package.json` [d069e29]
-- [ ] Task: Delete indexing scripts and utility scripts in `scripts/`
-- [ ] Task: Delete `src/lib/qdrant.ts` and `src/services/indexing/` directory
-- [ ] Task: Delete `src/services/search.service.ts` and `src/services/embedding.service.ts`
-- [ ] Task: Delete the `data/vmg-docs/` directory and its contents
+- [x] Task: Delete indexing scripts and utility scripts in `scripts/` [0b17a02]
+- [x] Task: Delete `src/lib/qdrant.ts` and `src/services/indexing/` directory [0b17a02]
+- [x] Task: Delete `src/services/search.service.ts` and `src/services/embedding.service.ts` [0b17a02]
+- [x] Task: Delete the `data/vmg-docs/` directory and its contents [0b17a02]
 - [ ] Task: Conductor - User Manual Verification 'Dependency & File Removal' (Protocol in workflow.md)
 
 ## Phase 2: Environment & Schema Refactoring
