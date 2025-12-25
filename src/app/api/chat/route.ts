@@ -33,11 +33,10 @@ export async function POST(req: Request) {
     const recentMessages = messages.slice(-10);
 
     // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
-    // TODO: In Phase 3, pass serviceMode to ManagerService to use domain-specific logic
     const decomposition = await ManagerService.decompose(recentMessages);
 
     if (!decomposition.isSafe) {
-      return new Response(decomposition.safetyReason || "Yêu cầu bị từ chối do vi phạm chính sách.", { status: 400 });
+      return new Response("⚠️ Cảnh báo vi phạm chính sách an toàn", { status: 200 });
     }
 
     // 1b. Lead Capture (Async - don't block the UI)
@@ -72,37 +71,9 @@ export async function POST(req: Request) {
     let baseSystemContext = "";
     
     if (serviceMode === 'study-abroad') {
-      baseSystemContext = `
-${MASTER_STUDY_ABROAD_IDENTITY}
-
-<current_time>
-Bây giờ là: ${currentTime}
-</current_time>
-
-<knowledge_base>
-${staticKnowledgeContent}
-</knowledge_base>
-
-${MASTER_STUDY_ABROAD_KYC_GUIDE}
-
-${MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS}
-`.trim();
+      baseSystemContext = `\n${MASTER_STUDY_ABROAD_IDENTITY}\n\n<current_time>\nBây giờ là: ${currentTime}\n</current_time>\n\n<knowledge_base>\n${staticKnowledgeContent}\n</knowledge_base>\n\n${MASTER_STUDY_ABROAD_KYC_GUIDE}\n\n${MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS}\n`.trim();
     } else {
-      baseSystemContext = `
-${MASTER_AGENT_IDENTITY}
-
-<current_time>
-Bây giờ là: ${currentTime}
-</current_time>
-
-<knowledge_base>
-${staticKnowledgeContent}
-</knowledge_base>
-
-${MASTER_CUSTOMER_INSIGHT}
-
-${MASTER_OUTPUT_CONSTRAINTS}
-`.trim();
+      baseSystemContext = `\n${MASTER_AGENT_IDENTITY}\n\n<current_time>\nBây giờ là: ${currentTime}\n</current_time>\n\n<knowledge_base>\n${staticKnowledgeContent}\n</knowledge_base>\n\n${MASTER_CUSTOMER_INSIGHT}\n\n${MASTER_OUTPUT_CONSTRAINTS}\n`.trim();
     }
 
     if (decomposition.isAmbiguous) {

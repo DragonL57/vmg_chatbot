@@ -15,6 +15,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isTool = message.isToolCall;
+  const isSafetyWarning = message.content?.includes('⚠️ Cảnh báo vi phạm chính sách an toàn');
   const [showData, setShowData] = useState(false);
 
   if (isSystem) {
@@ -50,11 +51,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative transition-all duration-700 ${
           isUser
             ? 'bg-[#D32F2F] text-white rounded-tr-sm'
-            : `bg-white text-slate-700 border rounded-tl-sm shadow-slate-200/50 ${
-                message.isAmbiguous 
-                  ? 'border-[#D32F2F]/60 shadow-[0_0_12px_rgba(211,47,47,0.25)]' 
-                  : 'border-slate-200'
-              }`
+            : isSafetyWarning
+              ? 'bg-amber-50 text-amber-800 border border-amber-200 rounded-tl-sm shadow-amber-100/50 italic font-medium'
+              : `bg-white text-slate-700 border rounded-tl-sm shadow-slate-200/50 ${
+                  message.isAmbiguous 
+                    ? 'border-[#D32F2F]/60 shadow-[0_0_12px_rgba(211,47,47,0.25)]' 
+                    : 'border-slate-200'
+                }`
         }`}
       >
         <div className="leading-relaxed">
