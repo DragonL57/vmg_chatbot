@@ -32,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <aside 
         className={`fixed top-0 left-0 h-full w-72 bg-white z-50 transition-transform duration-300 transform shadow-2xl border-r border-slate-100 flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:relative md:translate-x-0 md:shadow-none md:z-0`}
+        }`}
       >
         {/* Sidebar Header */}
         <div className="p-6 border-b border-slate-50 flex items-center justify-between">
@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 md:hidden"
+            className="p-2 text-slate-400 hover:text-slate-600"
           >
             <X className="w-5 h-5" />
           </button>

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { Message } from '@/types/chat';
+import { Message, ServiceMode } from '@/types/chat';
 import Image from 'next/image';
 import { MessageItem } from './message-item';
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
+  currentMode: ServiceMode;
   onSuggestionClick?: (text: string) => void;
 }
 
@@ -24,7 +25,7 @@ const TypingIndicator = () => (
   </div>
 );
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, onSuggestionClick }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, currentMode, onSuggestionClick }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,6 +35,20 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
   }, [messages, isLoading]);
 
   const showTyping = isLoading && (messages.length === 0 || messages[messages.length - 1].role === 'user');
+
+  const eslSuggestions = [
+    "Tìm lớp cho bé (4-11 tuổi)",
+    "Luyện thi IELTS cam kết",
+    "Tiếng Anh giao tiếp đi làm"
+  ];
+
+  const abroadSuggestions = [
+    "Tư vấn du học Anh/Mỹ/Úc",
+    "Học bổng du học 2026",
+    "Du học hè trải nghiệm"
+  ];
+
+  const suggestions = currentMode === 'esl' ? eslSuggestions : abroadSuggestions;
 
   return (
     <div
@@ -49,17 +64,15 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
             <div className="text-4xl mb-4">👋</div>
             <h2 className="text-lg font-bold text-slate-800 mb-2">Chào mừng bạn đến với VMG!</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Mình là trợ lý ảo, sẵn sàng giải đáp mọi thắc mắc về khóa học, lộ trình và chính sách tại trung tâm 😊
+              {currentMode === 'esl' 
+                ? 'Mình là trợ lý ảo, sẵn sàng giải đáp mọi thắc mắc về khóa học, lộ trình và chính sách tại trung tâm 😊'
+                : 'Em là chuyên viên tư vấn du học VMG, sẵn sàng hỗ trợ anh/chị tìm kiếm lộ trình du học tối ưu nhất 😊'}
             </p>
           </div>
           
           <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bạn đang quan tâm...</p>
-             {[
-               "Tìm lớp cho bé (4-11 tuổi)",
-               "Luyện thi IELTS cam kết",
-               "Tiếng Anh giao tiếp đi làm"
-             ].map((text) => (
+             {suggestions.map((text) => (
                <button 
                  key={text} 
                  onClick={() => onSuggestionClick?.(text)}

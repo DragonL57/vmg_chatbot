@@ -20,7 +20,7 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ServiceMode>('esl');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -153,13 +153,13 @@ export const ChatInterface: React.FC = () => {
         onModeChange={handleModeChange}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'ml-0'}`}>
         {/* VMG Brand Header */}
         <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 -ml-2 text-slate-400 hover:text-slate-600 md:hidden"
+              className={`p-2 -ml-2 text-slate-400 hover:text-slate-600 transition-opacity ${isSidebarOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -194,7 +194,7 @@ export const ChatInterface: React.FC = () => {
 
         {/* Message List Area */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          <MessageList messages={messages} isLoading={isLoading} onSuggestionClick={onSuggestionClick} />
+          <MessageList messages={messages} isLoading={isLoading} currentMode={mode} onSuggestionClick={onSuggestionClick} />
         </div>
 
         {/* Chat Input Area */}
