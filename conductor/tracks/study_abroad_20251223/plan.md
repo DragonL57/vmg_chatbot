@@ -2,7 +2,7 @@
 
 ## Phase 1: Multi-Mode Infrastructure & UI
 - [x] Task: Define Service Mode types and update `src/types/chat.ts` to include `mode` [5c454d8]
-- [ ] Task: Create `Sidebar` component for navigation between ESL and Study Abroad
+- [x] Task: Create `Sidebar` component for navigation between ESL and Study Abroad [73e0063]
 - [ ] Task: Integrate Sidebar into `ChatInterface` and handle mode switching state
 - [ ] Task: Update `/api/chat` Route Handler to accept and propagate the `serviceMode` parameter
 - [ ] Task: Conductor - User Manual Verification 'Multi-Mode Infrastructure & UI' (Protocol in workflow.md)
