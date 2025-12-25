@@ -12,6 +12,12 @@ import {
   MASTER_EXECUTION_PROTOCOL_RESPONSE,
   MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA
 } from '@/prompts/master';
+import {
+  MASTER_STUDY_ABROAD_IDENTITY,
+  MASTER_STUDY_ABROAD_KYC_GUIDE,
+  MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS,
+  MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL
+} from '@/prompts/study-abroad-master';
 
 export const maxDuration = 300; // Allow 300s for RAG operations
 
@@ -28,7 +34,7 @@ export async function POST(req: Request) {
     const recentMessages = messages.slice(-10);
 
     // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
-    // TODO: In Phase 2, pass serviceMode to ManagerService to use domain-specific logic
+    // TODO: In Phase 3, pass serviceMode to ManagerService to use domain-specific logic
     const decomposition = await ManagerService.decompose(recentMessages);
 
     if (!decomposition.isSafe) {
@@ -45,7 +51,6 @@ export async function POST(req: Request) {
     // Load static knowledge from file
     let staticKnowledgeContent = "";
     try {
-      // TODO: In Phase 2, load different knowledge based on serviceMode
       const knowledgeFile = serviceMode === 'study-abroad' ? 'study-abroad-overview.md' : 'vmg-overview.md';
       const knowledgePath = path.join(process.cwd(), 'data', 'knowledge', knowledgeFile);
       if (fs.existsSync(knowledgePath)) {
@@ -55,8 +60,22 @@ export async function POST(req: Request) {
       console.error("Failed to load static knowledge:", err);
     }
 
-    // TODO: In Phase 2, import and use MASTER_AGENT_IDENTITY_STUDY_ABROAD etc.
-    let systemContext = `
+    let systemContext = "";
+    
+    if (serviceMode === 'study-abroad') {
+      systemContext = `
+${MASTER_STUDY_ABROAD_IDENTITY}
+
+<knowledge_base>
+${staticKnowledgeContent}
+</knowledge_base>
+
+${MASTER_STUDY_ABROAD_KYC_GUIDE}
+
+${MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS}
+`.trim();
+    } else {
+      systemContext = `
 ${MASTER_AGENT_IDENTITY}
 
 <knowledge_base>
@@ -67,12 +86,13 @@ ${MASTER_CUSTOMER_INSIGHT}
 
 ${MASTER_OUTPUT_CONSTRAINTS}
 `.trim();
+    }
 
     if (decomposition.isAmbiguous) {
       systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_AMBIGUOUS(decomposition.clarificationQuestion || '')}`;
     } else if (decomposition.canAnswerFromStatic) {
       // 2. BYPASS RAG (Static Knowledge is sufficient)
-      systemContext += `\n\n${MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
+      systemContext += `\n\n${serviceMode === 'study-abroad' ? MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL : MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
       console.log('--- BYPASSING RAG: Answer found in static knowledge ---');
     } else {
       // 2. Retrieval (Parallel Execution)
@@ -80,8 +100,8 @@ ${MASTER_OUTPUT_CONSTRAINTS}
       
       // Optimization: Limit to top 3 results to save tokens
       const [docResults, faqResults] = await Promise.all([
-        SearchService.searchDocuments(primaryQuery, 3),
-        SearchService.searchFaqs(lastMessage.content, 3)
+        SearchService.searchDocuments(primaryQuery, 3, serviceMode),
+        SearchService.searchFaqs(lastMessage.content, 3, serviceMode)
       ]);
 
       // Calculate Confidence
@@ -107,7 +127,7 @@ ${contextBlock}
 [CÂU HỎI THƯỜNG GẶP]
 ${faqBlock}
 </retrieved_context>
-\n\n${hasSufficientData ? MASTER_EXECUTION_PROTOCOL_RESPONSE : MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
+\n\n${hasSufficientData ? (serviceMode === 'study-abroad' ? MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL : MASTER_EXECUTION_PROTOCOL_RESPONSE) : MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
     }
 
     // 3. Generate Response Stream

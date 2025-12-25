@@ -29,8 +29,15 @@ export const ChatInterface: React.FC = () => {
   const handleModeChange = (newMode: ServiceMode) => {
     if (newMode === mode) return;
     setMode(newMode);
-    // Reset messages when switching modes for now (or keep them per mode)
     setMessages([]);
+    
+    // Proactive greeting for Study Abroad
+    if (newMode === 'study-abroad') {
+      // Small timeout to allow state to clear
+      setTimeout(() => {
+        sendMessage("Dạ chào em, mình đang quan tâm chương trình du học nào ạ?");
+      }, 100);
+    }
   };
 
   const onSuggestionClick = (text: string) => {
