@@ -12,9 +12,19 @@ export class LeadService {
     phone?: string | null;
     childName?: string | null;
     childDob?: string | null;
+    address?: string | null;
+    notes?: string | null;
+    studyAbroadIntent?: string | null;
+    targetCountries?: string[] | null;
+    educationLevel?: string[] | null;
+    admissionTime?: string | null;
+    majorOfInterest?: string[] | null;
+    sponsor?: string | null;
+    budget?: string | null;
   }) {
     // Only proceed if at least one piece of info is present
-    if (!data.name && !data.phone && !data.childName && !data.childDob) return;
+    const hasData = Object.values(data).some(v => v !== null && v !== undefined);
+    if (!hasData) return;
 
     console.log('--- [MOCK CRM CALL] Saving Lead Info ---');
     console.log('Data:', JSON.stringify(data, null, 2));
