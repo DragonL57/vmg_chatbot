@@ -177,7 +177,7 @@ export const ChatInterface: React.FC = () => {
               <h1 className="text-sm font-bold text-slate-800 leading-none mb-1 flex items-center gap-1.5">
                 {mode === 'study-abroad' && <Plane className="w-3.5 h-3.5 text-[#D32F2F]" />}
                 {mode === 'esl' && <GraduationCap className="w-3.5 h-3.5 text-[#D32F2F]" />}
-                {mode === 'esl' ? 'VMG English Center' : 'VMG Study Abroad'}
+                {mode === 'esl' ? 'VMG English' : 'VMG Global Pathway'}
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
                 {mode === 'esl' ? 'Chuyên viên Tư vấn Tuyển sinh' : 'Chuyên viên Tư vấn Du học'}

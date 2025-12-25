@@ -60,23 +60,36 @@ export async function POST(req: Request) {
       console.error("Failed to load static knowledge:", err);
     }
 
+    const currentTime = new Date().toLocaleString('vi-VN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh'
+    });
+
     let systemContext = "";
     
     if (serviceMode === 'study-abroad') {
       systemContext = `
 ${MASTER_STUDY_ABROAD_IDENTITY}
 
+<current_time>
+Bây giờ là: ${currentTime}
+</current_time>
+
 <knowledge_base>
 ${staticKnowledgeContent}
 </knowledge_base>
-
-${MASTER_STUDY_ABROAD_KYC_GUIDE}
-
-${MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS}
-`.trim();
     } else {
       systemContext = `
 ${MASTER_AGENT_IDENTITY}
+
+<current_time>
+Bây giờ là: ${currentTime}
+</current_time>
 
 <knowledge_base>
 ${staticKnowledgeContent}

@@ -71,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <GraduationCap className={`w-5 h-5 ${currentMode === 'esl' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
-                <span>Tiếng Anh (ESL)</span>
+                <span>VMG English (ESL)</span>
                 {currentMode === 'esl' && (
                   <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
                 )}
@@ -88,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <Plane className={`w-5 h-5 ${currentMode === 'study-abroad' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
-                <span>Tư vấn Du học</span>
+                <span>VMG Global Pathway</span>
                 {currentMode === 'study-abroad' && (
                   <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
                 )}

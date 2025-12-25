@@ -65,8 +65,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, c
             <h2 className="text-lg font-bold text-slate-800 mb-2">Chào mừng bạn đến với VMG!</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
               {currentMode === 'esl' 
-                ? 'Em là chuyên viên tư vấn tuyển sinh VMG, sẵn sàng giải đáp mọi thắc mắc về khóa học và lộ trình tại trung tâm 😊'
-                : 'Em là chuyên viên tư vấn du học VMG, sẵn sàng hỗ trợ anh/chị tìm kiếm lộ trình du học tối ưu nhất 😊'}
+                ? 'Em là chuyên viên tư vấn từ VMG English, sẵn sàng giải đáp mọi thắc mắc về khóa học và lộ trình tại trung tâm 😊'
+                : 'Em là chuyên viên tư vấn từ VMG Global Pathway, sẵn sàng hỗ trợ anh/chị tìm kiếm lộ trình du học tối ưu nhất 😊'}
             </p>
           </div>
           
