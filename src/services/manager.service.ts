@@ -13,7 +13,10 @@ export class ManagerService {
   /**
    * Decomposes a user query using parallel specialists.
    */
-  static async decompose(messages: { role: string; content: string }[]): Promise<QueryDecomposition> {
+  static async decompose(
+    messages: { role: string; content: string }[],
+    mode: 'esl' | 'study-abroad' = 'esl'
+  ): Promise<QueryDecomposition> {
     const history = messages.map(m => ({ 
       role: m.role as 'user' | 'assistant' | 'system', 
       content: m.content 
@@ -23,7 +26,7 @@ export class ManagerService {
     const [safetyRes, leadRes, plannerRes] = await Promise.all([
       PoeService.chat([{ role: 'system', content: SAFETY_SPECIALIST_PROMPT }, ...history]),
       PoeService.chat([{ role: 'system', content: LEAD_SPECIALIST_PROMPT }, ...history]),
-      PoeService.chat([{ role: 'system', content: PLANNER_SPECIALIST_PROMPT }, ...history]),
+      PoeService.chat([{ role: 'system', content: PLANNER_SPECIALIST_PROMPT(mode) }, ...history]),
     ]);
 
     const safetyContent = (safetyRes as ChatCompletion).choices[0].message.content || '';
@@ -56,7 +59,6 @@ export class ManagerService {
         isSafe: (safetyData?.isSafe) ?? true,
         safetyReason: safetyData?.reason ?? null,
         isAmbiguous: (combined.isAmbiguous as boolean) ?? false,
-        canAnswerFromStatic: (combined.canAnswerFromStatic as boolean) ?? false,
         reasoning: 'Orchestrated from parallel specialists',
         extractedLead: combined.extractedLead as QueryDecomposition['extractedLead'],
         externalApiCall: combined.externalApiCall as QueryDecomposition['externalApiCall'],

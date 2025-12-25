@@ -18,7 +18,7 @@ import {
   MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL
 } from '@/prompts/study-abroad-master';
 
-export const maxDuration = 300; // Allow 300s for RAG operations
+export const maxDuration = 300; // Allow 300s for AI operations
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const recentMessages = messages.slice(-10);
 
     // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
-    const decomposition = await ManagerService.decompose(recentMessages);
+    const decomposition = await ManagerService.decompose(recentMessages, serviceMode);
 
     if (!decomposition.isSafe) {
       return new Response("⚠️ Cảnh báo vi phạm chính sách an toàn", { status: 200 });
