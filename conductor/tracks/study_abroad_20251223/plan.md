@@ -1,7 +1,7 @@
 # Plan: Study Abroad Consultation & Sidebar Navigation
 
 ## Phase 1: Multi-Mode Infrastructure & UI
-- [ ] Task: Define Service Mode types and update `src/types/chat.ts` to include `mode`
+- [x] Task: Define Service Mode types and update `src/types/chat.ts` to include `mode` [5c454d8]
 - [ ] Task: Create `Sidebar` component for navigation between ESL and Study Abroad
 - [ ] Task: Integrate Sidebar into `ChatInterface` and handle mode switching state
 - [ ] Task: Update `/api/chat` Route Handler to accept and propagate the `serviceMode` parameter
