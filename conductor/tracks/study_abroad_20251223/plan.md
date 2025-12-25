@@ -8,7 +8,7 @@
 - [x] Task: Conductor - User Manual Verification 'Multi-Mode Infrastructure & UI' (Protocol in workflow.md) [93aa2fa]
 
 ## Phase 2: Study Abroad Intelligence & Retrieval
-- [ ] Task: Create initial knowledge base at `data/knowledge/study-abroad-overview.md`
+- [x] Task: Create initial knowledge base at `data/knowledge/study-abroad-overview.md` [6a24ed7]
 - [ ] Task: Implement `src/prompts/study-abroad-master.ts` with the Consultant persona and KYC discovery logic
 - [ ] Task: Update `SearchService` to filter results or use separate collections based on the active mode
 - [ ] Task: Implement proactive greeting logic in `ChatInterface` when switching modes
