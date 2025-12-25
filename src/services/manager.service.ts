@@ -57,7 +57,6 @@ export class ManagerService {
         safetyReason: safetyData?.reason ?? null,
         isAmbiguous: (combined.isAmbiguous as boolean) ?? false,
         canAnswerFromStatic: (combined.canAnswerFromStatic as boolean) ?? false,
-        subQueries: (combined.subQueries as string[]) ?? [],
         reasoning: 'Orchestrated from parallel specialists',
         extractedLead: combined.extractedLead as QueryDecomposition['extractedLead'],
         externalApiCall: combined.externalApiCall as QueryDecomposition['externalApiCall'],

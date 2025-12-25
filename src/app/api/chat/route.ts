@@ -1,6 +1,5 @@
 import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
 import { ManagerService } from '@/services/manager.service';
-import { SearchService } from '@/services/search.service';
 import { LeadService } from '@/services/lead.service';
 import { CollegeScorecardService } from '@/services/college-scorecard.service';
 import fs from 'fs';
@@ -10,8 +9,7 @@ import {
   MASTER_CUSTOMER_INSIGHT, 
   MASTER_OUTPUT_CONSTRAINTS, 
   MASTER_EXECUTION_PROTOCOL_AMBIGUOUS, 
-  MASTER_EXECUTION_PROTOCOL_RESPONSE,
-  MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA
+  MASTER_EXECUTION_PROTOCOL_RESPONSE
 } from '@/prompts/master';
 import {
   MASTER_STUDY_ABROAD_IDENTITY,
@@ -142,26 +140,9 @@ ${MASTER_OUTPUT_CONSTRAINTS}
             controller.enqueue(encoder.encode('__TOOL_CALL_DONE__'));
           }
 
-          // 3b. Handle RAG if not bypassing
-          if (!decomposition.isAmbiguous && !decomposition.canAnswerFromStatic) {
-            const primaryQuery = decomposition.subQueries[0] || lastMessage.content;
-            const [docResults, faqResults] = await Promise.all([
-              SearchService.searchDocuments(primaryQuery, 3, serviceMode),
-              SearchService.searchFaqs(lastMessage.content, 3, serviceMode)
-            ]);
-
-            const maxDocScore = docResults.length > 0 ? docResults[0].score : 0;
-            const maxFaqScore = faqResults.length > 0 ? faqResults[0].score : 0;
-            const hasSufficientData = maxDocScore > 0.65 || maxFaqScore > 0.65;
-
-            const contextBlock = docResults.map(r => r.content).join('\n\n') || "Không có tài liệu.";
-            const faqBlock = faqResults.map(f => f.content).join('\n\n') || "Không có FAQ.";
-
-            augmentedContext += `\n\n<retrieved_context>\n${contextBlock}\n${faqBlock}\n</retrieved_context>`;
-            augmentedContext += `\n\n${hasSufficientData ? (serviceMode === 'study-abroad' ? MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL : MASTER_EXECUTION_PROTOCOL_RESPONSE) : MASTER_EXECUTION_PROTOCOL_INSUFFICIENT_DATA}`;
-          } else if (decomposition.canAnswerFromStatic) {
-            augmentedContext += `\n\n${serviceMode === 'study-abroad' ? MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL : MASTER_EXECUTION_PROTOCOL_RESPONSE}`;
-          }
+          // 3b. Final Protocol Selection (Since RAG is gone, we either use Static or Tool results)
+          const executionProtocol = serviceMode === 'study-abroad' ? MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL : MASTER_EXECUTION_PROTOCOL_RESPONSE;
+          augmentedContext += `\n\n${executionProtocol}`;
 
           // 3c. Call Poe Completion
           const completion = await poe.chat.completions.create({
