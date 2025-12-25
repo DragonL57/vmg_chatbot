@@ -13,7 +13,7 @@ export class EmbeddingService {
    * Generates an embedding for a given text.
    * Includes simple caching to avoid redundant API calls.
    */
-  public static async embed(text: string, taskType?: string): Promise<number[]> {
+  public static async embed(text: string): Promise<number[]> {
     const cleanText = text.trim().replace(/\n/g, " ");
     if (!cleanText) return [];
 
@@ -57,7 +57,7 @@ export class EmbeddingService {
   /**
    * Generates embeddings for multiple texts in a single batch.
    */
-  public static async embedMany(texts: string[], taskType?: string): Promise<number[][]> {
+  public static async embedMany(texts: string[]): Promise<number[][]> {
     const results: (number[] | null)[] = new Array(texts.length).fill(null);
     const toFetch: { text: string; index: number }[] = [];
 
@@ -98,7 +98,7 @@ export class EmbeddingService {
       const data = result.data;
 
       if (Array.isArray(data)) {
-        data.forEach((item: any, i: number) => {
+        data.forEach((item: { embedding: number[] }, i: number) => {
           const embedding = item.embedding;
           if (Array.isArray(embedding) && embedding.length === 1024) {
             const originalIndex = toFetch[i].index;

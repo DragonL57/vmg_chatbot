@@ -1,5 +1,5 @@
-import { PoeService } from '@/services/poe.service';
-import { FAQGenerationSchema, FAQExpansionSchema } from '@/types/indexing';
+import { PoeService } from '../poe.service';
+import { FAQExpansionSchema } from '@/types/indexing';
 import { safeJsonParse } from '@/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
 import { FAQ_GENERATOR_PROMPT, FAQ_EXPANDER_PROMPT } from '@/prompts/faq-generator';

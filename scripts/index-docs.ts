@@ -55,7 +55,6 @@ async function main() {
   }
   console.log(ghostSources.size > 0 ? `Found ${ghostSources.size} ghost sources.` : 'Clean.');
 
-  const filesToIndex: string[] = [];
   const filesToRemove = new Set<string>(ghostSources);
 
   // Identify Removed Files from State
@@ -207,9 +206,10 @@ async function main() {
           state[file].lastChunkIndex = currentBatchEnd - 1;
           saveState(state);
 
-      } catch (error: any) {
+      } catch (error: unknown) {
+          const err = error as Error;
           console.error(`\nError processing batch starting at chunk ${i} of ${file}:`);
-          console.error(error?.message || error);
+          console.error(err?.message || err);
           console.log('Saving state and exiting. You can resume later.');
           saveState(state);
           process.exit(1);
@@ -277,8 +277,9 @@ async function ensureCollection(name: string) {
             });
         }
 
-    } catch (err: any) {
-        if (err.message === 'Recreating' || err.status === 404) {
+    } catch (err: unknown) {
+        const error = err as { message?: string; status?: number };
+        if (error.message === 'Recreating' || error.status === 404) {
             console.log(`Creating collection '${name}'...`);
             await qdrant.createCollection(name, {
                 vectors: { size: 1024, distance: 'Cosine' }

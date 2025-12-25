@@ -1,8 +1,11 @@
+export type ServiceMode = 'esl' | 'study-abroad';
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  mode?: ServiceMode;
   isAmbiguous?: boolean;
   leadData?: {
     name?: string | null;

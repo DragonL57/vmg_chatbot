@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Message } from '@/types/chat';
+import Image from 'next/image';
 import { MessageItem } from './message-item';
-import { GraduationCap } from 'lucide-react';
 
 interface MessageListProps {
   messages: Message[];
@@ -44,7 +44,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
         <div className="flex flex-col items-center justify-center h-full text-center px-8 space-y-6 animate-in fade-in zoom-in-95 duration-700">
           <div className="bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 relative">
             <div className="absolute -top-3 -right-3 bg-white p-1 rounded-xl shadow-lg border border-slate-100 h-10 w-10 flex items-center justify-center overflow-hidden">
-               <img src="/apple-icon.svg" alt="VMG Logo" className="h-8 w-8 object-contain" />
+               <Image src="/apple-icon.svg" alt="VMG Logo" width={32} height={32} className="object-contain" />
             </div>
             <div className="text-4xl mb-4">👋</div>
             <h2 className="text-lg font-bold text-slate-800 mb-2">Chào mừng bạn đến với VMG!</h2>

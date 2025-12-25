@@ -15,7 +15,8 @@ export class SearchService {
   static async searchDocuments(query: string, limit: number = 5): Promise<SearchResult[]> {
     try {
       // 1. Generate embedding for the query
-      const vector = await EmbeddingService.embed(query, 'RETRIEVAL_QUERY');
+      // 1. Generate embedding for the query
+      const vector = await EmbeddingService.embed(query);
 
       if (!vector) {
         return [];
@@ -51,7 +52,8 @@ export class SearchService {
   static async searchFaqs(query: string, limit: number = 3): Promise<SearchResult[]> {
     try {
       // Use RETRIEVAL_QUERY task type
-      const vector = await EmbeddingService.embed(query, 'RETRIEVAL_QUERY');
+      // 1. Generate embedding for the query
+      const vector = await EmbeddingService.embed(query);
 
       if (!vector) {
         return [];

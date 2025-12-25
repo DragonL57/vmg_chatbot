@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Message } from '@/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
+import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Info, Phone } from 'lucide-react';
@@ -135,7 +136,7 @@ export const ChatInterface: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 h-11 w-11 flex items-center justify-center overflow-hidden">
-              <img src="/apple-icon.svg" alt="VMG Logo" className="h-9 w-9 object-contain" />
+              <Image src="/apple-icon.svg" alt="VMG Logo" width={36} height={36} className="object-contain" />
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
           </div>
