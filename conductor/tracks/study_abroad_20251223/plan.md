@@ -1,11 +1,11 @@
 # Plan: Study Abroad Consultation & Sidebar Navigation
 
-## Phase 1: Multi-Mode Infrastructure & UI
+## Phase 1: Multi-Mode Infrastructure & UI [checkpoint: 93aa2fa]
 - [x] Task: Define Service Mode types and update `src/types/chat.ts` to include `mode` [5c454d8]
 - [x] Task: Create `Sidebar` component for navigation between ESL and Study Abroad [73e0063]
 - [x] Task: Integrate Sidebar into `ChatInterface` and handle mode switching state [bd759cd]
 - [x] Task: Update `/api/chat` Route Handler to accept and propagate the `serviceMode` parameter [4b8e684]
-- [ ] Task: Conductor - User Manual Verification 'Multi-Mode Infrastructure & UI' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Multi-Mode Infrastructure & UI' (Protocol in workflow.md) [93aa2fa]
 
 ## Phase 2: Study Abroad Intelligence & Retrieval
 - [ ] Task: Create initial knowledge base at `data/knowledge/study-abroad-overview.md`
