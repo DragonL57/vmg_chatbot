@@ -30,8 +30,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           </button>
           
           {showData && message.leadData && (
-            <div className="mt-2 w-full bg-slate-800 text-blue-300 p-3 rounded-xl text-[10px] font-mono overflow-x-auto shadow-inner border border-slate-700 animate-in slide-in-from-top-2 duration-300">
-              <pre>{JSON.stringify(message.leadData, null, 2)}</pre>
+            <div className="mt-2 w-full bg-slate-800 text-blue-300 p-3 rounded-xl text-[10px] font-mono overflow-x-auto max-h-60 overflow-y-auto shadow-inner border border-slate-700 animate-in slide-in-from-top-2 duration-300 custom-scrollbar">
+              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(message.leadData, null, 2)}</pre>
             </div>
           )}
         </div>
