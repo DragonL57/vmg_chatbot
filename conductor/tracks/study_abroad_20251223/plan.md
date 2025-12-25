@@ -11,7 +11,7 @@
 - [x] Task: Create initial knowledge base at `data/knowledge/study-abroad-overview.md` [6a24ed7]
 - [x] Task: Implement `src/prompts/study-abroad-master.ts` with the Consultant persona and KYC discovery logic [53037f5]
 - [x] Task: Update `SearchService` to filter results or use separate collections based on the active mode [b4c4771]
-- [ ] Task: Implement proactive greeting logic in `ChatInterface` when switching modes
+- [x] Task: Implement proactive greeting logic in `ChatInterface` when switching modes [0d39468]
 - [ ] Task: Conductor - User Manual Verification 'Study Abroad Intelligence & Retrieval' (Protocol in workflow.md)
 
 ## Phase 3: Enhanced Lead Capture (KYC Level 1)
