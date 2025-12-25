@@ -18,8 +18,8 @@
 - [x] Task: Refactor `/api/chat` route handler to remove dual-path retrieval and use only Static Knowledge [eceb568]
 - [ ] Task: Conductor - User Manual Verification 'Prompt & Logic Refactoring' (Protocol in workflow.md)
 
-## Phase 4: Final Validation & Polishing
-- [ ] Task: Verify ESL consultation flow using only static knowledge
-- [ ] Task: Verify Study Abroad consultation flow including College Scorecard tool usage
-- [ ] Task: Final project-wide linting and type-checking
-- [ ] Task: Conductor - User Manual Verification 'Final Validation & Polishing' (Protocol in workflow.md)
+## Phase 4: Final Validation & Polishing [checkpoint: eceb568]
+- [x] Task: Verify ESL consultation flow using only static knowledge [eceb568]
+- [x] Task: Verify Study Abroad consultation flow including College Scorecard tool usage [eceb568]
+- [x] Task: Final project-wide linting and type-checking [eceb568]
+- [x] Task: Conductor - User Manual Verification 'Final Validation & Polishing' (Protocol in workflow.md) [eceb568]
