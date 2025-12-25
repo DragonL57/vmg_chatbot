@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Message } from '@/types/chat';
+import { Message, ServiceMode } from '@/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
+import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Info, Phone } from 'lucide-react';
+import { Info, Phone, Menu } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
@@ -18,9 +19,18 @@ export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<ServiceMode>('esl');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+  };
+
+  const handleModeChange = (newMode: ServiceMode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    // Reset messages when switching modes for now (or keep them per mode)
+    setMessages([]);
   };
 
   const onSuggestionClick = (text: string) => {
@@ -34,6 +44,7 @@ export const ChatInterface: React.FC = () => {
       role: 'user',
       content: content.trim(),
       timestamp: new Date(),
+      mode: mode,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -46,7 +57,10 @@ export const ChatInterface: React.FC = () => {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ 
+          messages: apiMessages,
+          serviceMode: mode
+        }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
@@ -89,6 +103,7 @@ export const ChatInterface: React.FC = () => {
               role: 'assistant',
               content: chunkValue,
               timestamp: new Date(),
+              mode: mode,
             };
             setMessages((prev) => [...prev, assistantMessage]);
           } else {
@@ -128,54 +143,73 @@ export const ChatInterface: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col bg-slate-50 w-full mx-auto overflow-hidden fixed inset-0 md:relative"
+      className="flex flex-row bg-slate-50 w-full mx-auto overflow-hidden fixed inset-0"
       style={{ height: 'var(--vv-height, 100vh)' }}
     >
-      {/* VMG Brand Header */}
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 h-11 w-11 flex items-center justify-center overflow-hidden">
-              <Image src="/apple-icon.svg" alt="VMG Logo" width={36} height={36} className="object-contain" />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        currentMode={mode}
+        onModeChange={handleModeChange}
+      />
+
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* VMG Brand Header */}
+        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-slate-400 hover:text-slate-600 md:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="relative hidden xs:block">
+              <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-100 h-11 w-11 flex items-center justify-center overflow-hidden">
+                <Image src="/apple-icon.svg" alt="VMG Logo" width={36} height={36} className="object-contain" />
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+            <div>
+              <h1 className="text-sm font-bold text-slate-800 leading-none mb-1">
+                {mode === 'esl' ? 'VMG English Center' : 'VMG Study Abroad'}
+              </h1>
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                {mode === 'esl' ? 'Tư vấn viên AI' : 'Chuyên viên Tư vấn Du học'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-800 leading-none mb-1">VMG English Center</h1>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Tư vấn viên AI</p>
+          <div className="flex items-center gap-2">
+            <a 
+              href="tel:1900636838"
+              className="p-2 text-slate-400 hover:text-[#D32F2F] transition-colors"
+              title="Gọi Hotline"
+            >
+              <Phone className="w-5 h-5" />
+            </a>
+            <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <Info className="w-5 h-5" />
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-           <a 
-             href="tel:1900636838"
-             className="p-2 text-slate-400 hover:text-[#D32F2F] transition-colors"
-             title="Gọi Hotline"
-           >
-             <Phone className="w-5 h-5" />
-           </a>
-           <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-             <Info className="w-5 h-5" />
-           </button>
-        </div>
-      </header>
+        </header>
 
-      {/* Message List Area */}
-      <div className="flex-1 overflow-hidden flex flex-col relative">
-        <MessageList messages={messages} isLoading={isLoading} onSuggestionClick={onSuggestionClick} />
-      </div>
+        {/* Message List Area */}
+        <div className="flex-1 overflow-hidden flex flex-col relative">
+          <MessageList messages={messages} isLoading={isLoading} onSuggestionClick={onSuggestionClick} />
+        </div>
 
-      {/* Chat Input Area */}
-      <div className="shrink-0 bg-white border-t border-slate-200">
-        <ChatInput 
-          input={input}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSendMessage}
-          isLoading={isLoading} 
-        />
-        <div className="px-4 pb-2 text-center">
-           <p className="text-[9px] text-slate-400 font-medium">
-             &copy; 2025 VMG English Center • Powered by URASys
-           </p>
+        {/* Chat Input Area */}
+        <div className="shrink-0 bg-white border-t border-slate-200">
+          <ChatInput 
+            input={input}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSendMessage}
+            isLoading={isLoading} 
+          />
+          <div className="px-4 pb-2 text-center">
+            <p className="text-[9px] text-slate-400 font-medium">
+              &copy; 2025 VMG English Center • Powered by URASys
+            </p>
+          </div>
         </div>
       </div>
     </div>
