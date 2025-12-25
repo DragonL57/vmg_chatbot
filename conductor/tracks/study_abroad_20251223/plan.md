@@ -22,7 +22,7 @@
 - [x] Task: Conductor - User Manual Verification 'Enhanced Lead Capture' (Protocol in workflow.md) [3d871c8]
 
 ## Phase 4: Final Integration & Polishing
-- [ ] Task: Update Header UI to reflect the active service mode (Title, Icons)
+- [x] Task: Update Header UI to reflect the active service mode (Title, Icons) [7fe516d]
 - [ ] Task: End-to-end testing of the "Conversational Discovery" flow for Study Abroad
 - [ ] Task: Final linting, type-checking, and performance review
 - [ ] Task: Conductor - User Manual Verification 'Final Integration & Polishing' (Protocol in workflow.md)
