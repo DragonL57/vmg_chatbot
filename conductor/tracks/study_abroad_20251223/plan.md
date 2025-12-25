@@ -18,7 +18,7 @@
 - [x] Task: Update `QueryDecompositionSchema` in `src/types/agent.ts` with the 7 new Study Abroad KYC fields [8aa3786]
 - [x] Task: Update the Dispatcher prompt in `src/prompts/manager.ts` to perform multi-domain extraction [8aa3786]
 - [x] Task: Update `LeadService.saveLead` to handle incremental updates for the new KYC fields [d454e5e]
-- [ ] Task: Update `MessageItem` to correctly render the expanded Lead JSON data in the system badge
+- [x] Task: Update `MessageItem` to correctly render the expanded Lead JSON data in the system badge [3f5c333]
 - [ ] Task: Conductor - User Manual Verification 'Enhanced Lead Capture' (Protocol in workflow.md)
 
 ## Phase 4: Final Integration & Polishing
