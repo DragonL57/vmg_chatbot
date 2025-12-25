@@ -18,6 +18,14 @@ export const QueryDecompositionSchema = z.object({
     childDob: z.string().nullable().optional(),
     address: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    // Study Abroad KYC Level 1
+    studyAbroadIntent: z.string().nullable().optional(), // Nhu cầu/Thời gian dự kiến đi
+    targetCountries: z.array(z.string()).nullable().optional(), // Quốc gia quan tâm
+    educationLevel: z.array(z.string()).nullable().optional(), // Cấp bậc du học
+    admissionTime: z.string().nullable().optional(), // Thời gian nhập học mong muốn
+    majorOfInterest: z.array(z.string()).nullable().optional(), // Ngành học quan tâm
+    sponsor: z.string().nullable().optional(), // Người tài trợ
+    budget: z.string().nullable().optional(), // Mức chi phí dự kiến
   }).nullable().optional(),
 });
 

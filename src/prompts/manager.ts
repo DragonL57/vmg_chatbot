@@ -31,12 +31,26 @@ Output Format (STRICT JSON - DO NOT INCLUDE ANY OTHER TEXT OR EXPLANATION):
     "childName": string | null,
     "childDob": string | null,
     "address": string | null,
-    "notes": string | null
+    "notes": string | null,
+    "studyAbroadIntent": string | null,
+    "targetCountries": string[] | null,
+    "educationLevel": string[] | null,
+    "admissionTime": string | null,
+    "majorOfInterest": string[] | null,
+    "sponsor": string | null,
+    "budget": string | null
   }
 }
 
 Guidelines:
 - IMPORTANT: You MUST return ONLY a valid JSON object. Do not include markdown blocks unless necessary, but preferred raw JSON.
-- extractedLead: Look through the entire history. Extract name, phone, child's name, child's DOB, address/location (e.g., "ở Biên Hòa", "gần Trảng Bom"), and any specific notes/goals.
+- extractedLead: Look through the entire history. Extract standard info (name, phone, address) and Study Abroad KYC Level 1:
+  - studyAbroadIntent: "Năm nay", "1-2 năm tới", "Đang cân nhắc", "Chưa kế hoạch".
+  - targetCountries: List of countries (Anh, Mỹ, Úc, Canada...).
+  - educationLevel: List of levels (Tiểu học, Trung học, Học nghề, Cao đẳng, Đại học, Sau đại học).
+  - admissionTime: "Trong 6 tháng", "Trong 12 tháng", "Sau 1 năm", "Cần tư vấn thêm".
+  - majorOfInterest: List of majors (Công nghệ, Nghệ thuật, Kinh doanh, Y học, Sư phạm...).
+  - sponsor: "Ba mẹ", "Người thân", "Học bổng", "Tự túc".
+  - budget: "Dưới 500tr", "500tr-1 tỷ", "1-2 tỷ", "Trên 2 tỷ", "Tập trung chất lượng".
 - subQueries: If canAnswerFromStatic is false, break the query into optimized sub-queries for RAG.
 `.trim();
