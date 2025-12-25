@@ -17,7 +17,7 @@ export const maxDuration = 300; // Allow 300s for RAG operations
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, serviceMode = 'esl' } = await req.json();
     const lastMessage = messages[messages.length - 1];
 
     if (!lastMessage) {
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     const recentMessages = messages.slice(-10);
 
     // 1. Dispatcher Analysis (Guardrails + Decomposing merged for speed)
+    // TODO: In Phase 2, pass serviceMode to ManagerService to use domain-specific logic
     const decomposition = await ManagerService.decompose(recentMessages);
 
     if (!decomposition.isSafe) {
@@ -44,12 +45,17 @@ export async function POST(req: Request) {
     // Load static knowledge from file
     let staticKnowledgeContent = "";
     try {
-      const knowledgePath = path.join(process.cwd(), 'data', 'knowledge', 'vmg-overview.md');
-      staticKnowledgeContent = fs.readFileSync(knowledgePath, 'utf-8');
+      // TODO: In Phase 2, load different knowledge based on serviceMode
+      const knowledgeFile = serviceMode === 'study-abroad' ? 'study-abroad-overview.md' : 'vmg-overview.md';
+      const knowledgePath = path.join(process.cwd(), 'data', 'knowledge', knowledgeFile);
+      if (fs.existsSync(knowledgePath)) {
+        staticKnowledgeContent = fs.readFileSync(knowledgePath, 'utf-8');
+      }
     } catch (err) {
       console.error("Failed to load static knowledge:", err);
     }
 
+    // TODO: In Phase 2, import and use MASTER_AGENT_IDENTITY_STUDY_ABROAD etc.
     let systemContext = `
 ${MASTER_AGENT_IDENTITY}
 
