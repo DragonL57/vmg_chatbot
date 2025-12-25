@@ -9,7 +9,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Dependency & File Removal' (Protocol in workflow.md)
 
 ## Phase 2: Environment & Schema Refactoring
-- [ ] Task: Remove RAG-related variables from `src/env.ts` and `.env.example`
+- [x] Task: Remove RAG-related variables from `src/env.ts` and `.env.example` [0bd4af5]
 - [ ] Task: Update `QueryDecompositionSchema` in `src/types/agent.ts` to reflect the removal of RAG (remove/deprecate `subQueries` if no longer needed)
 - [ ] Task: Conductor - User Manual Verification 'Environment & Schema Refactoring' (Protocol in workflow.md)
 
