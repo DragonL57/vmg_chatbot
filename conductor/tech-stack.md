@@ -9,9 +9,11 @@
 
 ## 2. AI & Retrieval (URASys Implementation)
 *   **LLM Inference:** **Poe API** (OpenAI-compatible) using the `grok-4.1-fast-non-reasoning` model.
-*   **Embeddings:** **Google Gemini API** (`gemini-embedding-001`) via the Google AI JavaScript SDK.
+*   **Embeddings:** **Mistral AI** (`mistral-embed`) - 1024 dimensions for superior semantic search.
 *   **Vector Database:** **Qdrant** (Managed Cloud Free Tier) for high-performance hybrid search.
-*   **Indexing Logic:** **Custom Implementation** in TypeScript to handle the two-phase pipeline:
+*   **Parallel Specialist Orchestration:** Concurrent execution of specialized sub-agents (Safety, Profiler, Strategist).
+*   **External Data:** **U.S. College Scorecard API** for real-time university metrics.
+*   **Indexing Logic:** Custom pipeline including:
     *   **Phase 1 (Chunk-and-Title):** Semantic chunking and title assignment.
     *   **Phase 2 (Ask-and-Augment):** FAQ generation and paraphrasing.
 
@@ -21,7 +23,7 @@
 
 ## 4. Key Libraries (Anticipated)
 *   `openai`: For Poe API interaction (OpenAI-compatible client).
-*   `@google/generative-ai`: For Gemini embeddings.
 *   `@qdrant/js-client-rest`: For vector store operations.
 *   `zod`: For data validation and schema definition.
+*   `lucide-react`: For specialized UI icons (GraduationCap, Plane, etc.).
 *   `dotenv`: For local environment variable management.

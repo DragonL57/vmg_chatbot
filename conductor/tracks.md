@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Study Abroad Consultation & Sidebar Navigation
-*Link: [./conductor/tracks/study_abroad_20251223/](./conductor/tracks/study_abroad_20251223/)*
+## [~] Track: RAG Removal & Static Knowledge Optimization
+*Link: [./conductor/tracks/rag_removal_20251223/](./conductor/tracks/rag_removal_20251223/)*

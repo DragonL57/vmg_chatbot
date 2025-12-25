@@ -1,8 +1,8 @@
 # Initial Concept
 
-When in Doubt, Ask First: A Unified Retrieval Agent-Based System for Ambiguous and Unanswerable Question Answering (URASys)
+URASys: A Multi-Service Specialist Platform for Educational Consultation.
 
-This system is a QA framework designed for an English center (or similar educational institutions) to handle high-stakes, closed-domain settings. It addresses challenges like hallucinations and limited handling of vague queries, especially in Vietnamese and English.
+This system is a specialized agent-based framework designed for VMG Group to provide precise, context-aware answers for English learning (ESL) and Study Abroad consultation. It uses a parallel specialist architecture to handle complex discovery and lead generation.
 
 **Core Principles:**
 *   **Just Enough Principle:** Prioritizes understanding before answering.
@@ -12,31 +12,34 @@ This system is a QA framework designed for an English center (or similar educati
 *   **Explicit Unanswerable Handling:** Signals when no answer is found to avoid hallucination.
 
 **Key Components:**
-*   **Manager Agent:** Decomposes queries and coordinates retrieval.
-*   **Document Retrieval Agent:** Searches structured documents.
-*   **FAQ Retrieval Agent:** Searches an augmented FAQ repository.
+*   **Safety Officer:** Ensures all interactions adhere to institutional policies.
+*   **Profiler:** Handles deep KYC extraction and lead generation (incremental).
+*   **Strategist:** Coordinates between Static Knowledge, Vector RAG, and External APIs.
+*   **Master Agent:** The final human-simulated interface (Mentor/Consultant persona).
 *   **Two-Phase Indexing:** Transforms raw documents into evidence chunks and a QA layer.
-
-**Goal:** To provide precise, context-aware answers for tuition, prerequisites, and policies, improving factual accuracy and user trust.
 
 ---
 
 # Product Guide: URASys (Unified Retrieval Agent-Based System)
 
 ## 1. Product Vision
-URASys is a specialized Question Answering (QA) system designed for an English center to provide precise, context-aware, and trustworthy information. It addresses the common pitfalls of standard LLMs—such as hallucinations and failure to handle ambiguous queries—by prioritizing understanding before generation. The system operates under the "Just Enough" principle, ensuring that answers are only provided when grounded in sufficient and consistent evidence.
+URASys is a multi-service consultation platform designed for VMG to provide high-quality advisory services. It integrates domain-specific intelligence for English (VMG English) and Study Abroad (VMG Global Pathway) into a unified, mobile-first interface.
 
 ## 2. Target Audience
 *   **Prospective Students:** Inquiring about course offerings, tuition fees, and admission requirements.
+*   **Study Abroad Aspirants:** Seeking detailed school data, scholarship paths, and visa procedures.
 *   **Current Students:** Seeking clarification on academic policies, course prerequisites, and administrative procedures.
 *   **Administrative Staff:** Accessing internal regulations and standard operating procedures quickly and reliably.
 
 ## 3. Core Features (MVP)
-*   **Unified Retrieval Agent Architecture:** A central Manager Agent coordinating specialized FAQ and Document Search Agents.
+*   **Sidebar Navigation:** Seamlessly switch between VMG English and VMG Global Pathway services.
+*   **Parallel Specialist Orchestration:** Concurrent execution of Safety, Profiling, and Planning agents for low-latency responses.
 *   **Dual-Phase Retrieval:**
     *   **Document Search:** Hybrid (semantic and lexical) search over structured administrative and academic documents.
     *   **FAQ Search:** High-precision lookup over an augmented, query-resilient FAQ repository.
+*   **Conversational KYC Discovery:** Natural, 5-step consulting flow to extract student profile data (Intent, Budget, Location, etc.).
 *   **Interactive Clarification:** A proactive feedback loop that identifies underspecified or vague queries and asks the user for missing details before attempting to answer.
+*   **External API Integration:** Real-time data lookup from the U.S. College Scorecard API for academic school data.
 *   **Explicit Unanswerable Signaling:** Avoids hallucination by clearly stating when no relevant information exists in the knowledge base.
 *   **Cross-Lingual Support:** Full functionality in both Vietnamese and English, handling the nuances and syntactic variations of both languages.
 *   **Web-Based Chat Interface:** A modern, accessible web UI built with Next.js for users to interact with the URASys agent.
@@ -44,12 +47,13 @@ URASys is a specialized Question Answering (QA) system designed for an English c
 ## 4. Technical Constraints & Preferences
 *   **Hosting:** Web application built with **Next.js** and deployed on **Vercel**.
 *   **LLM Provider:** **Poe API** (OpenAI-compatible) using `grok-4.1-fast-non-reasoning` for inference.
-*   **Embedding Provider:** **Google Gemini API** (`gemini-embedding-001`) for text embeddings to power semantic search and RAG.
+*   **Embedding Provider:** **Mistral AI** (`mistral-embed`) for high-performance 1024D text embeddings.
 
 ## 5. Knowledge Sources
 *   **Academic Course Catalogs:** Detailed information on prerequisites, course content, and learning paths.
 *   **Administrative Policy Documents:** Official records on tuition, enrollment rules, and institutional regulations.
 *   **Existing FAQ Repositories:** Historical data and curated Q&A pairs used to bootstrap the system's "Ask-and-Augment" indexing.
+*   **U.S. College Scorecard:** External real-time database for higher education metrics.
 
 ## 6. Success Metrics
 *   **Factual Accuracy:** High performance on single-hop and multi-hop reasoning tasks.
