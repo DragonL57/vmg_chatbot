@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ServiceMode } from '@/types/chat';
-import { X, GraduationCap, Plane, MessageSquareText } from 'lucide-react';
+import { X, GraduationCap, Plane, MessageSquareText, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 
 interface SidebarProps {
@@ -57,39 +57,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8">
           <div>
             <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              Dịch vụ tư vấn
+              Công cụ nội bộ
             </p>
             <nav className="space-y-1">
               <button
                 onClick={() => {
-                  onModeChange('esl');
+                  onModeChange('wiki');
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  currentMode === 'esl' 
-                    ? 'bg-[#D32F2F]/5 text-[#D32F2F] shadow-sm' 
+                  currentMode === 'wiki'
+                    ? 'bg-[#D32F2F]/5 text-[#D32F2F] shadow-sm'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <GraduationCap className={`w-5 h-5 ${currentMode === 'esl' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
-                <span>VMG English (ESL)</span>
-                {currentMode === 'esl' && (
-                  <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  onModeChange('study-abroad');
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  currentMode === 'study-abroad' 
-                    ? 'bg-[#D32F2F]/5 text-[#D32F2F] shadow-sm' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Plane className={`w-5 h-5 ${currentMode === 'study-abroad' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
-                <span>VMG Global Pathway</span>
-                {currentMode === 'study-abroad' && (
+                <BookOpen className={`w-5 h-5 ${currentMode === 'wiki' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
+                <span>Wiki</span>
+                {currentMode === 'wiki' && (
                   <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
                 )}
               </button>
@@ -98,28 +81,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div>
             <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              Hỗ trợ
+              Dịch vụ tư vấn
             </p>
-            <nav className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all">
-                <MessageSquareText className="w-4 h-4 text-slate-400" />
-                <span>Hướng dẫn sử dụng</span>
-              </button>
+            <nav className="space-y-1 opacity-40 pointer-events-none">
+              <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold text-slate-400">
+                <GraduationCap className="w-5 h-5 text-slate-300" />
+                <span>VMG English (ESL)</span>
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md">Soon</span>
+              </div>
+              <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold text-slate-400">
+                <Plane className="w-5 h-5 text-slate-300" />
+                <span>VMG Global Pathway</span>
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md">Soon</span>
+              </div>
             </nav>
           </div>
-        </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-6 bg-slate-50/50 mt-auto">
-          <div className="bg-[#D32F2F] rounded-2xl p-4 text-white shadow-lg shadow-red-200/50">
-            <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider mb-1">Cần gấp?</p>
-            <p className="text-xs font-medium mb-3 leading-relaxed">Kết nối trực tiếp với chuyên viên qua hotline</p>
-            <a 
-              href="tel:1900636838"
-              className="block w-full bg-white text-[#D32F2F] text-center py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors"
-            >
-              GỌI 1900 636838
-            </a>
+          <div>
+            <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+              Hỗ trợ
+            </p>
+            <nav className="space-y-1 opacity-40 pointer-events-none">
+              <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400">
+                <MessageSquareText className="w-4 h-4 text-slate-300" />
+                <span>Hướng dẫn sử dụng</span>
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md">Soon</span>
+              </div>
+            </nav>
           </div>
         </div>
       </aside>

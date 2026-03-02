@@ -1,0 +1,26 @@
+{
+  "wiki:data/knowledge/vmg-overview.md": {
+    "hash": "ec845e95239f08b3",
+    "indexedAt": "2026-03-02T08:09:13.802Z",
+    "chunks": 4,
+    "faqs": 80
+  },
+  "wiki:data/knowledge/study-abroad-overview.md": {
+    "hash": "f80bf6fb0f5e12d2",
+    "indexedAt": "2026-03-02T08:20:08.187Z",
+    "chunks": 27,
+    "faqs": 540
+  },
+  "esl:data/knowledge/vmg-overview.md": {
+    "hash": "ec845e95239f08b3",
+    "indexedAt": "2026-03-02T08:21:46.778Z",
+    "chunks": 4,
+    "faqs": 80
+  },
+  "study-abroad:data/knowledge/study-abroad-overview.md": {
+    "hash": "f80bf6fb0f5e12d2",
+    "indexedAt": "2026-03-02T08:23:09.988Z",
+    "chunks": 0,
+    "faqs": 0
+  }
+}

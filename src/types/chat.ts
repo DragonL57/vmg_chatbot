@@ -1,4 +1,4 @@
-export type ServiceMode = 'esl' | 'study-abroad';
+export type ServiceMode = 'esl' | 'study-abroad' | 'wiki';
 
 export interface Message {
   id: string;

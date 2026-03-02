@@ -1,7 +1,3 @@
-Dưới đây là tài liệu tổng hợp toàn diện về **Lộ trình đào tạo** và **Hệ thống chi nhánh** của VMG English, được biên soạn lại để thuận tiện cho việc tư vấn khách hàng.
-
----
-
 # TỔNG QUAN CHƯƠNG TRÌNH ĐÀO TẠO & HỆ THỐNG VMG ENGLISH
 
 Dựa trên tài liệu chuyên môn, VMG English hiện cung cấp **5 chương trình đào tạo chính**, bao phủ từ độ tuổi mầm non đến người đi làm. Các ước tính thời gian dưới đây được tính dựa trên lịch học tiêu chuẩn phổ biến (3 buổi/tuần, mỗi buổi 1.5 giờ).
@@ -65,14 +61,14 @@ Dựa trên tài liệu chuyên môn, VMG English hiện cung cấp **5 chương
 ## PHẦN 2: BẢNG TÓM TẮT DÀNH CHO TƯ VẤN VIÊN
 *(Lưu ý: Thời gian ước tính dựa trên lịch học 3 buổi/tuần)*
 
-| Chương trình | Đối tượng | Thời gian xong 1 Khóa lẻ (để chốt sales) | Thời gian xong 1 Cấp độ lớn (để cam kết lộ trình) |
-| :--- | :--- | :--- | :--- |
-| **E-PIONEER** | Mầm non | N/A (Học theo Level lớn) | **~4.5 tháng** / Level |
-| **E-CONTENDER** | Tiền Tiểu học | **~2 tháng** / Khóa | **~4 tháng** / Cấp độ (Happy Campers) |
-| **E-GENIUS** | Thiếu nhi | **~2 tháng** / Khóa | **~8 - 9 tháng** / Cấp độ (Starters...) |
-| **IELTS (Cơ bản)** | Thiếu niên | **~2.5 tháng** / Khóa | Tùy mục tiêu điểm số |
-| **IELTS (Cao cấp)**| Thiếu niên | **~3 tháng** / Khóa | Tùy mục tiêu điểm số |
-| **E-PLUS** | Giao tiếp | **1 - 2 tháng** / Khóa | Tùy năng lực đầu vào |
+Danh sách chi tiết các chương trình đào tạo VMG với đối tượng, thời gian hoàn thành khóa lẻ và cấp độ lớn:
+
+- **E-PIONEER**: Đối tượng mầm non, thời gian xong 1 khóa lẻ không áp dụng (học theo level lớn), thời gian xong 1 cấp độ lớn khoảng 4.5 tháng/level
+- **E-CONTENDER**: Đối tượng tiền tiểu học, thời gian xong 1 khóa lẻ khoảng 2 tháng/khóa, thời gian xong 1 cấp độ lớn khoảng 4 tháng/cấp độ (Happy Campers)
+- **E-GENIUS**: Đối tượng thiếu nhi, thời gian xong 1 khóa lẻ khoảng 2 tháng/khóa, thời gian xong 1 cấp độ lớn khoảng 8-9 tháng/cấp độ (Starters...)
+- **IELTS (Cơ bản)**: Đối tượng thiếu niên, thời gian xong 1 khóa lẻ khoảng 2.5 tháng/khóa, thời gian xong 1 cấp độ lớn tùy mục tiêu điểm số
+- **IELTS (Cao cấp)**: Đối tượng thiếu niên, thời gian xong 1 khóa lẻ khoảng 3 tháng/khóa, thời gian xong 1 cấp độ lớn tùy mục tiêu điểm số
+- **E-PLUS**: Đối tượng giao tiếp, thời gian xong 1 khóa lẻ khoảng 1-2 tháng/khóa, thời gian xong 1 cấp độ lớn tùy năng lực đầu vào
 
 ---
 

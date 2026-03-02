@@ -12,7 +12,7 @@ TASKS:
 
 Guidelines for ${mode.toUpperCase()}:
 ${mode === 'esl' 
-  ? '- NO EXTERNAL TOOLS: Never suggest searching for external universities. Stick to conversation and lead capture.'
+  ? '- NO EXTERNAL TOOLS: Always set externalApiCall to null.'
   : '- TOOL USAGE: Trigger college-scorecard API for U.S. school queries.\n- STATE CODES: Use 2-letter uppercase codes (e.g., "CA", "NY").'}
 
 Output Format (STRICT JSON - DO NOT INCLUDE ANY OTHER TEXT OR EXPLANATION):

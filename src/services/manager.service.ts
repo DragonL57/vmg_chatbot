@@ -2,9 +2,21 @@ import { PoeService } from './poe.service';
 import { QueryDecompositionSchema, type QueryDecomposition } from '@/types/agent';
 import { safeJsonParse } from '@/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
-import { SAFETY_SPECIALIST_PROMPT } from '@/prompts/specialists/safety';
-import { LEAD_SPECIALIST_PROMPT } from '@/prompts/specialists/lead';
 import { PLANNER_SPECIALIST_PROMPT } from '@/prompts/specialists/planner';
+import { URAS_DECOMPOSE_PROMPT } from '@/prompts/uras';
+import { DocumentSearchService, type DocumentEvidence } from './document-search.service';
+import { FAQSearchService, type FAQEvidence } from './faq-search.service';
+import { isIndexed } from './qdrant.service';
+
+export interface RetrievalEvidence {
+  docs: DocumentEvidence[];
+  faqs: FAQEvidence[];
+}
+
+export interface DecompositionWithRetrieval {
+  decomposition: QueryDecomposition;
+  evidence: RetrievalEvidence | null;
+}
 
 /**
  * Orchestrator Service that coordinates specialized agents in parallel.
@@ -15,56 +27,125 @@ export class ManagerService {
    */
   static async decompose(
     messages: { role: string; content: string }[],
-    mode: 'esl' | 'study-abroad' = 'esl'
+    mode: 'wiki' | 'esl' | 'study-abroad' = 'wiki'
   ): Promise<QueryDecomposition> {
-    const history = messages.map(m => ({ 
-      role: m.role as 'user' | 'assistant' | 'system', 
-      content: m.content 
+    const history = messages.map(m => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
     }));
 
-    // Execute specialists in parallel
-    const [safetyRes, leadRes, plannerRes] = await Promise.all([
-      PoeService.chat([{ role: 'system', content: SAFETY_SPECIALIST_PROMPT }, ...history]),
-      PoeService.chat([{ role: 'system', content: LEAD_SPECIALIST_PROMPT }, ...history]),
-      PoeService.chat([{ role: 'system', content: PLANNER_SPECIALIST_PROMPT(mode) }, ...history]),
-    ]);
+    // Decompose always runs (query splitting).
+    // Planner only runs for study-abroad (college-scorecard API detection).
+    const tasks: Promise<unknown>[] = [
+      PoeService.chat([{ role: 'system', content: URAS_DECOMPOSE_PROMPT }, ...history]),
+    ];
+    if (mode === 'study-abroad') {
+      tasks.push(PoeService.chat([{ role: 'system', content: PLANNER_SPECIALIST_PROMPT(mode) }, ...history]));
+    }
+    const [decomposeRes, plannerRes] = await Promise.all(tasks);
 
-    const safetyContent = (safetyRes as ChatCompletion).choices[0].message.content || '';
-    const leadContent = (leadRes as ChatCompletion).choices[0].message.content || '';
-    const plannerContent = (plannerRes as ChatCompletion).choices[0].message.content || '';
+    const decomposeContent = (decomposeRes as ChatCompletion).choices[0].message.content || '';
+    const plannerContent = plannerRes ? (plannerRes as ChatCompletion).choices[0].message.content || '' : '';
 
-    console.log('--- SPECIALIST RAW RESPONSES ---');
-    console.log('Safety:', safetyContent);
-    console.log('Lead:', leadContent);
-    console.log('Planner:', plannerContent);
+    console.log('[Decompose]', decomposeContent);
+    if (plannerContent) console.log('[Planner]', plannerContent);
 
-    const safetyData = safeJsonParse<{ isSafe: boolean; reason: string | null }>(safetyContent);
-    const leadData = safeJsonParse<{ extractedLead: Record<string, unknown> }>(leadContent);
-    const plannerData = safeJsonParse<Record<string, unknown>>(plannerContent);
+    const decomposeData = safeJsonParse<{ subQueries: string[]; reasoning: string; chitchat?: boolean }>(decomposeContent);
+    const plannerData = plannerContent ? safeJsonParse<Record<string, unknown>>(plannerContent) : null;
 
-    // Merge results with proper partial typing
     const combined = {
-      isSafe: safetyData?.isSafe ?? true,
-      safetyReason: safetyData?.reason ?? null,
-      ...(plannerData || {}),
-      extractedLead: (leadData?.extractedLead as Record<string, unknown>) ?? null,
+      chitchat: decomposeData?.chitchat ?? false,
+      subQueries: decomposeData?.subQueries ?? null,
+      reasoning: decomposeData?.reasoning ?? 'Decomposed',
+      externalApiCall: (plannerData?.externalApiCall as Record<string, unknown>) ?? null,
     } as Record<string, unknown>;
 
-    // Validate with Zod
     const result = QueryDecompositionSchema.safeParse(combined);
     if (!result.success) {
-      console.error('Orchestration Validation Error:', result.error);
-      // Fallback to minimal valid object if validation fails partially
+      console.error('Decomposition Validation Error:', result.error);
       return {
-        isSafe: (safetyData?.isSafe) ?? true,
-        safetyReason: safetyData?.reason ?? null,
-        isAmbiguous: (combined.isAmbiguous as boolean) ?? false,
-        reasoning: 'Orchestrated from parallel specialists',
-        extractedLead: combined.extractedLead as QueryDecomposition['extractedLead'],
+        reasoning: String(combined.reasoning ?? 'Fallback'),
+        subQueries: combined.subQueries as string[] | null,
         externalApiCall: combined.externalApiCall as QueryDecomposition['externalApiCall'],
       };
     }
 
     return result.data;
+  }
+
+  /**
+   * Decomposes query AND retrieves relevant evidence from Qdrant (if indexed).
+   * Falls back to evidence=null when the knowledge base hasn't been indexed yet.
+   */
+  static async decomposeWithRetrieval(
+    messages: { role: string; content: string }[],
+    mode: 'wiki' | 'esl' | 'study-abroad' = 'wiki'
+  ): Promise<DecompositionWithRetrieval> {
+    // Run decomposition + index-check in parallel
+    const [decomposition, indexed] = await Promise.all([
+      ManagerService.decompose(messages, mode),
+      isIndexed(mode).catch(() => false),
+    ]);
+
+    if (!indexed) {
+      console.log(`[URASys] Collection "${mode}" not indexed — skipping retrieval, using fallback`);
+      return { decomposition, evidence: null };
+    }
+
+    if (decomposition.chitchat) {
+      console.log('[URASys] Chitchat detected — skipping retrieval');
+      return { decomposition, evidence: null };
+    }
+
+    // Fan out retrieval across all sub-queries (Algorithm 1: foreach qi ∈ S)
+    // Fall back to raw user message if decomposition produced no sub-queries
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content ?? '';
+    const subQueries = (decomposition.subQueries && decomposition.subQueries.length > 0)
+      ? decomposition.subQueries
+      : (lastUserMsg.trim() ? [lastUserMsg] : null);
+
+    if (!subQueries) {
+      return { decomposition, evidence: null };
+    }
+
+    try {
+      // Run dual retrieval in parallel for EACH sub-query, then union evidence pools
+      const perQueryResults = await Promise.all(
+        subQueries.map(qi => Promise.all([
+          DocumentSearchService.search(qi, mode, 5).catch(() => [] as DocumentEvidence[]),
+          FAQSearchService.search(qi, mode, 5).catch(() => [] as FAQEvidence[]),
+        ]))
+      );
+
+      // Union and deduplicate by content
+      const seenDocContents = new Set<string>();
+      const seenFaqQuestions = new Set<string>();
+      const docs: DocumentEvidence[] = [];
+      const faqs: FAQEvidence[] = [];
+
+      for (const [qDocs, qFaqs] of perQueryResults) {
+        for (const d of qDocs) {
+          if (!seenDocContents.has(d.content)) {
+            seenDocContents.add(d.content);
+            docs.push(d);
+          }
+        }
+        for (const f of qFaqs) {
+          if (!seenFaqQuestions.has(f.question)) {
+            seenFaqQuestions.add(f.question);
+            faqs.push(f);
+          }
+        }
+      }
+
+      // Sort by score descending and cap at top 8 each
+      docs.sort((a, b) => b.score - a.score);
+      faqs.sort((a, b) => b.score - a.score);
+
+      return { decomposition, evidence: { docs: docs.slice(0, 8), faqs: faqs.slice(0, 8) } };
+    } catch (err) {
+      console.error('Retrieval failed, continuing without evidence:', err);
+      return { decomposition, evidence: null };
+    }
   }
 }

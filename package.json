@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "index-knowledge": "set -a && source .env.local && set +a && pnpm tsx scripts/index-knowledge.ts"
   },
   "dependencies": {
+    "@mistralai/mistralai": "^1.14.1",
+    "@qdrant/js-client-rest": "^1.17.0",
     "@t3-oss/env-nextjs": "^0.13.10",
     "ai": "^6.0.1",
     "dotenv": "^17.2.3",

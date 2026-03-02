@@ -7,6 +7,9 @@ export const env = createEnv({
     POE_API_KEY: z.string().min(1),
     POE_BOT_NAME: z.string().min(1),
     COLLEGE_SCORECARD_API_KEY: z.string().min(1),
+    MISTRAL_API_KEY: z.string().min(1),
+    QDRANT_URL: z.string().min(1),
+    QDRANT_API_KEY: z.string().min(1),
   },
   client: {
     // Add client-side variables here (e.g. NEXT_PUBLIC_...)

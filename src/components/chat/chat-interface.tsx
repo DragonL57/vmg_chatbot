@@ -8,7 +8,7 @@ import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Info, Phone, Menu, GraduationCap, Plane } from 'lucide-react';
+import { Info, Phone, Menu, GraduationCap, Plane, BookOpen } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
@@ -19,7 +19,8 @@ export const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [mode, setMode] = useState<ServiceMode>('esl');
+  const [loadingPhase, setLoadingPhase] = useState<string>('');
+  const [mode, setMode] = useState<ServiceMode>('wiki');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -52,6 +53,7 @@ export const ChatInterface: React.FC = () => {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setLoadingPhase('decompose');
 
     try {
       // Filter history to only include messages from the current mode
@@ -101,6 +103,10 @@ export const ChatInterface: React.FC = () => {
         const chunkValue = decoder.decode(value, { stream: !done });
         
         if (chunkValue) {
+          // Phase signals
+          if (chunkValue.includes('__PHASE__:decompose')) { setLoadingPhase('decompose'); continue; }
+          if (chunkValue.includes('__PHASE__:search'))   { setLoadingPhase('search');   continue; }
+
           // Check for Tool Call signals
           if (chunkValue.includes('__TOOL_CALL_START__')) {
             toolCallMessageId = uuidv4();
@@ -163,6 +169,7 @@ export const ChatInterface: React.FC = () => {
       alert('Đã có lỗi xảy ra. Vui lòng thử lại sau.');
     } finally {
       setIsLoading(false);
+      setLoadingPhase('');
     }
   };
 
@@ -204,10 +211,11 @@ export const ChatInterface: React.FC = () => {
               <h1 className="text-sm font-bold text-slate-800 leading-none mb-1 flex items-center gap-1.5">
                 {mode === 'study-abroad' && <Plane className="w-3.5 h-3.5 text-[#D32F2F]" />}
                 {mode === 'esl' && <GraduationCap className="w-3.5 h-3.5 text-[#D32F2F]" />}
-                {mode === 'esl' ? 'VMG English' : 'VMG Global Pathway'}
+                {mode === 'wiki' && <BookOpen className="w-3.5 h-3.5 text-[#D32F2F]" />}
+                {mode === 'esl' ? 'VMG English' : mode === 'study-abroad' ? 'VMG Global Pathway' : 'Wiki VMG'}
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                {mode === 'esl' ? 'Chuyên viên Tư vấn Tuyển sinh' : 'Chuyên viên Tư vấn Du học'}
+                {mode === 'esl' ? 'Chuyên viên Tư vấn Tuyển sinh' : mode === 'study-abroad' ? 'Chuyên viên Tư vấn Du học' : 'Cơ sở tri thức nội bộ'}
               </p>
             </div>
           </div>
@@ -229,7 +237,8 @@ export const ChatInterface: React.FC = () => {
         <div className="flex-1 overflow-hidden flex flex-col relative">
           <MessageList 
             messages={messages.filter(m => !m.mode || m.mode === mode)} 
-            isLoading={isLoading} 
+            isLoading={isLoading}
+            loadingPhase={loadingPhase}
             currentMode={mode} 
             onSuggestionClick={onSuggestionClick} 
           />
