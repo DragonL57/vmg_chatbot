@@ -94,11 +94,21 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, l
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                {currentMode === 'wiki' ? 'Tìm kiếm...' : 'Bạn đang quan tâm...'}
              </p>
+             {currentMode === 'wiki' && (
+               <p className="text-[12px] text-amber-500 font-medium mb-1 px-0.5">
+                Lưu ý: Hiện cơ sở tri thức chỉ có thông tin về <span className="font-semibold">du học</span>.
+               </p>
+             )}
              {suggestions.map((text) => (
-               <button 
-                 key={text} 
-                 onClick={() => onSuggestionClick?.(text)}
-                 className="bg-white/80 backdrop-blur-sm border border-slate-200 py-2.5 px-4 rounded-xl text-xs text-slate-600 font-medium hover:border-[#D32F2F] hover:text-[#D32F2F] transition-all active:scale-95 text-left"
+               <button
+                 key={text}
+                 onClick={() => currentMode !== 'wiki' ? onSuggestionClick?.(text) : undefined}
+                 disabled={currentMode === 'wiki'}
+                 className={`bg-white/80 backdrop-blur-sm border border-slate-200 py-2.5 px-4 rounded-xl text-xs font-medium transition-all text-left ${
+                   currentMode === 'wiki'
+                     ? 'opacity-40 cursor-not-allowed text-slate-400'
+                     : 'text-slate-600 hover:border-[#D32F2F] hover:text-[#D32F2F] active:scale-95'
+                 }`}
                >
                  {text}
                </button>
