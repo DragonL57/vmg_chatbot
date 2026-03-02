@@ -1,43 +1,43 @@
 /**
  * Smart URASys Knowledge Indexing Script
  *
- * Usage:
- *   pnpm index-knowledge                    # index all changed/new files
- *   pnpm index-knowledge wiki               # only wiki mode
- *   pnpm index-knowledge study-abroad       # only study-abroad mode
- *   pnpm index-knowledge --status           # show current index state
- *   pnpm index-knowledge --dry-run          # show what would be indexed (no changes)
- *   pnpm index-knowledge --force            # re-index everything regardless
- *   pnpm index-knowledge wiki --force       # force re-index wiki only
+ * Plug-and-play: drop a subfolder with index.md into data/knowledge/ and it gets picked up.
+ *   index.md  -> chunked + embedded into Qdrant (wiki collection)
+ *   static.md -> injected verbatim into system prompt (not indexed)
  *
- * To add a new knowledge file: add an entry to KNOWLEDGE_REGISTRY below.
+ * Usage:
+ *   pnpm index-knowledge            # index all changed/new files
+ *   pnpm index-knowledge --status   # show current state
+ *   pnpm index-knowledge --dry-run  # preview without writing
+ *   pnpm index-knowledge --force    # re-index everything
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
+import { resolve, dirname, join } from 'path';
 import { createHash } from 'crypto';
 import { indexKnowledgeFile } from '../src/services/indexing.service';
 import { isIndexed } from '../src/services/qdrant.service';
 import type { ServiceMode } from '../src/lib/qdrant';
 
 const ROOT = process.cwd();
+const KNOWLEDGE_DIR = resolve(ROOT, 'data/knowledge');
 const MANIFEST_PATH = resolve(ROOT, 'data/.index-manifest.json');
 
-// ── Knowledge Registry ────────────────────────────────────────────────────────
-// Add new files here. One entry per (mode, file) pair.
-// A mode can have multiple files — each is indexed independently into the same collection.
-const KNOWLEDGE_REGISTRY: { mode: ServiceMode; file: string; label: string }[] = [
-  {
-    mode: 'wiki',
-    file: 'data/knowledge/vmg-overview.md',
-    label: 'VMG Overview',
-  },
-  {
-    mode: 'wiki',
-    file: 'data/knowledge/study-abroad-overview.md',
-    label: 'Study Abroad Overview',
-  },
-];
+// Auto-discover: scan data/knowledge/*/ subfolders for index.md files.
+// Each subfolder is a knowledge domain; all index into the 'wiki' collection.
+function buildRegistry(): { mode: ServiceMode; file: string; label: string }[] {
+  const entries: { mode: ServiceMode; file: string; label: string }[] = [];
+  if (!existsSync(KNOWLEDGE_DIR)) return entries;
+  for (const name of readdirSync(KNOWLEDGE_DIR)) {
+    const dir = join(KNOWLEDGE_DIR, name);
+    if (!statSync(dir).isDirectory()) continue;
+    const indexFile = join(dir, 'index.md');
+    if (!existsSync(indexFile)) continue;
+    entries.push({ mode: 'wiki', file: `data/knowledge/${name}/index.md`, label: name });
+  }
+  return entries;
+}
+
 
 // ── Manifest ──────────────────────────────────────────────────────────────────
 interface ManifestEntry {
@@ -75,7 +75,11 @@ function fileHash(content: string): string {
 
 // ── Status display ────────────────────────────────────────────────────────────
 async function showStatus(manifest: Manifest) {
+  const KNOWLEDGE_REGISTRY = buildRegistry();
   console.log('\n📋  Index Status\n');
+  if (KNOWLEDGE_REGISTRY.length === 0) {
+    console.log('  (no index.md files found in data/knowledge/*/)');return;
+  }
   for (const { mode, file, label } of KNOWLEDGE_REGISTRY) {
     const key = manifestKey(mode, file);
     const entry = manifest[key];
@@ -110,27 +114,25 @@ async function run() {
   const force   = args.includes('--force');
   const dryRun  = args.includes('--dry-run');
   const status  = args.includes('--status');
-  const modeArg = args.find(a => !a.startsWith('--')) as ServiceMode | undefined;
-
-  if (modeArg && !KNOWLEDGE_REGISTRY.some(e => e.mode === modeArg)) {
-    const validModes = [...new Set(KNOWLEDGE_REGISTRY.map(e => e.mode))].join(', ');
-    console.error(`❌ Unknown mode "${modeArg}". Valid: ${validModes}`);
-    process.exit(1);
-  }
 
   const manifest = loadManifest();
+
+  const KNOWLEDGE_REGISTRY = buildRegistry();
+
+  if (KNOWLEDGE_REGISTRY.length === 0) {
+    console.log('⚠️  No index.md files found in data/knowledge/*/  — nothing to index.');
+    return;
+  }
 
   if (status) {
     await showStatus(manifest);
     return;
   }
 
-  const entries = modeArg
-    ? KNOWLEDGE_REGISTRY.filter(e => e.mode === modeArg)
-    : KNOWLEDGE_REGISTRY;
+  const entries = KNOWLEDGE_REGISTRY;
 
   console.log(`\n🚀  URASys Smart Indexing${dryRun ? ' [DRY RUN]' : ''}${force ? ' [FORCE]' : ''}`);
-  console.log(`    Checking ${entries.length} registry entries…\n`);
+  console.log(`    Discovered ${KNOWLEDGE_REGISTRY.length} domain(s): ${KNOWLEDGE_REGISTRY.map(e => e.label).join(', ')}\n`);
 
   let indexed = 0, skipped = 0, failed = 0;
 

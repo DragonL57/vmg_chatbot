@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Message, ServiceMode } from '@/types/chat';
+import { Message } from '@/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
 import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Info, Phone, Menu, GraduationCap, Plane, BookOpen } from 'lucide-react';
+import { Info, Phone, Menu, BookOpen } from 'lucide-react';
 
 /**
  * The main chat interface component for URASys.
@@ -20,20 +20,10 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
-  const [mode, setMode] = useState<ServiceMode>('wiki');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-  };
-
-  const handleModeChange = (newMode: ServiceMode) => {
-    if (newMode === mode) return;
-    setMode(newMode);
-    // On mobile, close sidebar after selection
-    if (window.innerWidth < 768) {
-      setIsSidebarOpen(false);
-    }
   };
 
   const onSuggestionClick = (text: string) => {
@@ -47,7 +37,6 @@ export const ChatInterface: React.FC = () => {
       role: 'user',
       content: content.trim(),
       timestamp: new Date(),
-      mode: mode,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -56,16 +45,14 @@ export const ChatInterface: React.FC = () => {
     setLoadingPhase('decompose');
 
     try {
-      // Filter history to only include messages from the current mode
-      const relevantHistory = messages.filter(m => !m.mode || m.mode === mode);
-      const apiMessages = [...relevantHistory, userMessage].map(({ role, content }) => ({ role, content }));
+      const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }));
 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: apiMessages,
-          serviceMode: mode
+          serviceMode: 'wiki'
         }),
       });
 
@@ -140,7 +127,6 @@ export const ChatInterface: React.FC = () => {
               role: 'assistant',
               content: chunkValue,
               timestamp: new Date(),
-              mode: mode,
             };
             setMessages((prev) => [...prev, assistantMessage]);
           } else {
@@ -187,8 +173,6 @@ export const ChatInterface: React.FC = () => {
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
-        currentMode={mode}
-        onModeChange={handleModeChange}
       />
 
       <div className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'ml-0'}`}>
@@ -209,13 +193,11 @@ export const ChatInterface: React.FC = () => {
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-800 leading-none mb-1 flex items-center gap-1.5">
-                {mode === 'study-abroad' && <Plane className="w-3.5 h-3.5 text-[#D32F2F]" />}
-                {mode === 'esl' && <GraduationCap className="w-3.5 h-3.5 text-[#D32F2F]" />}
-                {mode === 'wiki' && <BookOpen className="w-3.5 h-3.5 text-[#D32F2F]" />}
-                {mode === 'esl' ? 'VMG English' : mode === 'study-abroad' ? 'VMG Global Pathway' : 'Wiki VMG'}
+                <BookOpen className="w-3.5 h-3.5 text-[#D32F2F]" />
+                Wiki VMG
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                {mode === 'esl' ? 'Chuyên viên Tư vấn Tuyển sinh' : mode === 'study-abroad' ? 'Chuyên viên Tư vấn Du học' : 'Cơ sở tri thức nội bộ'}
+                Cơ sở tri thức nội bộ
               </p>
             </div>
           </div>
@@ -236,10 +218,10 @@ export const ChatInterface: React.FC = () => {
         {/* Message List Area */}
         <div className="flex-1 overflow-hidden flex flex-col relative">
           <MessageList 
-            messages={messages.filter(m => !m.mode || m.mode === mode)} 
+            messages={messages} 
             isLoading={isLoading}
             loadingPhase={loadingPhase}
-            currentMode={mode} 
+            currentMode="wiki"
             onSuggestionClick={onSuggestionClick} 
           />
         </div>

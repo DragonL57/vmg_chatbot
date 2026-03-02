@@ -2,8 +2,8 @@ import { PoeService } from './poe.service';
 import { QueryDecompositionSchema, type QueryDecomposition } from '@/types/agent';
 import { safeJsonParse } from '@/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
-import { PLANNER_SPECIALIST_PROMPT } from '@/prompts/specialists/planner';
 import { URAS_DECOMPOSE_PROMPT } from '@/prompts/uras';
+import type { ServiceMode } from '@/types/chat';
 import { DocumentSearchService, type DocumentEvidence } from './document-search.service';
 import { FAQSearchService, type FAQEvidence } from './faq-search.service';
 import { isIndexed } from './qdrant.service';
@@ -27,37 +27,27 @@ export class ManagerService {
    */
   static async decompose(
     messages: { role: string; content: string }[],
-    mode: 'wiki' | 'esl' | 'study-abroad' = 'wiki'
+    mode: ServiceMode = 'wiki'
   ): Promise<QueryDecomposition> {
     const history = messages.map(m => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
     }));
 
-    // Decompose always runs (query splitting).
-    // Planner only runs for study-abroad (college-scorecard API detection).
-    const tasks: Promise<unknown>[] = [
-      PoeService.chat([{ role: 'system', content: URAS_DECOMPOSE_PROMPT }, ...history]),
-    ];
-    if (mode === 'study-abroad') {
-      tasks.push(PoeService.chat([{ role: 'system', content: PLANNER_SPECIALIST_PROMPT(mode) }, ...history]));
-    }
-    const [decomposeRes, plannerRes] = await Promise.all(tasks);
+    const decomposeRes = await PoeService.chat([
+      { role: 'system', content: URAS_DECOMPOSE_PROMPT },
+      ...history,
+    ]);
 
     const decomposeContent = (decomposeRes as ChatCompletion).choices[0].message.content || '';
-    const plannerContent = plannerRes ? (plannerRes as ChatCompletion).choices[0].message.content || '' : '';
-
     console.log('[Decompose]', decomposeContent);
-    if (plannerContent) console.log('[Planner]', plannerContent);
 
     const decomposeData = safeJsonParse<{ subQueries: string[]; reasoning: string; chitchat?: boolean }>(decomposeContent);
-    const plannerData = plannerContent ? safeJsonParse<Record<string, unknown>>(plannerContent) : null;
 
     const combined = {
       chitchat: decomposeData?.chitchat ?? false,
       subQueries: decomposeData?.subQueries ?? null,
       reasoning: decomposeData?.reasoning ?? 'Decomposed',
-      externalApiCall: (plannerData?.externalApiCall as Record<string, unknown>) ?? null,
     } as Record<string, unknown>;
 
     const result = QueryDecompositionSchema.safeParse(combined);
@@ -66,7 +56,6 @@ export class ManagerService {
       return {
         reasoning: String(combined.reasoning ?? 'Fallback'),
         subQueries: combined.subQueries as string[] | null,
-        externalApiCall: combined.externalApiCall as QueryDecomposition['externalApiCall'],
       };
     }
 
@@ -79,7 +68,7 @@ export class ManagerService {
    */
   static async decomposeWithRetrieval(
     messages: { role: string; content: string }[],
-    mode: 'wiki' | 'esl' | 'study-abroad' = 'wiki'
+    mode: ServiceMode = 'wiki'
   ): Promise<DecompositionWithRetrieval> {
     // Run decomposition + index-check in parallel
     const [decomposition, indexed] = await Promise.all([

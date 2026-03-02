@@ -1,16 +1,32 @@
+import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
+import { join } from 'path';
 import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
 import { ManagerService } from '@/services/manager.service';
-import { CollegeScorecardService } from '@/services/college-scorecard.service';
 import type { RetrievalEvidence } from '@/services/manager.service';
 import { URAS_MANAGER_PROMPT } from '@/prompts/uras';
 import { MASTER_AGENT_IDENTITY, MASTER_OUTPUT_CONSTRAINTS } from '@/prompts/master';
-import {
-  MASTER_STUDY_ABROAD_IDENTITY,
-  MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS,
-  MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL
-} from '@/prompts/study-abroad-master';
 
 export const maxDuration = 300; // Allow 300s for AI operations
+
+const KNOWLEDGE_DIR = join(process.cwd(), 'data', 'knowledge');
+
+// Reads all static.md files from data/knowledge/*/ at request time.
+// Called per-request so edits are reflected instantly in dev without restart.
+function loadStaticOverviews(): string {
+  if (!existsSync(KNOWLEDGE_DIR)) return '';
+  const sections: string[] = [];
+  for (const name of readdirSync(KNOWLEDGE_DIR)) {
+    const dir = join(KNOWLEDGE_DIR, name);
+    if (!statSync(dir).isDirectory()) continue;
+    const staticFile = join(dir, 'static.md');
+    if (!existsSync(staticFile)) continue;
+    const content = readFileSync(staticFile, 'utf-8').trim();
+    if (content) sections.push(`### ${name}\n${content}`);
+  }
+  if (sections.length === 0) return '';
+  console.log(`[StaticOverview] Loaded ${sections.length} domain(s): ${readdirSync(KNOWLEDGE_DIR).filter(n => existsSync(join(KNOWLEDGE_DIR, n, 'static.md'))).join(', ')}`);
+  return `<knowledge_overview>\n${sections.join('\n\n')}\n</knowledge_overview>`;
+}
 
 export async function POST(req: Request) {
   try {
@@ -27,6 +43,8 @@ export async function POST(req: Request) {
     const responseHeaders: Record<string, string> = {
       'Content-Type': 'text/plain; charset=utf-8',
     };
+
+    const staticOverview = loadStaticOverviews();
 
     // Everything runs inside the stream so we can emit phase signals to the client
     const stream = new ReadableStream({
@@ -58,34 +76,14 @@ export async function POST(req: Request) {
             hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh',
           });
 
-          let augmentedContext: string;
-          if (serviceMode === 'study-abroad') {
-            augmentedContext = [
-              MASTER_STUDY_ABROAD_IDENTITY,
-              `<current_time>\nBây giờ là: ${currentTime}\n</current_time>`,
-              knowledgeBlock,
-              MASTER_STUDY_ABROAD_OUTPUT_CONSTRAINTS,
-            ].filter(Boolean).join('\n\n').trim();
-          } else {
-            augmentedContext = [
-              MASTER_AGENT_IDENTITY,
-              `<current_time>\nBây giờ là: ${currentTime}\n</current_time>`,
-              knowledgeBlock,
-              MASTER_OUTPUT_CONSTRAINTS,
-              URAS_MANAGER_PROMPT(1, 3),
-            ].filter(Boolean).join('\n\n').trim();
-          }
-
-          // College-scorecard (study-abroad only)
-          if (serviceMode === 'study-abroad' && decomposition.externalApiCall?.api === 'college-scorecard' && decomposition.externalApiCall.parameters) {
-            emit('__TOOL_CALL_START__');
-            const results = await CollegeScorecardService.searchSchools(decomposition.externalApiCall.parameters as Record<string, string>);
-            augmentedContext += results.length > 0
-              ? `\n\n<external_api_results>\n${JSON.stringify(results, null, 2)}\n</external_api_results>`
-              : `\n\n<external_api_results>\nKhông tìm thấy thông tin phù hợp.\n</external_api_results>`;
-            emit('__TOOL_CALL_DONE__');
-            augmentedContext += `\n\n${MASTER_STUDY_ABROAD_EXECUTION_PROTOCOL}`;
-          }
+          const augmentedContext = [
+            MASTER_AGENT_IDENTITY,
+            `<current_time>\nBây giờ là: ${currentTime}\n</current_time>`,
+            staticOverview,
+            knowledgeBlock,
+            MASTER_OUTPUT_CONSTRAINTS,
+            URAS_MANAGER_PROMPT(1, 3),
+          ].filter(Boolean).join('\n\n').trim();
 
           // ── Phase 3: Generate ───────────────────────────────────────────────
           const completion = await poe.chat.completions.create({

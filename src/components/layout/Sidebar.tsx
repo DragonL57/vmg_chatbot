@@ -1,23 +1,15 @@
 'use client';
 
 import React from 'react';
-import { ServiceMode } from '@/types/chat';
-import { X, GraduationCap, Plane, MessageSquareText, BookOpen } from 'lucide-react';
+import { X, MessageSquareText, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  currentMode: ServiceMode;
-  onModeChange: (mode: ServiceMode) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  isOpen,
-  onClose,
-  currentMode,
-  onModeChange,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Backdrop */}
@@ -60,39 +52,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Công cụ nội bộ
             </p>
             <nav className="space-y-1">
-              <button
-                onClick={() => {
-                  onModeChange('wiki');
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  currentMode === 'wiki'
-                    ? 'bg-[#D32F2F]/5 text-[#D32F2F] shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+              <div
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold bg-[#D32F2F]/5 text-[#D32F2F] shadow-sm"
               >
-                <BookOpen className={`w-5 h-5 ${currentMode === 'wiki' ? 'text-[#D32F2F]' : 'text-slate-400'}`} />
+                <BookOpen className="w-5 h-5 text-[#D32F2F]" />
                 <span>Wiki</span>
-                {currentMode === 'wiki' && (
-                  <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
-                )}
-              </button>
-            </nav>
-          </div>
-
-          <div>
-            <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-              Dịch vụ tư vấn
-            </p>
-            <nav className="space-y-1 opacity-40 pointer-events-none">
-              <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold text-slate-400">
-                <GraduationCap className="w-5 h-5 text-slate-300" />
-                <span>VMG English (ESL)</span>
-                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md">Soon</span>
-              </div>
-              <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold text-slate-400">
-                <Plane className="w-5 h-5 text-slate-300" />
-                <span>VMG Global Pathway</span>
-                <span className="ml-auto text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md">Soon</span>
+                <div className="ml-auto w-1.5 h-1.5 bg-[#D32F2F] rounded-full shadow-[0_0_8px_rgba(211,47,47,0.5)]"></div>
               </div>
             </nav>
           </div>

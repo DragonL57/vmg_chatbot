@@ -13,20 +13,19 @@ export const qdrantClient = new QdrantClient({
 });
 
 /**
+ * dev  → collections prefixed with "dev_"  (safe sandbox, won't affect production)
+ * prod → no prefix (live collections served to real users)
+ * Controlled by QDRANT_ENV env var; defaults to 'dev' when unset.
+ */
+const ENV_PREFIX = (process.env.QDRANT_ENV ?? 'dev') === 'prod' ? '' : 'dev_';
+
+/**
  * Collection names per service mode.
  */
 export const COLLECTIONS = {
   wiki: {
-    documents: 'vmg_docs_wiki',
-    faqs: 'vmg_faqs_wiki',
-  },
-  esl: {
-    documents: 'vmg_docs_esl',
-    faqs: 'vmg_faqs_esl',
-  },
-  'study-abroad': {
-    documents: 'vmg_docs_study_abroad',
-    faqs: 'vmg_faqs_study_abroad',
+    documents: `${ENV_PREFIX}vmg_docs_wiki`,
+    faqs: `${ENV_PREFIX}vmg_faqs_wiki`,
   },
 } as const;
 

@@ -1,0 +1,37 @@
+name: Sync Knowledge → Prod Qdrant
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'data/knowledge/**'
+
+jobs:
+  index:
+    name: Index knowledge into prod collections
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Index knowledge (prod)
+        env:
+          POE_API_KEY: ${{ secrets.POE_API_KEY }}
+          POE_BOT_NAME: ${{ secrets.POE_BOT_NAME }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_ENV: prod
+        run: pnpm tsx scripts/index-knowledge.ts --force
