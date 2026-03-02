@@ -17,10 +17,32 @@ import { safeJsonParse } from '@/lib/utils';
 import type { ServiceMode } from '@/lib/qdrant';
 import type { FAQGeneration, FAQExpansion } from '@/types/indexing';
 
-const DELAY_MS = 300; // Rate-limit safety between LLM calls
+const DELAY_MS = 300; // Rate-limit safety between LLM calls in sequential paths
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Simple concurrency limiter — at most `limit` async tasks run simultaneously.
+ */
+function pLimit(limit: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  const next = () => {
+    if (queue.length > 0 && active < limit) {
+      active++;
+      queue.shift()!();
+    }
+  };
+  return function run<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      queue.push(() => {
+        fn().then(resolve, reject).finally(() => { active--; next(); });
+      });
+      next();
+    });
+  };
 }
 
 // ─── PHASE 1: SEMANTIC CHUNKING ──────────────────────────────────────────────
@@ -166,80 +188,68 @@ export async function indexKnowledgeFile(
 
   await ensureCollections(mode);
 
-  // ── Phase 1: Chunk-and-Title ────────────────────────────────────────────────
+  // ── Phase 1: Chunk-and-Title (parallel, concurrency=5) ─────────────────────
   console.log('  Phase 1: Chunking…');
   const rawChunks = semanticChunk(markdown);
   console.log(`  → ${rawChunks.length} raw chunks`);
 
-  const documentChunks: DocumentChunk[] = [];
-
-  for (let i = 0; i < rawChunks.length; i++) {
-    const raw = rawChunks[i];
-    process.stdout.write(`  Chunk ${i + 1}/${rawChunks.length}…\r`);
-
-    let content = raw;
-    if (!options.skipRewrite) {
-      content = await rewriteChunk(raw, markdown.slice(0, 500));
-      await sleep(DELAY_MS);
-    }
-
-    const title = await assignTitle(content);
-    await sleep(DELAY_MS);
-
-    console.log(`  [Chunk ${i + 1}/${rawChunks.length}] title="${title}" (${content.length} chars)`);
-
-    documentChunks.push({
-      id: randomUUID(),
-      title,
-      content,
-      source: sourceFile,
-    });
-  }
+  const limit1 = pLimit(5);
+  const documentChunks: DocumentChunk[] = await Promise.all(
+    rawChunks.map((raw, i) =>
+      limit1(async () => {
+        let content = raw;
+        if (!options.skipRewrite) {
+          content = await rewriteChunk(raw, markdown.slice(0, 500));
+        }
+        const title = await assignTitle(content);
+        console.log(`  [Chunk ${i + 1}/${rawChunks.length}] title="${title.slice(0, 80)}" (${content.length} chars)`);
+        return { id: randomUUID(), title, content, source: sourceFile } as DocumentChunk;
+      })
+    )
+  );
 
   console.log(`\n  Upserting ${documentChunks.length} document chunks to Qdrant…`);
-  // Upsert in batches of 20 to avoid memory/network issues
   for (let i = 0; i < documentChunks.length; i += 20) {
     await upsertDocuments(documentChunks.slice(i, i + 20), mode);
   }
   console.log('  ✅ Phase 1 done.');
 
-  // ── Phase 2: Ask-and-Augment ────────────────────────────────────────────────
+  // ── Phase 2: Ask-and-Augment (parallel per chunk, concurrency=4) ─────────────
   console.log('  Phase 2: Generating FAQs…');
-  const allFAQs: FAQPair[] = [];
 
-  for (let i = 0; i < documentChunks.length; i++) {
-    const chunk = documentChunks[i];
+  const limit2 = pLimit(4);
+  const perChunkFAQs: FAQPair[][] = await Promise.all(
+    documentChunks.map((chunk, i) =>
+      limit2(async () => {
+        const pairs = await createFAQs(chunk);
 
-    const pairs = await createFAQs(chunk);
-    await sleep(DELAY_MS);
+        // Expand all variants in parallel within the chunk
+        const expandLimit = pLimit(4);
+        const expanded = await Promise.all(
+          pairs.map(pair =>
+            expandLimit(async () => {
+              const variants = await expandFAQ(pair.question);
+              return [pair, ...variants.map(v => ({ question: v, answer: pair.answer }))] as Array<{ question: string; answer: string }>;
+            })
+          )
+        );
 
-    let chunkFAQCount = 0;
-    for (const pair of pairs) {
-      // Original FAQ
-      allFAQs.push({
-        id: randomUUID(),
-        question: pair.question,
-        answer: pair.answer,
-        sourceChunkId: chunk.id,
-      });
-      chunkFAQCount++;
-
-      // Paraphrased variants
-      const variants = await expandFAQ(pair.question);
-      await sleep(DELAY_MS);
-
-      for (const variant of variants) {
-        allFAQs.push({
+        const chunkFAQs: FAQPair[] = expanded.flat().map(p => ({
           id: randomUUID(),
-          question: variant,
-          answer: pair.answer,
+          question: p.question,
+          answer: p.answer,
           sourceChunkId: chunk.id,
-        });
-        chunkFAQCount++;
-      }
-    }
-    console.log(`  [Chunk ${i + 1}/${documentChunks.length}] "${chunk.title.slice(0, 50)}" → ${pairs.length} FAQs × ${pairs.length > 0 ? Math.round(chunkFAQCount / pairs.length) : 0} variants = ${chunkFAQCount} total`);
-  }
+        }));
+
+        console.log(
+          `  [Chunk ${i + 1}/${documentChunks.length}] "${chunk.title.slice(0, 50)}" → ${pairs.length} FAQs × ${pairs.length > 0 ? Math.round((chunkFAQs.length - pairs.length) / pairs.length + 1) : 0} variants = ${chunkFAQs.length} total`
+        );
+        return chunkFAQs;
+      })
+    )
+  );
+
+  const allFAQs = perChunkFAQs.flat();
 
   console.log(`\n  Upserting ${allFAQs.length} FAQ pairs to Qdrant…`);
   for (let i = 0; i < allFAQs.length; i += 50) {

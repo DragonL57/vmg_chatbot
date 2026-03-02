@@ -1,5 +1,4 @@
-import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, type ServiceMode } from '@/lib/qdrant';
-import { embed } from '@/lib/embeddings';
+import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, INFERENCE_MODEL, type ServiceMode } from '@/lib/qdrant';
 import { bm25Search, reciprocalRankFusion } from '@/lib/bm25';
 
 export interface DocumentChunk {
@@ -30,16 +29,19 @@ export async function ensureCollections(mode: ServiceMode): Promise<void> {
 
   for (const collectionName of [documents, faqs]) {
     try {
-      await qdrantClient.getCollection(collectionName);
-      console.log(`Collection "${collectionName}" already exists.`);
+      const info = await qdrantClient.getCollection(collectionName);
+      const existingDim = (info.config?.params?.vectors as { size?: number } | undefined)?.size;
+      if (existingDim && existingDim !== EMBEDDING_DIM) {
+        console.log(`⚠️  Collection "${collectionName}" has dim ${existingDim}, expected ${EMBEDDING_DIM} — recreating…`);
+        await qdrantClient.deleteCollection(collectionName);
+        await qdrantClient.createCollection(collectionName, { vectors: { size: EMBEDDING_DIM, distance: 'Cosine' } });
+        console.log(`✅ Recreated collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
+      } else {
+        console.log(`Collection "${collectionName}" already exists (dim ${existingDim ?? '?'}).`);
+      }
     } catch {
-      await qdrantClient.createCollection(collectionName, {
-        vectors: {
-          size: EMBEDDING_DIM,
-          distance: 'Cosine',
-        },
-      });
-      console.log(`Created collection "${collectionName}".`);
+      await qdrantClient.createCollection(collectionName, { vectors: { size: EMBEDDING_DIM, distance: 'Cosine' } });
+      console.log(`Created collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
     }
   }
 }
@@ -49,23 +51,20 @@ export async function ensureCollections(mode: ServiceMode): Promise<void> {
  */
 export async function upsertDocuments(chunks: DocumentChunk[], mode: ServiceMode): Promise<void> {
   const collection = COLLECTIONS[mode].documents;
-  console.log(`[DB SEND] Embedding ${chunks.length} document chunks → "${collection}"`);
-  const texts = chunks.map(c => `${c.title}\n${c.content}`);
-  const { embedBatch } = await import('@/lib/embeddings');
-  const vectors = await embedBatch(texts);
+  console.log(`[DB SEND] Upserting ${chunks.length} doc chunks → "${collection}" via inference`);
 
-  const points = chunks.map((chunk, i) => ({
-    id: chunk.id,
-    vector: vectors[i],
-    payload: {
-      title: chunk.title,
-      content: chunk.content,
-      source: chunk.source,
-    },
-  }));
-
-  await qdrantClient.upsert(collection, { points });
-  console.log(`[DB SEND] ✓ Upserted ${points.length} docs to "${collection}"`);
+  const BATCH = 50;
+  for (let i = 0; i < chunks.length; i += BATCH) {
+    const batch = chunks.slice(i, i + BATCH);
+    const points = batch.map(chunk => ({
+      id: chunk.id,
+      // Qdrant server-side inference — no external embedding call needed
+      vector: { text: `${chunk.title}\n${chunk.content}`, model: INFERENCE_MODEL } as unknown as number[],
+      payload: { title: chunk.title, content: chunk.content, source: chunk.source },
+    }));
+    await qdrantClient.upsert(collection, { points, wait: true });
+    console.log(`[DB SEND] ✓ Upserted ${batch.length} docs to "${collection}"`);
+  }
 }
 
 /**
@@ -73,23 +72,19 @@ export async function upsertDocuments(chunks: DocumentChunk[], mode: ServiceMode
  */
 export async function upsertFAQs(faqs: FAQPair[], mode: ServiceMode): Promise<void> {
   const collection = COLLECTIONS[mode].faqs;
-  console.log(`[DB SEND] Embedding ${faqs.length} FAQ pairs → "${collection}"`);
-  const texts = faqs.map(f => f.question);
-  const { embedBatch } = await import('@/lib/embeddings');
-  const vectors = await embedBatch(texts);
+  console.log(`[DB SEND] Upserting ${faqs.length} FAQ pairs → "${collection}" via inference`);
 
-  const points = faqs.map((faq, i) => ({
-    id: faq.id,
-    vector: vectors[i],
-    payload: {
-      question: faq.question,
-      answer: faq.answer,
-      sourceChunkId: faq.sourceChunkId,
-    },
-  }));
-
-  await qdrantClient.upsert(collection, { points });
-  console.log(`[DB SEND] ✓ Upserted ${points.length} FAQs to "${collection}"`);
+  const BATCH = 50;
+  for (let i = 0; i < faqs.length; i += BATCH) {
+    const batch = faqs.slice(i, i + BATCH);
+    const points = batch.map(faq => ({
+      id: faq.id,
+      vector: { text: faq.question, model: INFERENCE_MODEL } as unknown as number[],
+      payload: { question: faq.question, answer: faq.answer, sourceChunkId: faq.sourceChunkId },
+    }));
+    await qdrantClient.upsert(collection, { points, wait: true });
+    console.log(`[DB SEND] ✓ Upserted ${batch.length} FAQs to "${collection}"`);
+  }
 }
 
 /**
@@ -100,12 +95,12 @@ export async function denseSearch(
   collection: string,
   topK = 10
 ): Promise<SearchResult[]> {
-  const queryVector = await embed(query);
-  const results = await qdrantClient.search(collection, {
-    vector: queryVector,
+  const response = await qdrantClient.query(collection, {
+    query: { text: query, model: INFERENCE_MODEL },
     limit: topK,
     with_payload: true,
   });
+  const results = response.points;
   console.log(`[DB RETRIEVE] Dense "${collection}" query="${query.slice(0, 60)}" → ${results.length} hits, top score: ${results[0]?.score.toFixed(3) ?? 'n/a'}`);
   return results.map(r => ({
     id: String(r.id),

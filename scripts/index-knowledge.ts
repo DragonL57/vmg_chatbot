@@ -37,16 +37,6 @@ const KNOWLEDGE_REGISTRY: { mode: ServiceMode; file: string; label: string }[] =
     file: 'data/knowledge/study-abroad-overview.md',
     label: 'Study Abroad Overview',
   },
-  {
-    mode: 'esl',
-    file: 'data/knowledge/vmg-overview.md',
-    label: 'VMG Overview (ESL)',
-  },
-  {
-    mode: 'study-abroad',
-    file: 'data/knowledge/study-abroad-overview.md',
-    label: 'Study Abroad Overview',
-  },
 ];
 
 // ── Manifest ──────────────────────────────────────────────────────────────────

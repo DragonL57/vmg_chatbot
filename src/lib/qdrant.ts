@@ -32,5 +32,6 @@ export const COLLECTIONS = {
 
 export type ServiceMode = keyof typeof COLLECTIONS;
 
-/** Mistral embed dimension */
-export const EMBEDDING_DIM = 1024;
+/** Qdrant server-side inference model (free, 384 dims, 100 languages) */
+export const INFERENCE_MODEL = 'intfloat/multilingual-e5-small' as const;
+export const EMBEDDING_DIM = 384;
