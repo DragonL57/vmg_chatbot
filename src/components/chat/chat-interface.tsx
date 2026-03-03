@@ -26,6 +26,7 @@ export const ChatInterface: React.FC = () => {
   const [location, setLocation] = useState<LocationData | null>(null);
   const sessionIdRef = useRef<string>(uuidv4());
   const sessionId = sessionIdRef.current;
+  const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
 
   useEffect(() => {
     setShowLocationModal(true);
@@ -47,6 +48,7 @@ export const ChatInterface: React.FC = () => {
             .filter(m => !m.isToolCall)
             .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
           location,
+          tokenUsage: tokenUsageRef.current,
         }),
       });
     } catch (e) {
@@ -125,6 +127,17 @@ export const ChatInterface: React.FC = () => {
           // Phase signals
           if (chunkValue.includes('__PHASE__:decompose')) { setLoadingPhase('decompose'); continue; }
           if (chunkValue.includes('__PHASE__:search'))   { setLoadingPhase('search');   continue; }
+
+          // Token usage signal
+          if (chunkValue.startsWith('__TOKENS__:')) {
+            const [, prompt, completion, total] = chunkValue.split(':');
+            tokenUsageRef.current = {
+              prompt_tokens: parseInt(prompt, 10),
+              completion_tokens: parseInt(completion, 10),
+              total_tokens: parseInt(total, 10),
+            };
+            continue;
+          }
 
           // Check for Tool Call signals
           if (chunkValue.includes('__TOOL_CALL_START__')) {

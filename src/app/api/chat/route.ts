@@ -89,17 +89,31 @@ export async function POST(req: Request) {
           const completion = await poe.chat.completions.create({
             model: DEFAULT_POE_MODEL,
             stream: true,
+            stream_options: { include_usage: true },
             messages: [
               { role: 'system', content: augmentedContext },
               ...recentMessages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
             ],
           });
 
+          let usageData: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
+
           for await (const chunk of completion) {
+            if (chunk.usage) {
+              usageData = {
+                prompt_tokens: chunk.usage.prompt_tokens,
+                completion_tokens: chunk.usage.completion_tokens,
+                total_tokens: chunk.usage.total_tokens,
+              };
+            }
             const content = chunk.choices[0]?.delta?.content;
             if (content) {
               controller.enqueue(encoder.encode(content));
             }
+          }
+
+          if (usageData) {
+            emit(`__TOKENS__:${usageData.prompt_tokens}:${usageData.completion_tokens}:${usageData.total_tokens}`);
           }
         } catch (error) {
           console.error('Stream error:', error);

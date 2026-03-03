@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { sessionId, messages, location } = await req.json();
+    const { sessionId, messages, location, tokenUsage } = await req.json();
 
     if (!sessionId || !messages) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         },
       } : {}),
       ...(locationAddress ? { location_address: locationAddress } : {}),
+      ...(tokenUsage ? { token_usage: tokenUsage } : {}),
     };
 
     const res = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
