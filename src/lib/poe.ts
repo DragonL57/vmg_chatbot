@@ -14,3 +14,8 @@ export const poe = new OpenAI({
  * Default model/bot to use for completions.
  */
 export const DEFAULT_POE_MODEL = env.POE_BOT_NAME;
+
+/**
+ * Reasoning model for final answer generation (Phase 3).
+ */
+export const REASONING_POE_MODEL = env.POE_REASONING_MODEL;

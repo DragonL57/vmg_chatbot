@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
+import { poe, DEFAULT_POE_MODEL, REASONING_POE_MODEL } from '@/lib/poe';
 import { ManagerService } from '@/services/manager.service';
 import type { RetrievalEvidence } from '@/services/manager.service';
 import { URAS_MANAGER_PROMPT } from '@/prompts/uras';
@@ -10,21 +10,34 @@ export const maxDuration = 300; // Allow 300s for AI operations
 
 const KNOWLEDGE_DIR = join(process.cwd(), 'data', 'knowledge');
 
-// Reads all static.md files from data/knowledge/*/ at request time.
-// Called per-request so edits are reflected instantly in dev without restart.
-function loadStaticOverviews(): string {
-  if (!existsSync(KNOWLEDGE_DIR)) return '';
-  const sections: string[] = [];
+/** Rough token estimate: ~3.5 chars per token (accounts for Vietnamese subword tokenization). */
+const estTokens = (s: string) => Math.round(s.length / 3.5);
+
+// Loads all static.md files into a domain→content map (called once per request).
+// Filtering to only relevant domains happens after retrieval — no extra LLM call needed.
+function loadStaticMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!existsSync(KNOWLEDGE_DIR)) return map;
   for (const name of readdirSync(KNOWLEDGE_DIR)) {
     const dir = join(KNOWLEDGE_DIR, name);
     if (!statSync(dir).isDirectory()) continue;
     const staticFile = join(dir, 'static.md');
     if (!existsSync(staticFile)) continue;
     const content = readFileSync(staticFile, 'utf-8').trim();
-    if (content) sections.push(`### ${name}\n${content}`);
+    if (content) map.set(name, content);
+  }
+  return map;
+}
+
+// Builds the <knowledge_overview> block using only the matched domains.
+function buildStaticOverview(staticMap: Map<string, string>, domains: Set<string>): string {
+  const sections: string[] = [];
+  for (const domain of domains) {
+    const content = staticMap.get(domain);
+    if (content) sections.push(`### ${domain}\n${content}`);
   }
   if (sections.length === 0) return '';
-  console.log(`[StaticOverview] Loaded ${sections.length} domain(s): ${readdirSync(KNOWLEDGE_DIR).filter(n => existsSync(join(KNOWLEDGE_DIR, n, 'static.md'))).join(', ')}`);
+  console.log(`[StaticOverview] Injecting ${sections.length} domain(s): ${[...domains].join(', ')}`);
   return `<knowledge_overview>\n${sections.join('\n\n')}\n</knowledge_overview>`;
 }
 
@@ -44,7 +57,7 @@ export async function POST(req: Request) {
       'Content-Type': 'text/plain; charset=utf-8',
     };
 
-    const staticOverview = loadStaticOverviews();
+    const staticMap = loadStaticMap();
 
     // Everything runs inside the stream so we can emit phase signals to the client
     const stream = new ReadableStream({
@@ -63,10 +76,18 @@ export async function POST(req: Request) {
             emit('__PHASE__:search');
           }
 
-          let knowledgeBlock = "";
+          let knowledgeBlock = '';
+          let staticOverview = '';
           if (evidence && (evidence.docs.length > 0 || evidence.faqs.length > 0)) {
             knowledgeBlock = buildRetrievedContext(evidence);
             console.log(`[URASys] ${evidence.docs.length} docs, ${evidence.faqs.length} FAQs retrieved`);
+            // Determine which domains contributed evidence, inject only those static files
+            const evidenceDomains = new Set<string>();
+            for (const doc of evidence.docs) {
+              const match = doc.source.match(/data\/knowledge\/([^/]+)\//);
+              if (match) evidenceDomains.add(match[1]);
+            }
+            staticOverview = buildStaticOverview(staticMap, evidenceDomains);
           } else {
             console.log(`[URASys] No evidence retrieved — answering without knowledge context`);
           }
@@ -85,9 +106,32 @@ export async function POST(req: Request) {
             URAS_MANAGER_PROMPT(1, 3),
           ].filter(Boolean).join('\n\n').trim();
 
-          // ── Phase 3: Generate ───────────────────────────────────────────────
+          // ── Token budget breakdown (estimated) ─────────────────────────────
+          const historyText = recentMessages.map((m: { role: string; content: string }) => m.content).join(' ');
+          const urasPrompt = URAS_MANAGER_PROMPT(1, 3);
+          const breakdown = {
+            identity:    estTokens(MASTER_AGENT_IDENTITY),
+            static:      estTokens(staticOverview),
+            knowledge:   estTokens(knowledgeBlock),
+            constraints: estTokens(MASTER_OUTPUT_CONSTRAINTS),
+            uras:        estTokens(urasPrompt),
+            history:     estTokens(historyText),
+            systemTotal: estTokens(augmentedContext),
+          };
+          console.log(
+            `[Tokens:est] system=${breakdown.systemTotal}` +
+            ` | identity=${breakdown.identity}` +
+            ` | static=${breakdown.static}` +
+            ` | knowledge=${breakdown.knowledge}` +
+            ` | constraints=${breakdown.constraints}` +
+            ` | uras=${breakdown.uras}` +
+            ` | history=${breakdown.history}` +
+            ` | total_est=${breakdown.systemTotal + breakdown.history}`
+          );
+
+          // -- Phase 3: Generate --------------------------------------------------
           const completion = await poe.chat.completions.create({
-            model: DEFAULT_POE_MODEL,
+            model: REASONING_POE_MODEL,
             stream: true,
             stream_options: { include_usage: true },
             messages: [
@@ -113,6 +157,12 @@ export async function POST(req: Request) {
           }
 
           if (usageData) {
+            console.log(
+              `[Tokens:actual] prompt=${usageData.prompt_tokens}` +
+              ` completion=${usageData.completion_tokens}` +
+              ` total=${usageData.total_tokens}` +
+              ` | est_accuracy=${Math.round((breakdown.systemTotal + breakdown.history) / usageData.prompt_tokens * 100)}%`
+            );
             emit(`__TOKENS__:${usageData.prompt_tokens}:${usageData.completion_tokens}:${usageData.total_tokens}`);
           }
         } catch (error) {
@@ -143,6 +193,13 @@ export async function POST(req: Request) {
 
 // ─── Helper: Build <retrieved_context> XML block from URASys evidence ─────────
 
+const MAX_DOC_CHARS = 1200;  // ~340 tokens per doc
+const MAX_FAQ_CHARS = 400;   // ~114 tokens per FAQ answer
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max) + '...[truncated]' : s;
+}
+
 function buildRetrievedContext(evidence: RetrievalEvidence): string {
   const lines: string[] = ['<retrieved_context>'];
 
@@ -151,7 +208,7 @@ function buildRetrievedContext(evidence: RetrievalEvidence): string {
     for (const doc of evidence.docs) {
       lines.push(`    <document score="${doc.score.toFixed(3)}">`);
       lines.push(`      <title>${escapeXml(doc.title)}</title>`);
-      lines.push(`      <content>${escapeXml(doc.content)}</content>`);
+      lines.push(`      <content>${escapeXml(truncate(doc.content, MAX_DOC_CHARS))}</content>`);
       lines.push('    </document>');
     }
     lines.push('  </documents>');
@@ -162,7 +219,7 @@ function buildRetrievedContext(evidence: RetrievalEvidence): string {
     for (const faq of evidence.faqs) {
       lines.push(`    <faq score="${faq.score.toFixed(3)}">`);
       lines.push(`      <question>${escapeXml(faq.question)}</question>`);
-      lines.push(`      <answer>${escapeXml(faq.answer)}</answer>`);
+      lines.push(`      <answer>${escapeXml(truncate(faq.answer, MAX_FAQ_CHARS))}</answer>`);
       lines.push('    </faq>');
     }
     lines.push('  </faqs>');

@@ -127,11 +127,11 @@ export class ManagerService {
         }
       }
 
-      // Sort by score descending and cap at top 8 each
+      // Sort by score descending and cap at top 5 each
       docs.sort((a, b) => b.score - a.score);
       faqs.sort((a, b) => b.score - a.score);
 
-      return { decomposition, evidence: { docs: docs.slice(0, 8), faqs: faqs.slice(0, 8) } };
+      return { decomposition, evidence: { docs: docs.slice(0, 5), faqs: faqs.slice(0, 5) } };
     } catch (err) {
       console.error('Retrieval failed, continuing without evidence:', err);
       return { decomposition, evidence: null };

@@ -6,6 +6,7 @@ export const env = createEnv({
   server: {
     POE_API_KEY: z.string().min(1),
     POE_BOT_NAME: z.string().min(1),
+    POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
     SUPABASE_URL: z.string().min(1),
