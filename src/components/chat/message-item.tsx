@@ -7,12 +7,13 @@ import { Database, ChevronDown, ChevronUp, Search, Flag, X, Send } from 'lucide-
 interface MessageItemProps {
   message: Message;
   conversation?: Message[];
+  sessionId?: string;
 }
 
 /**
  * Individual message component that renders a single chat message.
  */
-export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [] }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [], sessionId }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isTool = message.isToolCall;
@@ -48,6 +49,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
             timestamp: m.timestamp,
           })),
           note: [problemType, note.trim()].filter(Boolean).join(' — ') || null,
+          sessionId: sessionId ?? null,
         }),
       });
       if (res.ok) {

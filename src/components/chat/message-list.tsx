@@ -14,6 +14,7 @@ interface MessageListProps {
   isLoading: boolean;
   loadingPhase?: string;
   currentMode?: string;
+  sessionId?: string;
   onSuggestionClick?: (text: string) => void;
 }
 
@@ -37,7 +38,7 @@ const TypingIndicator = ({ phase }: { phase?: string }) => {
   );
 };
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, loadingPhase, onSuggestionClick }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, loadingPhase, sessionId, onSuggestionClick }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, l
       ) : (
         <>
           {messages.map((msg) => (
-            msg.content ? <MessageItem key={msg.id} message={msg} conversation={messages} /> : null
+            msg.content ? <MessageItem key={msg.id} message={msg} conversation={messages} sessionId={sessionId} /> : null
           ))}
           {showTyping && <TypingIndicator phase={loadingPhase} />}
         </>

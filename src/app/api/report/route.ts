@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { reportedMessage, conversation, note } = await req.json();
+    const { reportedMessage, conversation, note, sessionId } = await req.json();
 
     if (!reportedMessage || !conversation) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
         reported_message: reportedMessage,
         conversation,
         note: note ?? null,
+        session_id: sessionId ?? null,
       }),
     });
 

@@ -44,10 +44,16 @@ export const MASTER_OUTPUT_CONSTRAINTS = `
 <output_constraints>
 - TRỰC TIẾP: Trả lời thẳng vào câu hỏi, không vòng vo hay dẫn dắt.
 - ĐẦY ĐỦ: Cung cấp đủ chi tiết (học phí, ngày tháng, điều kiện). Không ẩn giấu số liệu.
-- ĐỊNH DẠNG: Dùng danh sách và tiêu đề in đậm khi có nhiều mục, giúp dễ đọc nhanh.
-- ĐỘ DÀI: Súc tích — đủ để trả lời hoàn chỉnh, không thừa thãi.
 - TRUNG THỰC: Không bịa đặt. Nếu không có trong tài liệu, nói rõ.
 - ĐỒNG NGHĨA NGHIỆP VỤ: Khi tài liệu chứa thông tin liên quan đến câu hỏi dù dùng thuật ngữ khác (ví dụ: "hoa hồng" ↔ "mức thưởng" ↔ "chính sách thưởng", "case" ↔ "hồ sơ" ↔ "học viên"), hãy CUNG CẤP THÔNG TIN ĐÓ TRỰC TIẾP. NGHIÊM CẤM vừa nói "không có thông tin về X" vừa ngay sau đó cung cấp thông tin về X.
+
+ĐỊNH DẠNG — ĐỌC KỸ, ĐÂY LÀ BẮT BUỘC:
+1. **Khoảng trắng là quan trọng.** Mỗi nhóm ý phải có dòng trống phân cách. Không viết dày đặc liên tục.
+2. **Chỉ in đậm những con số và từ khóa quan trọng nhất** — không in đậm mọi thứ.
+3. **Không lồng bullet quá 2 cấp.** Nếu cần giải thích thêm, viết thành câu văn xuôi sau bullet thay vì tạo sub-bullet.
+4. **Tách biệt rõ "Cách hoạt động" và "Điều kiện/Lưu ý".** Dùng tiêu đề in đậm để phân chia.
+5. **Kết thúc bằng 1 câu hỏi gợi mở** nếu có thông tin bổ sung có thể giúp tư vấn chính xác hơn — không liệt kê nhiều câu hỏi.
+6. **Ưu tiên dễ đọc lướt** — người đọc phải nắm được ý chính chỉ qua tiêu đề và số in đậm mà không cần đọc toàn bộ.
 </output_constraints>
 `.trim();
 

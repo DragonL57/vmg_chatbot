@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Info, Phone, Menu, BookOpen } from 'lucide-react';
+import { LocationModal, LocationData } from './location-modal';
 
 /**
  * The main chat interface component for URASys.
@@ -20,7 +21,38 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [location, setLocation] = useState<LocationData | null>(null);
+  const sessionIdRef = useRef<string>(uuidv4());
+  const sessionId = sessionIdRef.current;
+
+  useEffect(() => {
+    setShowLocationModal(true);
+  }, []);
+
+  const handleLocationAccept = (loc: LocationData) => {
+    setLocation(loc);
+    setShowLocationModal(false);
+  };
+
+  const saveConversation = async (msgs: Message[]) => {
+    try {
+      await fetch('/api/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          messages: msgs
+            .filter(m => !m.isToolCall)
+            .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
+          location,
+        }),
+      });
+    } catch (e) {
+      console.warn('[Conversation] save failed:', e);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -159,6 +191,14 @@ export const ChatInterface: React.FC = () => {
     }
   };
 
+  // Save after each completed assistant response
+  useEffect(() => {
+    if (!isLoading && messages.some(m => m.role === 'assistant')) {
+      saveConversation(messages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
+
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -170,6 +210,9 @@ export const ChatInterface: React.FC = () => {
       className="flex flex-row bg-slate-50 w-full mx-auto overflow-hidden fixed inset-0"
       style={{ height: 'var(--vv-height, 100vh)' }}
     >
+      {showLocationModal && (
+        <LocationModal onAccept={handleLocationAccept} />
+      )}
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
@@ -222,6 +265,7 @@ export const ChatInterface: React.FC = () => {
             isLoading={isLoading}
             loadingPhase={loadingPhase}
             currentMode="wiki"
+            sessionId={sessionId}
             onSuggestionClick={onSuggestionClick} 
           />
         </div>
