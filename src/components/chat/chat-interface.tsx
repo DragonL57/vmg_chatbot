@@ -21,7 +21,7 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const sessionIdRef = useRef<string>(uuidv4());
