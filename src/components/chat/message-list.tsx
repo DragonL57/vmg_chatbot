@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Message } from '@/types/chat';
 import Image from 'next/image';
 import { MessageItem } from './message-item';
-import { Search, Cpu, Loader2, Construction } from 'lucide-react';
+import { Search, Cpu, Loader2 } from 'lucide-react';
 
 const PHASE_CONFIG: Record<string, { label: string; Icon: React.FC<{ className?: string }> }> = {
   decompose: { label: 'Đang phân tích câu hỏi...', Icon: ({ className }) => <Cpu className={className} /> },
@@ -74,12 +74,6 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, l
           </div>
           
           <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
-             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2.5 text-xs leading-relaxed mb-1">
-               <Construction className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
-               <span>
-                 <span className="font-semibold">Lưu ý:</span> Hiện tại cơ sở tri thức chỉ có tài liệu về <span className="font-semibold">du học</span>.
-               </span>
-             </div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gợi ý tìm kiếm</p>
              {suggestions.map((text) => (
                <button
@@ -95,7 +89,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, l
       ) : (
         <>
           {messages.map((msg) => (
-            msg.content ? <MessageItem key={msg.id} message={msg} /> : null
+            msg.content ? <MessageItem key={msg.id} message={msg} conversation={messages} /> : null
           ))}
           {showTyping && <TypingIndicator phase={loadingPhase} />}
         </>
