@@ -128,15 +128,17 @@ export const ChatInterface: React.FC = () => {
           if (chunkValue.includes('__PHASE__:decompose')) { setLoadingPhase('decompose'); continue; }
           if (chunkValue.includes('__PHASE__:search'))   { setLoadingPhase('search');   continue; }
 
-          // Token usage signal
-          if (chunkValue.startsWith('__TOKENS__:')) {
-            const [, prompt, completion, total] = chunkValue.split(':');
+          // Token usage signal — may arrive appended to last content chunk, strip it out
+          let cleanChunk = chunkValue;
+          const tokenMatch = chunkValue.match(/__TOKENS__:(\d+):(\d+):(\d+)/);
+          if (tokenMatch) {
             tokenUsageRef.current = {
-              prompt_tokens: parseInt(prompt, 10),
-              completion_tokens: parseInt(completion, 10),
-              total_tokens: parseInt(total, 10),
+              prompt_tokens: parseInt(tokenMatch[1], 10),
+              completion_tokens: parseInt(tokenMatch[2], 10),
+              total_tokens: parseInt(tokenMatch[3], 10),
             };
-            continue;
+            cleanChunk = chunkValue.replace(/__TOKENS__:\d+:\d+:\d+/, '').trimEnd();
+            if (!cleanChunk) continue;
           }
 
           // Check for Tool Call signals
@@ -170,7 +172,7 @@ export const ChatInterface: React.FC = () => {
             const assistantMessage: Message = {
               id: assistantId,
               role: 'assistant',
-              content: chunkValue,
+              content: cleanChunk,
               timestamp: new Date(),
             };
             setMessages((prev) => [...prev, assistantMessage]);
@@ -178,7 +180,7 @@ export const ChatInterface: React.FC = () => {
             setMessages((prev) => 
               prev.map((msg) => 
                 msg.id === assistantId 
-                  ? { ...msg, content: msg.content + chunkValue } 
+                  ? { ...msg, content: msg.content + cleanChunk } 
                   : msg
               )
             );

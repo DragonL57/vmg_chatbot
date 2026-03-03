@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { poe, DEFAULT_POE_MODEL, REASONING_POE_MODEL } from '@/lib/poe';
+import { getGenerationProvider } from '@/lib/providers';
 import { ManagerService } from '@/services/manager.service';
 import type { RetrievalEvidence } from '@/services/manager.service';
 import { URAS_MANAGER_PROMPT } from '@/prompts/uras';
@@ -130,14 +130,17 @@ export async function POST(req: Request) {
           );
 
           // -- Phase 3: Generate --------------------------------------------------
-          const completion = await poe.chat.completions.create({
-            model: REASONING_POE_MODEL,
+          const { client: genClient, model: genModel, provider: genProvider, extraBody } = getGenerationProvider();
+          console.log(`[Generate] provider=${genProvider} model=${genModel}${extraBody ? ' extra='+JSON.stringify(extraBody) : ''}`);
+          const completion = await genClient.chat.completions.create({
+            model: genModel,
             stream: true,
             stream_options: { include_usage: true },
             messages: [
               { role: 'system', content: augmentedContext },
               ...recentMessages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content })),
             ],
+            ...(extraBody ? { extra_body: extraBody } : {}),
           });
 
           let usageData: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
@@ -158,10 +161,9 @@ export async function POST(req: Request) {
 
           if (usageData) {
             console.log(
-              `[Tokens:actual] prompt=${usageData.prompt_tokens}` +
-              ` completion=${usageData.completion_tokens}` +
-              ` total=${usageData.total_tokens}` +
-              ` | est_accuracy=${Math.round((breakdown.systemTotal + breakdown.history) / usageData.prompt_tokens * 100)}%`
+              `[Tokens:actual] input=${usageData.prompt_tokens}` +
+              ` output=${usageData.completion_tokens}` +
+              ` total=${usageData.total_tokens}`
             );
             emit(`__TOKENS__:${usageData.prompt_tokens}:${usageData.completion_tokens}:${usageData.total_tokens}`);
           }

@@ -7,6 +7,13 @@ export const env = createEnv({
     POE_API_KEY: z.string().min(1),
     POE_BOT_NAME: z.string().min(1),
     POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
+    // Provider selector: 'poe' (default) | 'inception'
+    LLM_PROVIDER: z.enum(['poe', 'inception']).default('poe'),
+    INCEPTION_API_KEY: z.string().default(''),
+    INCEPTION_MODEL: z.string().default('mercury-2'),
+    INCEPTION_MODEL_EFFORT: z.enum(['instant', 'low', 'medium', 'high']).default('instant'),
+    INCEPTION_REASONING_MODEL: z.string().default('mercury-2'),
+    INCEPTION_REASONING_EFFORT: z.enum(['instant', 'low', 'medium', 'high']).default('medium'),
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
     SUPABASE_URL: z.string().min(1),
