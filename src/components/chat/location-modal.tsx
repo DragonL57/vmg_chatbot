@@ -41,7 +41,7 @@ export const LocationModal: React.FC<LocationModalProps> = ({ onAccept }) => {
       () => {
         setState('denied');
       },
-      { timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
     );
   };
 
