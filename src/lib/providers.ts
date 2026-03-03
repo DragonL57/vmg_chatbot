@@ -52,18 +52,27 @@ export function getGenerationProvider(): {
 }
 
 /**
- * Returns client + model for fast/cheap calls (decomposition, retrieval reformulation).
- * When provider is inception, uses INCEPTION_MODEL + INCEPTION_MODEL_EFFORT.
- * Always falls back to POE for decomposition since that path is hardcoded to poeClient.
+ * Returns the client + model for fast/cheap calls (decomposition, query reformulation).
+ * Respects LLM_PROVIDER: inception → Inception model, poe → POE BOT.
  */
-export function getFastInceptionParams(): { model: string; extraBody: Record<string, unknown> } {
-  return {
-    model: env.INCEPTION_MODEL,
-    extraBody: { reasoning_effort: env.INCEPTION_MODEL_EFFORT },
-  };
+export function getFastProvider(): {
+  client: OpenAI;
+  model: string;
+  provider: string;
+  extraBody?: Record<string, unknown>;
+} {
+  if (env.LLM_PROVIDER === 'inception') {
+    return {
+      client: inceptionClient,
+      model: env.INCEPTION_MODEL,
+      provider: 'inception',
+      extraBody: { reasoning_effort: env.INCEPTION_MODEL_EFFORT },
+    };
+  }
+  return { client: poeClient, model: env.POE_BOT_NAME, provider: 'poe' };
 }
 
-// Re-export poe client + models for decomposition / retrieval (always uses POE)
+// Re-export poe client + models for backward-compat (indexing.service still uses directly)
 export { poeClient as poe };
 export const DEFAULT_POE_MODEL = env.POE_BOT_NAME;
 export const REASONING_POE_MODEL = env.POE_REASONING_MODEL;

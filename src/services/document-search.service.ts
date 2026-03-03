@@ -1,6 +1,6 @@
 import { hybridDocumentSearch, type SearchResult } from './qdrant.service';
 import { DOCUMENT_SEARCH_AGENT_PROMPT } from '@/prompts/uras';
-import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
+import { getFastProvider } from '@/lib/providers';
 import type { ServiceMode } from '@/lib/qdrant';
 
 export interface DocumentEvidence {
@@ -84,8 +84,9 @@ export class DocumentSearchService {
     systemPrompt: string
   ): Promise<string> {
     try {
-      const res = await poe.chat.completions.create({
-        model: DEFAULT_POE_MODEL,
+      const { client, model, extraBody } = getFastProvider();
+      const res = await client.chat.completions.create({
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           {
@@ -93,7 +94,8 @@ export class DocumentSearchService {
             content: `Câu hỏi gốc: ${originalQuery}\n\nCác truy vấn đã thử: ${previousQueries.join(', ')}\n\nĐây là lần thử thứ ${attempt}. Hãy tạo một truy vấn tìm kiếm MỚI và KHÁC BIỆT bằng tiếng Việt. CHỈ trả về chuỗi truy vấn, không giải thích.`,
           },
         ],
-      });
+        ...(extraBody ? { extra_body: extraBody } : {}),
+      } as Parameters<typeof client.chat.completions.create>[0]) as Awaited<ReturnType<typeof client.chat.completions.create>> & { choices: { message: { content: string | null } }[] };
       const reformulated = (res.choices[0].message.content ?? '').trim();
       return reformulated || originalQuery;
     } catch {

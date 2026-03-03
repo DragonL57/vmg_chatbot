@@ -1,29 +1,31 @@
-import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
+import { getFastProvider } from '@/lib/providers';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 /**
- * Service for interacting with the POE API.
+ * Service for LLM calls used in decomposition / planning.
+ * Routes to Inception or POE based on LLM_PROVIDER env var.
  */
 export class PoeService {
   /**
-   * Generates a chat completion using the POE API.
-   * 
+   * Generates a chat completion using the configured LLM provider.
+   *
    * @param messages - Array of chat messages.
-   * @param model - The model/bot handle to use (defaults to env.POE_BOT_NAME).
+   * @param model - Override model (defaults to provider's fast model).
    * @param stream - Whether to stream the response (default: false).
-   * @returns The completion response or a stream.
    */
   static async chat(
     messages: ChatCompletionMessageParam[],
-    model: string = DEFAULT_POE_MODEL,
+    model?: string,
     stream: boolean = false
   ) {
+    const { client, model: defaultModel, extraBody } = getFastProvider();
     try {
-      const response = await poe.chat.completions.create({
-        model,
+      const response = await client.chat.completions.create({
+        model: model ?? defaultModel,
         messages,
         stream,
-      });
+        ...(extraBody ? { extra_body: extraBody } : {}),
+      } as Parameters<typeof client.chat.completions.create>[0]);
 
       return response;
     } catch (error) {
