@@ -5,14 +5,14 @@ import { z } from "zod";
 export const env = createEnv({
   server: {
     POE_API_KEY: z.string().min(1),
-    POE_BOT_NAME: z.string().min(1),
-    POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
+    POE_BOT_NAME: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.string().min(1)),
+    POE_REASONING_MODEL: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.string().min(1)).default('grok-4.1-fast-reasoning'),
     // Provider selector: 'poe' (default) | 'inception'
     LLM_PROVIDER: z.preprocess(v => String(v ?? '').trim().replace(/^"|"$/g, ''), z.enum(['poe', 'inception'])).default('poe'),
-    INCEPTION_API_KEY: z.string().default(''),
-    INCEPTION_MODEL: z.string().default('mercury-2'),
-    INCEPTION_MODEL_EFFORT: z.preprocess(v => String(v ?? '').trim().replace(/^"|"$/g, ''), z.enum(['instant', 'low', 'medium', 'high'])).default('instant'),
-    INCEPTION_REASONING_MODEL: z.string().default('mercury-2'),
+    INCEPTION_API_KEY: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.string()).default(''),
+    INCEPTION_MODEL: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.string()).default('mercury-2'),
+    INCEPTION_MODEL_EFFORT: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.enum(['instant', 'low', 'medium', 'high'])).default('instant'),
+    INCEPTION_REASONING_MODEL: z.preprocess(v => String(v ?? '').trim().replace(/^\"|\"$/g, ''), z.string()).default('mercury-2'),
     INCEPTION_REASONING_EFFORT: z.preprocess(v => String(v ?? '').trim().replace(/^"|"$/g, ''), z.enum(['instant', 'low', 'medium', 'high'])).default('medium'),
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
