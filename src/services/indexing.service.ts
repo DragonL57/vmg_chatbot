@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { poe, DEFAULT_POE_MODEL } from '@/lib/poe';
+import { getFastProvider } from '@/lib/providers';
 import {
   CHUNK_REWRITER_PROMPT,
   TITLE_ASSIGNER_PROMPT,
@@ -18,6 +18,20 @@ import type { ServiceMode } from '@/lib/qdrant';
 import type { FAQGeneration, FAQExpansion } from '@/types/indexing';
 
 const DELAY_MS = 300; // Rate-limit safety between LLM calls in sequential paths
+
+// ─── TOKEN ACCUMULATOR ───────────────────────────────────────────────────────
+
+export interface TokenAccum {
+  prompt: number;
+  completion: number;
+  total: number;
+}
+
+function addUsage(accum: TokenAccum, usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null | undefined) {
+  accum.prompt     += usage?.prompt_tokens     ?? 0;
+  accum.completion += usage?.completion_tokens ?? 0;
+  accum.total      += usage?.total_tokens      ?? 0;
+}
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -80,11 +94,13 @@ export function semanticChunk(markdown: string, minChars = 150, maxChars = 2500)
 
 // ─── PHASE 1: CHUNK REWRITER ─────────────────────────────────────────────────
 
-async function rewriteChunk(chunk: string, fullContext: string): Promise<string> {
+async function rewriteChunk(chunk: string, fullContext: string, accum: TokenAccum): Promise<string> {
   const contextHint = fullContext.slice(0, 300); // Brief document context
   try {
-    const res = await poe.chat.completions.create({
-      model: DEFAULT_POE_MODEL,
+    const { client, model, extraBody } = getFastProvider();
+    const res = await client.chat.completions.create({
+      model,
+      stream: false as const,
       messages: [
         { role: 'system', content: CHUNK_REWRITER_PROMPT },
         {
@@ -92,7 +108,9 @@ async function rewriteChunk(chunk: string, fullContext: string): Promise<string>
           content: `Ngữ cảnh tài liệu:\n${contextHint}\n\n---\nĐoạn cần viết lại:\n${chunk}`,
         },
       ],
+      ...(extraBody ? { extra_body: extraBody } : {}),
     });
+    addUsage(accum, res.usage);
     return (res.choices[0].message.content ?? chunk).trim();
   } catch {
     return chunk; // Fallback: keep original
@@ -101,21 +119,25 @@ async function rewriteChunk(chunk: string, fullContext: string): Promise<string>
 
 // ─── PHASE 1: TITLE ASSIGNER ─────────────────────────────────────────────────
 
-async function assignTitle(chunk: string): Promise<string> {
-  // Try to extract existing header first (### [Category] Title)
-  const headerMatch = chunk.match(/^###?\s*\[?[^\]]*\]?\s*(.+)/m);
+async function assignTitle(chunk: string, accum: TokenAccum): Promise<string> {
+  // Try to extract existing header first (## Title or ### Title)
+  const headerMatch = chunk.match(/^#{2,3}\s+(.+)/m);
   if (headerMatch?.[1]) {
     return headerMatch[1].trim().slice(0, 80);
   }
 
   try {
-    const res = await poe.chat.completions.create({
-      model: DEFAULT_POE_MODEL,
+    const { client, model, extraBody } = getFastProvider();
+    const res = await client.chat.completions.create({
+      model,
+      stream: false as const,
       messages: [
         { role: 'system', content: TITLE_ASSIGNER_PROMPT },
         { role: 'user', content: `Đoạn văn bản:\n${chunk.slice(0, 600)}` },
       ],
+      ...(extraBody ? { extra_body: extraBody } : {}),
     });
+    addUsage(accum, res.usage);
     return (res.choices[0].message.content ?? 'Thông tin VMG').trim().slice(0, 80);
   } catch {
     return 'Thông tin VMG';
@@ -124,10 +146,12 @@ async function assignTitle(chunk: string): Promise<string> {
 
 // ─── PHASE 2: FAQ CREATOR ────────────────────────────────────────────────────
 
-async function createFAQs(chunk: DocumentChunk): Promise<Array<{ question: string; answer: string }>> {
+async function createFAQs(chunk: DocumentChunk, accum: TokenAccum): Promise<Array<{ question: string; answer: string }>> {
   try {
-    const res = await poe.chat.completions.create({
-      model: DEFAULT_POE_MODEL,
+    const { client, model, extraBody } = getFastProvider();
+    const res = await client.chat.completions.create({
+      model,
+      stream: false as const,
       messages: [
         { role: 'system', content: FAQ_CREATOR_PROMPT },
         {
@@ -135,7 +159,9 @@ async function createFAQs(chunk: DocumentChunk): Promise<Array<{ question: strin
           content: `Tiêu đề: ${chunk.title}\n\nNội dung:\n${chunk.content}`,
         },
       ],
+      ...(extraBody ? { extra_body: extraBody } : {}),
     });
+    addUsage(accum, res.usage);
     const content = res.choices[0].message.content ?? '{}';
     const parsed = safeJsonParse<FAQGeneration>(content);
     return parsed?.pairs ?? [];
@@ -146,15 +172,19 @@ async function createFAQs(chunk: DocumentChunk): Promise<Array<{ question: strin
 
 // ─── PHASE 2: FAQ EXPANDER ───────────────────────────────────────────────────
 
-async function expandFAQ(question: string): Promise<string[]> {
+async function expandFAQ(question: string, accum: TokenAccum): Promise<string[]> {
   try {
-    const res = await poe.chat.completions.create({
-      model: DEFAULT_POE_MODEL,
+    const { client, model, extraBody } = getFastProvider();
+    const res = await client.chat.completions.create({
+      model,
+      stream: false as const,
       messages: [
         { role: 'system', content: FAQ_EXPANDER_PROMPT },
         { role: 'user', content: `Câu hỏi gốc: ${question}` },
       ],
+      ...(extraBody ? { extra_body: extraBody } : {}),
     });
+    addUsage(accum, res.usage);
     const content = res.choices[0].message.content ?? '{}';
     const parsed = safeJsonParse<FAQExpansion>(content);
     return parsed?.variations ?? [];
@@ -169,6 +199,7 @@ export interface IndexingStats {
   chunks: number;
   faqs: number;
   elapsed: number;
+  tokens: TokenAccum;
 }
 
 /**
@@ -184,6 +215,7 @@ export async function indexKnowledgeFile(
   options: { skipRewrite?: boolean } = {}
 ): Promise<IndexingStats> {
   const startTime = Date.now();
+  const tokens: TokenAccum = { prompt: 0, completion: 0, total: 0 };
   console.log(`\n📚 Indexing "${sourceFile}" as mode="${mode}"…`);
 
   await ensureCollections(mode);
@@ -199,9 +231,9 @@ export async function indexKnowledgeFile(
       limit1(async () => {
         let content = raw;
         if (!options.skipRewrite) {
-          content = await rewriteChunk(raw, markdown.slice(0, 500));
+          content = await rewriteChunk(raw, markdown.slice(0, 500), tokens);
         }
-        const title = await assignTitle(content);
+        const title = await assignTitle(content, tokens);
         console.log(`  [Chunk ${i + 1}/${rawChunks.length}] title="${title.slice(0, 80)}" (${content.length} chars)`);
         return { id: randomUUID(), title, content, source: sourceFile } as DocumentChunk;
       })
@@ -221,14 +253,14 @@ export async function indexKnowledgeFile(
   const perChunkFAQs: FAQPair[][] = await Promise.all(
     documentChunks.map((chunk, i) =>
       limit2(async () => {
-        const pairs = await createFAQs(chunk);
+        const pairs = await createFAQs(chunk, tokens);
 
         // Expand all variants in parallel within the chunk
         const expandLimit = pLimit(4);
         const expanded = await Promise.all(
           pairs.map(pair =>
             expandLimit(async () => {
-              const variants = await expandFAQ(pair.question);
+              const variants = await expandFAQ(pair.question, tokens);
               return [pair, ...variants.map(v => ({ question: v, answer: pair.answer }))] as Array<{ question: string; answer: string }>;
             })
           )
@@ -259,6 +291,7 @@ export async function indexKnowledgeFile(
 
   const elapsed = Date.now() - startTime;
   console.log(`\n✅ Indexing complete: ${documentChunks.length} chunks, ${allFAQs.length} FAQs in ${(elapsed / 1000).toFixed(1)}s`);
+  console.log(`   Tokens used — prompt: ${tokens.prompt.toLocaleString()} | completion: ${tokens.completion.toLocaleString()} | total: ${tokens.total.toLocaleString()}`);
 
-  return { chunks: documentChunks.length, faqs: allFAQs.length, elapsed };
+  return { chunks: documentChunks.length, faqs: allFAQs.length, elapsed, tokens };
 }

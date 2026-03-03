@@ -135,6 +135,7 @@ async function run() {
   console.log(`    Discovered ${KNOWLEDGE_REGISTRY.length} domain(s): ${KNOWLEDGE_REGISTRY.map(e => e.label).join(', ')}\n`);
 
   let indexed = 0, skipped = 0, failed = 0;
+  const totalTokens = { prompt: 0, completion: 0, total: 0 };
 
   // Cache per-mode collection state to avoid repeated Qdrant calls
   const collectionStateCache = new Map<ServiceMode, boolean>();
@@ -200,11 +201,15 @@ async function run() {
       manifest[key] = { hash, indexedAt: new Date().toISOString(), chunks: stats.chunks, faqs: stats.faqs };
       saveManifest(manifest);
 
+      totalTokens.prompt     += stats.tokens.prompt;
+      totalTokens.completion += stats.tokens.completion;
+      totalTokens.total      += stats.tokens.total;
+
       // Invalidate cache so subsequent entries for same mode see updated state
       collectionStateCache.set(mode, true);
 
       console.log(
-        `  ✅ [${mode}] ${label} — ${stats.chunks} chunks · ${stats.faqs} FAQs · ${(stats.elapsed / 1000).toFixed(1)}s`
+        `  ✅ [${mode}] ${label} — ${stats.chunks} chunks · ${stats.faqs} FAQs · ${(stats.elapsed / 1000).toFixed(1)}s · 🧠 ${stats.tokens.total.toLocaleString()} tokens`
       );
       indexed++;
     } catch (err) {
@@ -215,7 +220,8 @@ async function run() {
 
   console.log(
     `\n📊  ${indexed} indexed · ${skipped} skipped · ${failed} failed` +
-    (dryRun ? '  (dry run — nothing written)' : '')
+    (dryRun ? '  (dry run — nothing written)' : '') +
+    (indexed > 0 ? `\n🧠  Tokens — prompt: ${totalTokens.prompt.toLocaleString()} | completion: ${totalTokens.completion.toLocaleString()} | total: ${totalTokens.total.toLocaleString()}` : '')
   );
   if (failed > 0) process.exit(1);
 }

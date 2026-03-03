@@ -8,13 +8,17 @@ An internal chatbot for VMG staff built on **URASys** (Unified Retrieval-Augment
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router) |
-| LLM | POE API (`grok-4.1-fast-non-reasoning`) |
-| Embeddings | Qdrant server-side inference — `intfloat/multilingual-e5-small` (384-dim, free) |
+| Framework | Next.js 16 (App Router, Turbopack) |
+| LLM — fast calls ¹ | POE API (`grok-4.1-fast-non-reasoning`) **or** Inception Labs (`mercury-2`) |
+| LLM — generation ¹ | POE API (`grok-4.1-fast-reasoning`) **or** Inception Labs (`mercury-2`, reasoning_effort) |
+| Provider selection | `LLM_PROVIDER=poe\|inception` env var — all phases respect it |
+| Embeddings | Qdrant server-side inference — `intfloat/multilingual-e5-small` (384-dim) |
 | Vector DB | Qdrant Cloud |
-| Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion |
+| Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion, capped at 5 docs + 5 FAQs |
 | Analytics DB | Supabase (conversations + reports) |
 | Package manager | pnpm |
+
+> ¹ Switch between providers by setting `LLM_PROVIDER`. All three pipeline phases (decompose, retrieve, generate) use the same provider.
 
 ---
 
@@ -37,23 +41,32 @@ User opens app
 │  URASys Pipeline                            │
 │                                             │
 │  1. Decompose — split query into sub-queries│
-│     └─ chitchat detected? → skip search     │
+│     ├─ chitchat detected? → skip retrieval  │
+│     └─ getFastProvider() — POE or Inception │
 │                                             │
 │  2. Retrieve (per sub-query, parallel)      │
 │     ├─ Hybrid doc search (dense+BM25+RRF)  │
+│     │   └─ query reformulation via LLM      │
 │     └─ FAQ dense search                    │
+│         └─ query reformulation via LLM      │
+│     All retrieval via getFastProvider()     │
 │                                             │
 │  3. Generate                                │
-│     ├─ System: identity + static overview  │
-│     ├─ Context: retrieved docs + FAQs      │
-│     └─ Stream response                     │
+│     ├─ System: identity + domain-aware      │
+│     │   static.md injection                 │
+│     ├─ Context: top-5 docs + top-5 FAQs    │
+│     │   (each truncated to 1200 / 400 chars)│
+│     ├─ getGenerationProvider() — POE or     │
+│     │   Inception (with reasoning_effort)   │
+│     └─ Stream response + __TOKENS__ signal  │
 └─────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────┐
 │  Post-response: Save to Supabase            │
 │  POST /api/conversation — upsert session    │
-│  with full message history + location data │
+│  with full message history, location data, │
+│  and token usage breakdown                 │
 └─────────────────────────────────────────────┘
 ```
 
@@ -65,10 +78,27 @@ User opens app
 data/knowledge/
   <domain>/
     index.md    ← chunked, embedded, and indexed into Qdrant
-    static.md   ← injected verbatim into every system prompt (broad questions)
+    static.md   ← injected verbatim into system prompt (domain-aware, only when relevant docs are retrieved)
 ```
 
 **Plug-and-play**: drop a new subfolder with `index.md` and it is auto-discovered by both the index script and the API route. No code changes needed.
+
+The `static.md` file for a domain is **only injected** when the retrieval step returns at least one document from that domain — avoiding token waste when a query is unrelated.
+
+---
+
+## Multi-Provider LLM
+
+All three pipeline phases (decompose, retrieve reformulation, generate) route through a single provider selected by `LLM_PROVIDER`:
+
+| `LLM_PROVIDER` | Fast calls (phases 1–2) | Generation (phase 3) |
+|---|---|---|
+| `poe` | `POE_BOT_NAME` | `POE_REASONING_MODEL` |
+| `inception` | `INCEPTION_MODEL` + `INCEPTION_MODEL_EFFORT` | `INCEPTION_REASONING_MODEL` + `INCEPTION_REASONING_EFFORT` |
+
+**Inception Labs** (`mercury-2`) is an OpenAI-compatible diffusion LLM. The `reasoning_effort` parameter accepts `instant`, `low`, `medium`, or `high` — `instant` for fast decomposition, `medium` for generation.
+
+> Note: `POE_API_KEY` is always required because the indexing scripts (`index-knowledge.ts`) call POE directly, regardless of `LLM_PROVIDER`.
 
 ---
 
@@ -77,11 +107,29 @@ data/knowledge/
 Create `.env.local`:
 
 ```env
+# ── POE (always required — used for indexing scripts) ────────────────────────
 POE_API_KEY=...
-POE_BOT_NAME=grok-4.1-fast-non-reasoning
+POE_BOT_NAME=grok-4.1-fast-non-reasoning   # fast/decompose model when LLM_PROVIDER=poe
+POE_REASONING_MODEL=grok-4.1-fast-reasoning # generation model when LLM_PROVIDER=poe
+
+# ── LLM Provider selector ────────────────────────────────────────────────────
+# 'poe' (default) or 'inception'
+# Controls ALL three pipeline phases: decompose, retrieve reformulation, generate
+LLM_PROVIDER=inception
+
+# ── Inception Labs (required when LLM_PROVIDER=inception) ────────────────────
+INCEPTION_API_KEY=sk_...
+INCEPTION_MODEL=mercury-2             # fast model (decompose + reformulation)
+INCEPTION_MODEL_EFFORT=instant        # reasoning_effort for fast calls: instant|low|medium|high
+INCEPTION_REASONING_MODEL=mercury-2   # generation model
+INCEPTION_REASONING_EFFORT=medium     # reasoning_effort for generation
+
+# ── Qdrant ────────────────────────────────────────────────────────────────────
 QDRANT_URL=...
 QDRANT_API_KEY=...
 QDRANT_ENV=dev        # dev → "dev_" prefixed collections; prod → no prefix
+
+# ── Supabase ─────────────────────────────────────────────────────────────────
 SUPABASE_URL=...
 SUPABASE_KEY=...      # service_role key or publishable key with RLS off
 ```
@@ -113,8 +161,12 @@ create table conversations (
   messages jsonb not null default '[]',
   location_coords jsonb,       -- { latitude, longitude, accuracy }
   location_address text,       -- Nominatim reverse geocode (best-effort)
-  message_count int default 0
+  message_count int default 0,
+  token_usage jsonb            -- { prompt, completion, total } per final response
 );
+
+-- If upgrading an existing database, add the column:
+alter table conversations add column if not exists token_usage jsonb;
 
 -- Stores flagged assistant messages reported by staff
 create table reports (
@@ -134,8 +186,9 @@ create table reports (
 
 ### Conversation Tracking
 - Each page load generates a UUID **session ID** that persists for the session.
-- After every completed assistant response, `POST /api/conversation` upserts the full message history (excluding tool-call system messages) along with raw GPS coordinates and reverse-geocoded address.
-- Use Supabase Table Editor or SQL to query patterns: busiest hours, common topics, geographic distribution.
+- After every completed assistant response, `POST /api/conversation` upserts the full message history (excluding tool-call system messages) along with raw GPS coordinates, reverse-geocoded address, and token usage data.
+- Token usage (`{ prompt, completion, total }`) is extracted from the `__TOKENS__` signal appended to the stream and stored in the `token_usage` jsonb column.
+- Use Supabase Table Editor or SQL to query patterns: busiest hours, common topics, geographic distribution, and token costs.
 
 ### Quality Reporting
 - Every assistant message shows a visible **"Báo cáo sai"** flag button below it.
@@ -227,14 +280,18 @@ src/
       location-modal.tsx      — forced geolocation permission modal
     layout/Sidebar.tsx        — navigation sidebar
   lib/
+    providers.ts              — multi-provider abstraction (getGenerationProvider, getFastProvider)
     qdrant.ts                 — Qdrant client + collection names
-    poe.ts                    — POE API client
+    poe.ts                    — POE OpenAI-compat client (used by indexing scripts)
     bm25.ts                   — BM25 + RRF implementation
   prompts/                    — all LLM prompt templates
   services/
     indexing.service.ts       — Phase 1 & 2 indexing pipeline
     qdrant.service.ts         — upsert / hybrid search / FAQ search
     manager.service.ts        — query decomposition + retrieval orchestration
+    poe.service.ts            — generic LLM chat wrapper (routes via providers.ts)
+    document-search.service.ts — iterative doc search with LLM reformulation
+    faq-search.service.ts     — iterative FAQ search with LLM reformulation
   types/
     chat.ts                   — ServiceMode, Message types
     agent.ts                  — QueryDecomposition schema
