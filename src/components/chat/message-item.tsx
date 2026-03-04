@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { Message } from '@/types/chat';
 import { Database, ChevronDown, ChevronUp, Search, Flag, X, Send } from 'lucide-react';
 
@@ -200,6 +201,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
             <div className="leading-relaxed">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                   p: ({ children }) => <p className="m-0 mb-1.5 last:mb-0">{children}</p>,
                   ul: ({ children }) => <ul className="list-disc pl-5 m-0 mb-1.5 last:mb-0 space-y-1">{children}</ul>,
