@@ -17,7 +17,7 @@ export const qdrantClient = new QdrantClient({
  * prod → no prefix (live collections served to real users)
  * Controlled by QDRANT_ENV env var; defaults to 'dev' when unset.
  */
-const ENV_PREFIX = (process.env.QDRANT_ENV ?? 'dev') === 'prod' ? '' : 'dev_';
+const ENV_PREFIX = env.QDRANT_ENV === 'prod' ? '' : 'dev_';
 
 /**
  * Collection names per service mode.

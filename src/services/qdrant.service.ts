@@ -167,11 +167,16 @@ export async function faqSearch(
  * Checks if a collection has any indexed data.
  */
 export async function isIndexed(mode: ServiceMode): Promise<boolean> {
+  const { documents } = COLLECTIONS[mode];
   try {
-    const { documents } = COLLECTIONS[mode];
     const info = await qdrantClient.getCollection(documents);
-    return (info.points_count ?? 0) > 0;
-  } catch {
+    const count = info.points_count ?? 0;
+    if (count === 0) {
+      console.log(`[isIndexed] Collection "${documents}" exists but has 0 points`);
+    }
+    return count > 0;
+  } catch (err) {
+    console.log(`[isIndexed] Collection "${documents}" not found or unreachable: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
