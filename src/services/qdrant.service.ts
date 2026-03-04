@@ -1,4 +1,5 @@
 import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, INFERENCE_MODEL, type ServiceMode } from '@/lib/qdrant';
+import { env } from '@/env';
 import { bm25Search, reciprocalRankFusion } from '@/lib/bm25';
 
 export interface DocumentChunk {
@@ -165,18 +166,29 @@ export async function faqSearch(
 
 /**
  * Checks if a collection has any indexed data.
+ * Uses a direct fetch instead of the Qdrant client to avoid URL-construction
+ * issues seen on some hosted runtimes (e.g. Vercel).
  */
 export async function isIndexed(mode: ServiceMode): Promise<boolean> {
   const { documents } = COLLECTIONS[mode];
+  const base = env.QDRANT_URL.replace(/\/$/, '');
+  const url = `${base}/collections/${encodeURIComponent(documents)}`;
+  console.log(`[isIndexed] GET ${url} (QDRANT_ENV=${env.QDRANT_ENV})`);
   try {
-    const info = await qdrantClient.getCollection(documents);
-    const count = info.points_count ?? 0;
-    if (count === 0) {
-      console.log(`[isIndexed] Collection "${documents}" exists but has 0 points`);
+    const res = await fetch(url, {
+      headers: { 'api-key': env.QDRANT_API_KEY },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.log(`[isIndexed] ${res.status} ${res.statusText} — ${body.slice(0, 200)}`);
+      return false;
     }
+    const json = await res.json() as { result?: { points_count?: number; vectors_count?: number } };
+    const count = json.result?.points_count ?? json.result?.vectors_count ?? 0;
+    console.log(`[isIndexed] "${documents}" → ${count} points`);
     return count > 0;
   } catch (err) {
-    console.log(`[isIndexed] Collection "${documents}" not found or unreachable: ${err instanceof Error ? err.message : String(err)}`);
+    console.log(`[isIndexed] fetch failed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
