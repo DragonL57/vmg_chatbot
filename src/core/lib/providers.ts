@@ -72,6 +72,34 @@ export function getFastProvider(): {
   return { client: poeClient, model: env.POE_BOT_NAME, provider: 'poe' };
 }
 
+/**
+ * Returns the client + model for the indexing pipeline (Phase 1 rewrite/title, Phase 2 FAQ).
+ *
+ * Priority:
+ *  1. INDEXING_* env vars (dedicated override — any OpenAI-compatible endpoint)
+ *  2. Falls back to getFastProvider() (same as chatbot fast calls)
+ */
+export function getIndexingProvider(): {
+  client: OpenAI;
+  model: string;
+  provider: string;
+  extraBody?: Record<string, unknown>;
+} {
+  if (env.INDEXING_MODEL && env.INDEXING_API_KEY) {
+    const client = new OpenAI({
+      apiKey: env.INDEXING_API_KEY,
+      baseURL: env.INDEXING_BASE_URL || undefined,
+    });
+    const extraBody = env.INDEXING_MODEL_EFFORT
+      ? { reasoning_effort: env.INDEXING_MODEL_EFFORT }
+      : undefined;
+    return { client, model: env.INDEXING_MODEL, provider: env.INDEXING_PROVIDER || 'custom', ...(extraBody ? { extraBody } : {}) };
+  }
+
+  // Fall back to the standard fast provider
+  return getFastProvider();
+}
+
 // Re-export poe client + models for backward-compat (indexing.service still uses directly)
 export { poeClient as poe };
 export const DEFAULT_POE_MODEL = env.POE_BOT_NAME;

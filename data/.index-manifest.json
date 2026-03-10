@@ -18,15 +18,15 @@
     "faqs": 80
   },
   "wiki:data/knowledge/esl/index.md": {
-    "hash": "9a6478247ea89918",
-    "indexedAt": "2026-03-04T07:20:01.212Z",
-    "chunks": 53,
-    "faqs": 1052
+    "hash": "a8a1396d5516d4c4",
+    "indexedAt": "2026-03-10T08:27:34.333Z",
+    "chunks": 56,
+    "faqs": 1100
   },
   "wiki:data/knowledge/study-abroad/index.md": {
-    "hash": "f80bf6fb0f5e12d2",
-    "indexedAt": "2026-03-04T07:20:50.454Z",
+    "hash": "780118b297225667",
+    "indexedAt": "2026-03-10T08:30:09.059Z",
     "chunks": 27,
-    "faqs": 540
+    "faqs": 520
   }
 }

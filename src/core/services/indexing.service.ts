@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { getFastProvider } from '@core/lib/providers';
+import { getIndexingProvider } from '@core/lib/providers';
 import {
   CHUNK_REWRITER_PROMPT,
   TITLE_ASSIGNER_PROMPT,
@@ -17,7 +17,28 @@ import { safeJsonParse } from '@core/lib/utils';
 import type { ServiceMode } from '@core/lib/qdrant';
 import type { FAQGeneration, FAQExpansion } from '@core/types/indexing';
 
-const DELAY_MS = 300; // Rate-limit safety between LLM calls in sequential paths
+const DELAY_MS = 500; // Rate-limit safety between LLM calls in sequential paths
+const MAX_RETRIES = 4;
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let delay = 2000;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isRateLimit = (err as { status?: number })?.status === 429
+        || (err as { message?: string })?.message?.includes('429')
+        || (err as { message?: string })?.message?.includes('Rate limit');
+      if (isRateLimit && attempt < MAX_RETRIES) {
+        await sleep(delay);
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
 
 // ─── TOKEN ACCUMULATOR ───────────────────────────────────────────────────────
 
@@ -97,8 +118,8 @@ export function semanticChunk(markdown: string, minChars = 150, maxChars = 2500)
 async function rewriteChunk(chunk: string, fullContext: string, accum: TokenAccum): Promise<string> {
   const contextHint = fullContext.slice(0, 300); // Brief document context
   try {
-    const { client, model, extraBody } = getFastProvider();
-    const res = await client.chat.completions.create({
+    const { client, model, extraBody } = getIndexingProvider();
+    const res = await withRetry(() => client.chat.completions.create({
       model,
       stream: false as const,
       messages: [
@@ -109,7 +130,7 @@ async function rewriteChunk(chunk: string, fullContext: string, accum: TokenAccu
         },
       ],
       ...(extraBody ? { extra_body: extraBody } : {}),
-    });
+    }));
     addUsage(accum, res.usage);
     return (res.choices[0].message.content ?? chunk).trim();
   } catch {
@@ -127,8 +148,8 @@ async function assignTitle(chunk: string, accum: TokenAccum): Promise<string> {
   }
 
   try {
-    const { client, model, extraBody } = getFastProvider();
-    const res = await client.chat.completions.create({
+    const { client, model, extraBody } = getIndexingProvider();
+    const res = await withRetry(() => client.chat.completions.create({
       model,
       stream: false as const,
       messages: [
@@ -136,7 +157,7 @@ async function assignTitle(chunk: string, accum: TokenAccum): Promise<string> {
         { role: 'user', content: `Đoạn văn bản:\n${chunk.slice(0, 600)}` },
       ],
       ...(extraBody ? { extra_body: extraBody } : {}),
-    });
+    }));
     addUsage(accum, res.usage);
     return (res.choices[0].message.content ?? 'Thông tin VMG').trim().slice(0, 80);
   } catch {
@@ -148,8 +169,8 @@ async function assignTitle(chunk: string, accum: TokenAccum): Promise<string> {
 
 async function createFAQs(chunk: DocumentChunk, accum: TokenAccum): Promise<Array<{ question: string; answer: string }>> {
   try {
-    const { client, model, extraBody } = getFastProvider();
-    const res = await client.chat.completions.create({
+    const { client, model, extraBody } = getIndexingProvider();
+    const res = await withRetry(() => client.chat.completions.create({
       model,
       stream: false as const,
       messages: [
@@ -160,12 +181,13 @@ async function createFAQs(chunk: DocumentChunk, accum: TokenAccum): Promise<Arra
         },
       ],
       ...(extraBody ? { extra_body: extraBody } : {}),
-    });
+    }));
     addUsage(accum, res.usage);
     const content = res.choices[0].message.content ?? '{}';
     const parsed = safeJsonParse<FAQGeneration>(content);
     return parsed?.pairs ?? [];
-  } catch {
+  } catch (err) {
+    console.warn(`  [FAQ] createFAQs failed: ${(err as Error)?.message?.slice(0, 120)}`);
     return [];
   }
 }
@@ -174,8 +196,8 @@ async function createFAQs(chunk: DocumentChunk, accum: TokenAccum): Promise<Arra
 
 async function expandFAQ(question: string, accum: TokenAccum): Promise<string[]> {
   try {
-    const { client, model, extraBody } = getFastProvider();
-    const res = await client.chat.completions.create({
+    const { client, model, extraBody } = getIndexingProvider();
+    const res = await withRetry(() => client.chat.completions.create({
       model,
       stream: false as const,
       messages: [
@@ -183,7 +205,7 @@ async function expandFAQ(question: string, accum: TokenAccum): Promise<string[]>
         { role: 'user', content: `Câu hỏi gốc: ${question}` },
       ],
       ...(extraBody ? { extra_body: extraBody } : {}),
-    });
+    }));
     addUsage(accum, res.usage);
     const content = res.choices[0].message.content ?? '{}';
     const parsed = safeJsonParse<FAQExpansion>(content);
@@ -225,7 +247,7 @@ export async function indexKnowledgeFile(
   const rawChunks = semanticChunk(markdown);
   console.log(`  → ${rawChunks.length} raw chunks`);
 
-  const limit1 = pLimit(5);
+  const limit1 = pLimit(3);
   const documentChunks: DocumentChunk[] = await Promise.all(
     rawChunks.map((raw, i) =>
       limit1(async () => {
@@ -249,14 +271,15 @@ export async function indexKnowledgeFile(
   // ── Phase 2: Ask-and-Augment (parallel per chunk, concurrency=4) ─────────────
   console.log('  Phase 2: Generating FAQs…');
 
-  const limit2 = pLimit(4);
+  const limit2 = pLimit(1);
   const perChunkFAQs: FAQPair[][] = await Promise.all(
     documentChunks.map((chunk, i) =>
       limit2(async () => {
         const pairs = await createFAQs(chunk, tokens);
+        await sleep(DELAY_MS); // pace between chunks
 
-        // Expand all variants in parallel within the chunk
-        const expandLimit = pLimit(4);
+        // Expand all variants sequentially to avoid burst
+        const expandLimit = pLimit(2);
         const expanded = await Promise.all(
           pairs.map(pair =>
             expandLimit(async () => {

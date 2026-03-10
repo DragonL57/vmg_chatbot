@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "index-knowledge": "set -a && source .env.local && set +a && pnpm tsx scripts/index-knowledge.ts"
+    "index-knowledge": "dotenv -e .env.local --override -- tsx scripts/index-knowledge.ts",
+    "index-knowledge:staging": "dotenv -e .env.staging.local --override -- tsx scripts/index-knowledge.ts",
+    "index-knowledge:prod": "dotenv -e .env.production.local --override -- tsx scripts/index-knowledge.ts"
   },
   "dependencies": {
     "@mistralai/mistralai": "^1.14.1",
@@ -34,6 +36,7 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^11.0.0",
     "babel-plugin-react-compiler": "1.0.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
