@@ -13,11 +13,19 @@ export const qdrantClient = new QdrantClient({
 });
 
 /**
- * dev  → collections prefixed with "dev_"  (safe sandbox, won't affect production)
- * prod → no prefix (live collections served to real users)
- * Controlled by QDRANT_ENV env var; defaults to 'dev' when unset.
+ * dev     → collections prefixed with "dev_"  (safe sandbox)
+ * staging → collections prefixed with "stg_"  (test/preview)
+ * prod    → no prefix (live collections)
+ * Controlled by QDRANT_ENV env var.
  */
-const ENV_PREFIX = env.QDRANT_ENV === 'prod' ? '' : 'dev_';
+function getPrefix() {
+  const envType = env.QDRANT_ENV;
+  if (envType === 'prod') return '';
+  if (envType === 'staging') return 'stg_';
+  return 'dev_';
+}
+
+const ENV_PREFIX = getPrefix();
 
 /**
  * Collection names per service mode.

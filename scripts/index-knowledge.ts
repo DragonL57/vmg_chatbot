@@ -15,9 +15,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { createHash } from 'crypto';
-import { indexKnowledgeFile } from '../src/services/indexing.service';
-import { isIndexed } from '../src/services/qdrant.service';
-import type { ServiceMode } from '../src/lib/qdrant';
+import { indexKnowledgeFile } from '../src/core/services/indexing.service';
+import { isIndexed } from '../src/core/services/qdrant.service';
+import type { ServiceMode } from '../src/core/lib/qdrant';
 
 const ROOT = process.cwd();
 const KNOWLEDGE_DIR = resolve(ROOT, 'data/knowledge');

@@ -1,7 +1,7 @@
 import { PoeService } from './poe.service';
-import { safeJsonParse } from '@/lib/utils';
+import { safeJsonParse } from '@core/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
-import { GUARDRAILS_PROMPT } from '@/prompts/guardrails';
+import { GUARDRAILS_PROMPT } from '@core/prompts/guardrails';
 
 /**
  * Service for input validation and security guardrails using an LLM agent.
@@ -42,3 +42,4 @@ export class GuardrailsService {
     }
   }
 }
+

@@ -1,9 +1,9 @@
 import { PoeService } from './poe.service';
-import { QueryDecompositionSchema, type QueryDecomposition } from '@/types/agent';
-import { safeJsonParse } from '@/lib/utils';
+import { QueryDecompositionSchema, type QueryDecomposition } from '@core/types/agent';
+import { safeJsonParse } from '@core/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
-import { URAS_DECOMPOSE_PROMPT } from '@/prompts/uras';
-import type { ServiceMode } from '@/types/chat';
+import { URAS_DECOMPOSE_PROMPT } from '@core/prompts/uras';
+import type { ServiceMode } from '@core/types/chat';
 import { DocumentSearchService, type DocumentEvidence } from './document-search.service';
 import { FAQSearchService, type FAQEvidence } from './faq-search.service';
 import { isIndexed } from './qdrant.service';

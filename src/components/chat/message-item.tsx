@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { Message } from '@/types/chat';
+import { Message } from '@core/types/chat';
 import { Database, ChevronDown, ChevronUp, Search, Flag, X, Send } from 'lucide-react';
 
 interface MessageItemProps {
@@ -274,3 +274,4 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
     </>
   );
 };
+

@@ -1,7 +1,7 @@
 import { hybridDocumentSearch, type SearchResult } from './qdrant.service';
-import { DOCUMENT_SEARCH_AGENT_PROMPT } from '@/prompts/uras';
-import { getFastProvider } from '@/lib/providers';
-import type { ServiceMode } from '@/lib/qdrant';
+import { DOCUMENT_SEARCH_AGENT_PROMPT } from '@core/prompts/uras';
+import { getFastProvider } from '@core/lib/providers';
+import type { ServiceMode } from '@core/lib/qdrant';
 
 export interface DocumentEvidence {
   title: string;
@@ -113,4 +113,5 @@ export class DocumentSearchService {
     return query.split(/\s+/).filter(w => w.length > 3).slice(0, 5).join(' ');
   }
 }
+
 

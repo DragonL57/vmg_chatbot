@@ -1,6 +1,6 @@
-import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, INFERENCE_MODEL, type ServiceMode } from '@/lib/qdrant';
+import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, INFERENCE_MODEL, type ServiceMode } from '@core/lib/qdrant';
 import { env } from '@/env';
-import { bm25Search, reciprocalRankFusion } from '@/lib/bm25';
+import { bm25Search, reciprocalRankFusion } from '@core/lib/bm25';
 
 export interface DocumentChunk {
   id: string;
@@ -192,3 +192,4 @@ export async function isIndexed(mode: ServiceMode): Promise<boolean> {
     return false;
   }
 }
+

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Message } from '@/types/chat';
+import { Message } from '@core/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
 import { Sidebar } from '../layout/Sidebar';

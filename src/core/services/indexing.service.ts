@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
-import { getFastProvider } from '@/lib/providers';
+import { getFastProvider } from '@core/lib/providers';
 import {
   CHUNK_REWRITER_PROMPT,
   TITLE_ASSIGNER_PROMPT,
   FAQ_CREATOR_PROMPT,
   FAQ_EXPANDER_PROMPT,
-} from '@/prompts/uras';
+} from '@core/prompts/uras';
 import {
   ensureCollections,
   upsertDocuments,
@@ -13,9 +13,9 @@ import {
   type DocumentChunk,
   type FAQPair,
 } from './qdrant.service';
-import { safeJsonParse } from '@/lib/utils';
-import type { ServiceMode } from '@/lib/qdrant';
-import type { FAQGeneration, FAQExpansion } from '@/types/indexing';
+import { safeJsonParse } from '@core/lib/utils';
+import type { ServiceMode } from '@core/lib/qdrant';
+import type { FAQGeneration, FAQExpansion } from '@core/types/indexing';
 
 const DELAY_MS = 300; // Rate-limit safety between LLM calls in sequential paths
 
@@ -295,3 +295,4 @@ export async function indexKnowledgeFile(
 
   return { chunks: documentChunks.length, faqs: allFAQs.length, elapsed, tokens };
 }
+

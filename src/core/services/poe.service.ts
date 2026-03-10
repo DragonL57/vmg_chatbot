@@ -1,4 +1,4 @@
-import { getFastProvider } from '@/lib/providers';
+import { getFastProvider } from '@core/lib/providers';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 /**
@@ -34,3 +34,4 @@ export class PoeService {
     }
   }
 }
+

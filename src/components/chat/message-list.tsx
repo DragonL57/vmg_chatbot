@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Message } from '@/types/chat';
+import { Message } from '@core/types/chat';
 import Image from 'next/image';
 import { MessageItem } from './message-item';
 import { Search, Cpu, Loader2 } from 'lucide-react';
@@ -98,3 +98,4 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, l
     </div>
   );
 };
+

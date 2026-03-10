@@ -16,7 +16,7 @@ export const env = createEnv({
     INCEPTION_REASONING_EFFORT: z.preprocess(v => String(v ?? '').trim().replace(/^"|"$/g, ''), z.enum(['instant', 'low', 'medium', 'high'])).default('medium'),
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
-    QDRANT_ENV: z.preprocess(v => String(v ?? '').trim(), z.enum(['dev', 'prod'])).default('dev'),
+    QDRANT_ENV: z.preprocess(v => String(v ?? '').trim(), z.enum(['dev', 'staging', 'prod'])).default('dev'),
     SUPABASE_URL: z.string().min(1),
     SUPABASE_KEY: z.string().min(1),
   },

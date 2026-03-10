@@ -1,10 +1,10 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { getGenerationProvider } from '@/lib/providers';
-import { ManagerService } from '@/services/manager.service';
-import type { RetrievalEvidence } from '@/services/manager.service';
-import { URAS_MANAGER_PROMPT } from '@/prompts/uras';
-import { MASTER_AGENT_IDENTITY, MASTER_OUTPUT_CONSTRAINTS } from '@/prompts/master';
+import { getGenerationProvider } from '@core/lib/providers';
+import { ManagerService } from '@core/services/manager.service';
+import type { RetrievalEvidence } from '@core/services/manager.service';
+import { URAS_MANAGER_PROMPT } from '@core/prompts/uras';
+import { MASTER_AGENT_IDENTITY, MASTER_OUTPUT_CONSTRAINTS } from '@core/prompts/master';
 
 export const maxDuration = 300; // Allow 300s for AI operations
 
@@ -146,11 +146,14 @@ export async function POST(req: Request) {
           let usageData: { prompt_tokens: number; completion_tokens: number; total_tokens: number } | null = null;
 
           for await (const chunk of completion) {
-            if (chunk.usage) {
+            // Check for use_cases or usage in chunk
+            // OpenAI Node SDK structure for stream usage
+            const usage = (chunk as any).usage;
+            if (usage) {
               usageData = {
-                prompt_tokens: chunk.usage.prompt_tokens,
-                completion_tokens: chunk.usage.completion_tokens,
-                total_tokens: chunk.usage.total_tokens,
+                prompt_tokens: usage.prompt_tokens,
+                completion_tokens: usage.completion_tokens,
+                total_tokens: usage.total_tokens,
               };
             }
             const content = chunk.choices[0]?.delta?.content;
@@ -165,7 +168,10 @@ export async function POST(req: Request) {
               ` output=${usageData.completion_tokens}` +
               ` total=${usageData.total_tokens}`
             );
-            emit(`__TOKENS__:${usageData.prompt_tokens}:${usageData.completion_tokens}:${usageData.total_tokens}`);
+            // Prefix with __TOKENS__ so the client can strip it from the content stream
+            // Format: __TOKENS__:prompt_tokens:completion_tokens:total_tokens
+            const signal = `__TOKENS__:${usageData.prompt_tokens}:${usageData.completion_tokens}:${usageData.total_tokens}`;
+            controller.enqueue(encoder.encode(signal));
           }
         } catch (error) {
           console.error('Stream error:', error);

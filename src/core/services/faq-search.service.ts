@@ -1,7 +1,7 @@
 import { faqSearch, type SearchResult } from './qdrant.service';
-import { FAQ_SEARCH_AGENT_PROMPT } from '@/prompts/uras';
-import { getFastProvider } from '@/lib/providers';
-import type { ServiceMode } from '@/lib/qdrant';
+import { FAQ_SEARCH_AGENT_PROMPT } from '@core/prompts/uras';
+import { getFastProvider } from '@core/lib/providers';
+import type { ServiceMode } from '@core/lib/qdrant';
 
 export interface FAQEvidence {
   question: string;
@@ -106,4 +106,5 @@ export class FAQSearchService {
     return query.split(/\s+/).slice(0, 6).join(' ');
   }
 }
+
 
