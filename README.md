@@ -1,5 +1,7 @@
 # VMG Wiki — Internal Knowledge Chatbot
 
+> **Current version: v1.0.0** — Modular `src/core` architecture + multi-environment staging support.
+
 An internal chatbot for VMG staff built on **URASys** (Unified Retrieval-Augmented System), an academic RAG pipeline architecture. Answers questions about company knowledge using a hybrid vector + BM25 search backed by Qdrant Cloud, with conversation analytics and quality reporting via Supabase.
 
 ---
@@ -104,47 +106,63 @@ All three pipeline phases (decompose, retrieve reformulation, generate) route th
 
 ## Environment Variables
 
-Create `.env.local`:
+Local env files are managed via Vercel CLI — **never hand-edit** the pulled files.
+
+```powershell
+# Pull all three environments at once
+vercel env pull .env.local --environment development
+vercel env pull .env.staging.local --environment preview
+vercel env pull .env.production.local --environment production
+```
+
+Full variable reference:
 
 ```env
-# ── POE (always required — used for indexing scripts) ────────────────────────
-POE_API_KEY=...
-POE_BOT_NAME=grok-4.1-fast-non-reasoning   # fast/decompose model when LLM_PROVIDER=poe
-POE_REASONING_MODEL=grok-4.1-fast-reasoning # generation model when LLM_PROVIDER=poe
+# ── POE ───────────────────────────────────────────────────────────────────────
+POE_API_KEY=...                          # always required (indexing scripts use POE directly)
+POE_BOT_NAME=grok-4.1-fast-non-reasoning
+POE_REASONING_MODEL=grok-4.1-fast-reasoning
 
 # ── LLM Provider selector ────────────────────────────────────────────────────
-# 'poe' (default) or 'inception'
-# Controls ALL three pipeline phases: decompose, retrieve reformulation, generate
-LLM_PROVIDER=inception
+LLM_PROVIDER=inception                   # 'poe' | 'inception' — controls all 3 pipeline phases
 
-# ── Inception Labs (required when LLM_PROVIDER=inception) ────────────────────
+# ── Inception Labs ────────────────────────────────────────────────────────────
 INCEPTION_API_KEY=sk_...
-INCEPTION_MODEL=mercury-2             # fast model (decompose + reformulation)
-INCEPTION_MODEL_EFFORT=instant        # reasoning_effort for fast calls: instant|low|medium|high
-INCEPTION_REASONING_MODEL=mercury-2   # generation model
-INCEPTION_REASONING_EFFORT=medium     # reasoning_effort for generation
+INCEPTION_MODEL=mercury-2
+INCEPTION_MODEL_EFFORT=instant           # instant|low|medium|high
+INCEPTION_REASONING_MODEL=mercury-2
+INCEPTION_REASONING_EFFORT=medium
 
 # ── Qdrant ────────────────────────────────────────────────────────────────────
 QDRANT_URL=...
 QDRANT_API_KEY=...
-QDRANT_ENV=dev        # dev → "dev_" prefixed collections; prod → no prefix
+QDRANT_ENV=dev                           # dev | staging | prod
 
 # ── Supabase ─────────────────────────────────────────────────────────────────
 SUPABASE_URL=...
-SUPABASE_KEY=...      # service_role key or publishable key with RLS off
+SUPABASE_KEY=...
 ```
 
 ---
 
-## Dev / Prod Isolation
+## Multi-Environment Setup
 
-| Environment | `QDRANT_ENV` | Qdrant collections |
-|---|---|---|
-| Local dev | `dev` | `dev_vmg_docs_wiki`, `dev_vmg_faqs_wiki` |
-| Vercel Preview | *(unset → defaults to `dev`)* | `dev_*` |
-| Vercel Production | `prod` | `vmg_docs_wiki`, `vmg_faqs_wiki` |
+The project has three fully isolated environments, each with its own Qdrant collection namespace:
 
-Set `QDRANT_ENV=prod` in Vercel → Project Settings → Environment Variables → Production.
+| Environment | Git Branch | Vercel Target | `QDRANT_ENV` | Qdrant Prefix | Local File |
+|---|---|---|---|---|---|
+| Development | any (local) | — | `dev` | `dev_` | `.env.local` |
+| Staging | `staging` | Preview | `staging` | `stg_` | `.env.staging.local` |
+| Production | `master` | Production | `prod` | *(none)* | `.env.production.local` |
+
+### Deployment Flow
+```
+feature branch → local test → merge to staging → verify on preview URL → merge to master → live
+```
+
+### Vercel Dashboard Settings
+- **Project Settings → Git → Production Branch**: `master`
+- **Environment Variables**: `QDRANT_ENV=prod` (Production), `QDRANT_ENV=staging` (Preview)
 
 ---
 
@@ -206,42 +224,60 @@ create table reports (
 
 ## Workflow
 
-### 1. Development
+### 1. Local Development
 
-```bash
+```powershell
 pnpm install
-pnpm dev
+pnpm dev   # uses .env.local → QDRANT_ENV=dev → dev_ collections
 ```
 
-### 2. Index knowledge (dev collections)
-
-```bash
-set -a && source .env.local && set +a && pnpm tsx scripts/index-knowledge.ts
-```
+### 2. Index Knowledge
 
 Only re-indexes files whose content has changed (SHA-256 manifest at `data/.index-manifest.json`).
 
-```bash
-pnpm tsx scripts/index-knowledge.ts --status    # show state of each domain
-pnpm tsx scripts/index-knowledge.ts --dry-run   # preview without writing
-pnpm tsx scripts/index-knowledge.ts --force     # re-index everything
+```powershell
+# Development (default)
+pnpm ts-node scripts/index-knowledge.ts
+
+# Staging
+$env:QDRANT_ENV="staging"; pnpm ts-node scripts/index-knowledge.ts
+
+# Production ⚠️
+$env:QDRANT_ENV="prod"; pnpm ts-node scripts/index-knowledge.ts
 ```
 
-### 3. Test at http://localhost:3000
-
-### 4. Push to prod collections (when satisfied)
-
-```bash
-set -a && source .env.local && set +a && QDRANT_ENV=prod pnpm tsx scripts/index-knowledge.ts --force
+Flags:
+```powershell
+pnpm ts-node scripts/index-knowledge.ts --status    # show state of each domain
+pnpm ts-node scripts/index-knowledge.ts --dry-run   # preview without writing
+pnpm ts-node scripts/index-knowledge.ts --force     # re-index everything
 ```
 
-### 5. Deploy
+### 3. Deploy to Staging
 
-```bash
-vercel deploy --prod
+```powershell
+git add -A
+git commit -m "feat: my change"
+git push origin staging
+# Vercel auto-deploys to preview URL with QDRANT_ENV=staging
 ```
 
-Or push to your main git branch if auto-deploy is enabled.
+### 4. Promote to Production
+
+```powershell
+git checkout master
+git merge staging
+git push origin master
+# Vercel auto-deploys to vmg-chatbot.vercel.app with QDRANT_ENV=prod
+```
+
+### 5. Sync Env Files After Vercel Dashboard Changes
+
+```powershell
+vercel env pull .env.local --environment development
+vercel env pull .env.staging.local --environment preview
+vercel env pull .env.production.local --environment production
+```
 
 ---
 
@@ -267,39 +303,65 @@ At query time, **hybrid search** fuses dense vector results with BM25 keyword re
 
 ```
 src/
-  app/
+  app/                        — Next.js routes & pages
     api/
       chat/route.ts           — streaming chat endpoint
       conversation/route.ts   — upsert session to Supabase
       report/route.ts         — save flagged message to Supabase
-  components/
+  components/                 — React UI components
     chat/
       chat-interface.tsx      — main UI: location gate, session ID, conversation saving
       message-item.tsx        — renders message + report button + report modal
       message-list.tsx        — message feed
       location-modal.tsx      — forced geolocation permission modal
     layout/Sidebar.tsx        — navigation sidebar
-  lib/
-    providers.ts              — multi-provider abstraction (getGenerationProvider, getFastProvider)
-    qdrant.ts                 — Qdrant client + collection names
-    poe.ts                    — POE OpenAI-compat client (used by indexing scripts)
-    bm25.ts                   — BM25 + RRF implementation
-  prompts/                    — all LLM prompt templates
-  services/
-    indexing.service.ts       — Phase 1 & 2 indexing pipeline
-    qdrant.service.ts         — upsert / hybrid search / FAQ search
-    manager.service.ts        — query decomposition + retrieval orchestration
-    poe.service.ts            — generic LLM chat wrapper (routes via providers.ts)
-    document-search.service.ts — iterative doc search with LLM reformulation
-    faq-search.service.ts     — iterative FAQ search with LLM reformulation
-  types/
-    chat.ts                   — ServiceMode, Message types
-    agent.ts                  — QueryDecomposition schema
+  core/                       — all business logic (import via @core/*)
+    lib/
+      providers.ts            — multi-provider abstraction (getGenerationProvider, getFastProvider)
+      qdrant.ts               — Qdrant client + collection names + env-based prefix
+      poe.ts                  — POE OpenAI-compat client
+      bm25.ts                 — BM25 + RRF implementation
+      utils.ts                — shared helpers
+    prompts/                  — all LLM prompt templates
+      specialists/            — specialist agent prompts (lead, planner, safety)
+    services/
+      indexing.service.ts     — Phase 1 & 2 indexing pipeline
+      qdrant.service.ts       — upsert / hybrid search / FAQ search
+      manager.service.ts      — query decomposition + retrieval orchestration
+      supabase.service.ts     — Supabase upsert abstraction
+      document-search.service.ts — iterative doc search with LLM reformulation
+      faq-search.service.ts   — iterative FAQ search with LLM reformulation
+    types/
+      chat.ts                 — ServiceMode, Message types
+      agent.ts                — QueryDecomposition schema
+      indexing.ts             — IndexingStats, TokenAccum types
+  hooks/                      — React hooks
+  env.ts                      — Zod-validated environment config
+
+scripts/
+  index-knowledge.ts          — smart incremental indexing script
 
 data/
   knowledge/                  — knowledge domains (plug-and-play)
+    <domain>/
+      index.md                — indexed into Qdrant
+      static.md               — injected verbatim into system prompt
   .index-manifest.json        — change-detection manifest (git-ignored)
 
-scripts/
-  index-knowledge.ts          — CLI indexing script
+.env.local                    — development env (QDRANT_ENV=dev)
+.env.staging.local            — staging env    (QDRANT_ENV=staging)
+.env.production.local         — production env (QDRANT_ENV=prod)
+```
+
+### Import Convention
+
+Always use the `@core/` alias for anything inside `src/core/`:
+
+```ts
+// ✅ correct
+import { getGenerationProvider } from '@core/lib/providers';
+import { ManagerService } from '@core/services/manager.service';
+
+// ❌ never use relative paths
+import { getGenerationProvider } from '../../core/lib/providers';
 ```
