@@ -9,7 +9,7 @@ import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Info, Phone, Menu, BookOpen } from 'lucide-react';
-import { LocationModal, LocationData } from './location-modal';
+import { LocationData } from './location-modal';
 
 /**
  * The main chat interface component for URASys.
@@ -22,20 +22,27 @@ export const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const sessionIdRef = useRef<string>(uuidv4());
   const sessionId = sessionIdRef.current;
   const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
 
+  // Silently fetch IP-based location on mount — no browser prompt needed
   useEffect(() => {
-    setShowLocationModal(true);
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then((data) => {
+        setLocation({
+          latitude: data.latitude,
+          longitude: data.longitude,
+          accuracy: null,
+          city: data.city ?? null,
+          region: data.region ?? null,
+          country: data.country_name ?? null,
+        });
+      })
+      .catch(() => {}); // non-fatal
   }, []);
-
-  const handleLocationAccept = (loc: LocationData) => {
-    setLocation(loc);
-    setShowLocationModal(false);
-  };
 
   const saveConversation = async (msgs: Message[]) => {
     try {
@@ -225,9 +232,6 @@ export const ChatInterface: React.FC = () => {
       className="flex flex-row bg-slate-50 w-full mx-auto overflow-hidden fixed inset-0"
       style={{ height: 'var(--vv-height, 100vh)' }}
     >
-      {showLocationModal && (
-        <LocationModal onAccept={handleLocationAccept} />
-      )}
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 

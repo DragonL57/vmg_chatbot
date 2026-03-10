@@ -9,21 +9,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Attempt reverse geocode but always keep raw coords
+    // Use IP-provided city/region if available, otherwise skip reverse geocode
     let locationAddress: string | null = null;
-    if (location?.latitude && location?.longitude) {
-      try {
-        const geo = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${location.latitude}&lon=${location.longitude}&format=json`,
-          { headers: { 'User-Agent': 'VMGWiki/1.0' } }
-        );
-        if (geo.ok) {
-          const data = await geo.json();
-          locationAddress = data.display_name ?? null;
-        }
-      } catch {
-        // Non-fatal — raw coords still saved
-      }
+    if (location?.city) {
+      locationAddress = [location.city, location.region, location.country].filter(Boolean).join(', ');
     }
 
     const payload = {

@@ -14,6 +14,7 @@ An internal chatbot for VMG staff built on **URASys** (Unified Retrieval-Augment
 | LLM — fast calls ¹ | POE API (`grok-4.1-fast-non-reasoning`) **or** Inception Labs (`mercury-2`) |
 | LLM — generation ¹ | POE API (`grok-4.1-fast-reasoning`) **or** Inception Labs (`mercury-2`, reasoning_effort) |
 | Provider selection | `LLM_PROVIDER=poe\|inception` env var — all phases respect it |
+| Indexing provider | Separate `INDEXING_*` overrides — can use any OpenAI-compatible endpoint |
 | Embeddings | Qdrant server-side inference — `intfloat/multilingual-e5-small` (384-dim) |
 | Vector DB | Qdrant Cloud |
 | Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion, capped at 5 docs + 5 FAQs |
@@ -31,11 +32,10 @@ User opens app
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  Location Gate                              │
-│  Browser asks for geolocation permission.  │
-│  Raw coords stored; Nominatim reverse-      │
-│  geocode attempted (non-blocking).          │
-│  Chat is blocked until permission granted. │
+│  Location (silent IP lookup)                │
+│  Fires on first load via ipapi.co — no      │
+│  browser prompt. Returns city/region/       │
+│  country and stores with the session.       │
 └─────────────────────────────────────────────┘
     │
     ▼
@@ -100,7 +100,18 @@ All three pipeline phases (decompose, retrieve reformulation, generate) route th
 
 **Inception Labs** (`mercury-2`) is an OpenAI-compatible diffusion LLM. The `reasoning_effort` parameter accepts `instant`, `low`, `medium`, or `high` — `instant` for fast decomposition, `medium` for generation.
 
-> Note: `POE_API_KEY` is always required because the indexing scripts (`index-knowledge.ts`) call POE directly, regardless of `LLM_PROVIDER`.
+### Indexing Provider (separate override)
+
+The indexing pipeline can use a completely different model from the chatbot, controlled by `INDEXING_*` env vars:
+
+```env
+INDEXING_API_KEY=...           # any API key
+INDEXING_BASE_URL=...          # any OpenAI-compatible base URL
+INDEXING_MODEL=...             # model name
+INDEXING_MODEL_EFFORT=...      # optional reasoning_effort (leave blank for non-reasoning models)
+```
+
+If these are not set, the indexing pipeline falls back to `getFastProvider()` (same as chatbot fast calls). This is useful when the chatbot uses a strong reasoning model but indexing should use a faster/cheaper model.
 
 ---
 
@@ -119,7 +130,7 @@ Full variable reference:
 
 ```env
 # ── POE ───────────────────────────────────────────────────────────────────────
-POE_API_KEY=...                          # always required (indexing scripts use POE directly)
+POE_API_KEY=...                          # required
 POE_BOT_NAME=grok-4.1-fast-non-reasoning
 POE_REASONING_MODEL=grok-4.1-fast-reasoning
 
@@ -132,6 +143,12 @@ INCEPTION_MODEL=mercury-2
 INCEPTION_MODEL_EFFORT=instant           # instant|low|medium|high
 INCEPTION_REASONING_MODEL=mercury-2
 INCEPTION_REASONING_EFFORT=medium
+
+# ── Indexing overrides (optional) ────────────────────────────────────────────
+INDEXING_API_KEY=...                     # leave blank to use LLM_PROVIDER settings
+INDEXING_BASE_URL=https://api.poe.com/v1
+INDEXING_MODEL=grok-4.1-fast-non-reasoning
+INDEXING_MODEL_EFFORT=                   # blank = no reasoning_effort sent
 
 # ── Qdrant ────────────────────────────────────────────────────────────────────
 QDRANT_URL=...
@@ -157,7 +174,7 @@ The project has three fully isolated environments, each with its own Qdrant coll
 
 ### Deployment Flow
 ```
-feature branch → local test → merge to staging → verify on preview URL → merge to master → live
+feature branch → local test → push to staging → verify on preview URL → merge to master → live
 ```
 
 ### Vercel Dashboard Settings
@@ -177,8 +194,8 @@ create table conversations (
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   messages jsonb not null default '[]',
-  location_coords jsonb,       -- { latitude, longitude, accuracy }
-  location_address text,       -- Nominatim reverse geocode (best-effort)
+  location_coords jsonb,       -- { latitude, longitude } from IP lookup
+  location_address text,       -- "City, Region, Country" from ipapi.co
   message_count int default 0,
   token_usage jsonb            -- { prompt, completion, total } per final response
 );
@@ -204,7 +221,7 @@ create table reports (
 
 ### Conversation Tracking
 - Each page load generates a UUID **session ID** that persists for the session.
-- After every completed assistant response, `POST /api/conversation` upserts the full message history (excluding tool-call system messages) along with raw GPS coordinates, reverse-geocoded address, and token usage data.
+- After every completed assistant response, `POST /api/conversation` upserts the full message history (excluding tool-call system messages) along with location data and token usage.
 - Token usage (`{ prompt, completion, total }`) is extracted from the `__TOKENS__` signal appended to the stream and stored in the `token_usage` jsonb column.
 - Use Supabase Table Editor or SQL to query patterns: busiest hours, common topics, geographic distribution, and token costs.
 
@@ -214,11 +231,10 @@ create table reports (
 - Problem types: content error, theoretically correct but practically wrong, missing info, outdated, irrelevant, wrong numbers/fees, other.
 - Reports are stored in `reports` with a `session_id` foreign key — join with `conversations` to see the full chat context for any flagged answer.
 
-### Location Gate
-- On first load the app requests browser geolocation (mandatory — no skip option).
-- If permission was previously granted, coordinates are read silently without showing the modal.
-- If denied, a message guides the user to browser settings; the modal stays open until access is granted.
-- Raw `{ latitude, longitude, accuracy }` is always stored. A non-blocking Nominatim reverse geocode is attempted to also store a human-readable address.
+### Location
+- On first load the app silently calls `ipapi.co/json/` — **no browser permission prompt**.
+- Returns approximate `city`, `region`, `country` and stores alongside the session.
+- Falls back gracefully if the request fails (location stored as null).
 
 ---
 
@@ -236,21 +252,16 @@ pnpm dev   # uses .env.local → QDRANT_ENV=dev → dev_ collections
 Only re-indexes files whose content has changed (SHA-256 manifest at `data/.index-manifest.json`).
 
 ```powershell
-# Development (default)
-pnpm ts-node scripts/index-knowledge.ts
-
-# Staging
-$env:QDRANT_ENV="staging"; pnpm ts-node scripts/index-knowledge.ts
-
-# Production ⚠️
-$env:QDRANT_ENV="prod"; pnpm ts-node scripts/index-knowledge.ts
+pnpm index-knowledge             # development (dev_ collections)
+pnpm index-knowledge:staging     # staging (stg_ collections)
+pnpm index-knowledge:prod        # production (no prefix) ⚠️
 ```
 
 Flags:
 ```powershell
-pnpm ts-node scripts/index-knowledge.ts --status    # show state of each domain
-pnpm ts-node scripts/index-knowledge.ts --dry-run   # preview without writing
-pnpm ts-node scripts/index-knowledge.ts --force     # re-index everything
+pnpm index-knowledge --status    # show state of each domain
+pnpm index-knowledge --dry-run   # preview without writing
+pnpm index-knowledge --force     # re-index everything
 ```
 
 ### 3. Deploy to Staging
@@ -258,15 +269,13 @@ pnpm ts-node scripts/index-knowledge.ts --force     # re-index everything
 ```powershell
 git add -A
 git commit -m "feat: my change"
-git push origin staging
+git push origin master:staging
 # Vercel auto-deploys to preview URL with QDRANT_ENV=staging
 ```
 
 ### 4. Promote to Production
 
 ```powershell
-git checkout master
-git merge staging
 git push origin master
 # Vercel auto-deploys to vmg-chatbot.vercel.app with QDRANT_ENV=prod
 ```
@@ -285,83 +294,15 @@ vercel env pull .env.production.local --environment production
 
 Each `index.md` file goes through two phases, both parallelised with a concurrency limiter:
 
-**Phase 1 — Chunk & Title** (concurrency = 5)
+**Phase 1 — Chunk & Title** (concurrency = 3)
 - Semantic chunking by heading/paragraph
-- LLM rewrites each chunk for retrieval clarity
+- LLM rewrites each chunk for retrieval clarity (via `getIndexingProvider()`)
 - LLM assigns a descriptive title
 
-**Phase 2 — FAQ Generation** (concurrency = 4 outer, 4 inner)
-- LLM generates Q&A pairs per chunk
-- LLM expands each question into paraphrase variants
+**Phase 2 — FAQ Generation** (concurrency = 1 outer, 2 inner)
+- LLM generates up to 5 Q&A pairs per chunk
+- LLM expands each question into 3 paraphrase variants
 - All variants upserted as FAQ vectors (question → answer)
+- Rate-limit errors are retried with exponential backoff (max 4 attempts)
 
 At query time, **hybrid search** fuses dense vector results with BM25 keyword results using Reciprocal Rank Fusion.
-
----
-
-## Project Structure
-
-```
-src/
-  app/                        — Next.js routes & pages
-    api/
-      chat/route.ts           — streaming chat endpoint
-      conversation/route.ts   — upsert session to Supabase
-      report/route.ts         — save flagged message to Supabase
-  components/                 — React UI components
-    chat/
-      chat-interface.tsx      — main UI: location gate, session ID, conversation saving
-      message-item.tsx        — renders message + report button + report modal
-      message-list.tsx        — message feed
-      location-modal.tsx      — forced geolocation permission modal
-    layout/Sidebar.tsx        — navigation sidebar
-  core/                       — all business logic (import via @core/*)
-    lib/
-      providers.ts            — multi-provider abstraction (getGenerationProvider, getFastProvider)
-      qdrant.ts               — Qdrant client + collection names + env-based prefix
-      poe.ts                  — POE OpenAI-compat client
-      bm25.ts                 — BM25 + RRF implementation
-      utils.ts                — shared helpers
-    prompts/                  — all LLM prompt templates
-      specialists/            — specialist agent prompts (lead, planner, safety)
-    services/
-      indexing.service.ts     — Phase 1 & 2 indexing pipeline
-      qdrant.service.ts       — upsert / hybrid search / FAQ search
-      manager.service.ts      — query decomposition + retrieval orchestration
-      supabase.service.ts     — Supabase upsert abstraction
-      document-search.service.ts — iterative doc search with LLM reformulation
-      faq-search.service.ts   — iterative FAQ search with LLM reformulation
-    types/
-      chat.ts                 — ServiceMode, Message types
-      agent.ts                — QueryDecomposition schema
-      indexing.ts             — IndexingStats, TokenAccum types
-  hooks/                      — React hooks
-  env.ts                      — Zod-validated environment config
-
-scripts/
-  index-knowledge.ts          — smart incremental indexing script
-
-data/
-  knowledge/                  — knowledge domains (plug-and-play)
-    <domain>/
-      index.md                — indexed into Qdrant
-      static.md               — injected verbatim into system prompt
-  .index-manifest.json        — change-detection manifest (git-ignored)
-
-.env.local                    — development env (QDRANT_ENV=dev)
-.env.staging.local            — staging env    (QDRANT_ENV=staging)
-.env.production.local         — production env (QDRANT_ENV=prod)
-```
-
-### Import Convention
-
-Always use the `@core/` alias for anything inside `src/core/`:
-
-```ts
-// ✅ correct
-import { getGenerationProvider } from '@core/lib/providers';
-import { ManagerService } from '@core/services/manager.service';
-
-// ❌ never use relative paths
-import { getGenerationProvider } from '../../core/lib/providers';
-```
