@@ -290,12 +290,12 @@ export const ChatInterface: React.FC = () => {
         </div>
 
         {/* Chat Input Area */}
-        <div className="shrink-0 bg-white border-t border-slate-200">
-          <ChatInput 
+        <div className="shrink-0 bg-white border-t border-slate-200" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <ChatInput
             input={input}
             handleInputChange={handleInputChange}
             handleSubmit={handleSendMessage}
-            isLoading={isLoading} 
+            isLoading={isLoading}
           />
           <div className="px-4 pb-2 text-center">
             <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">

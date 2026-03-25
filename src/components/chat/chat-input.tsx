@@ -33,7 +33,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
   };
 
   return (
-    <div className="p-3 bg-white">
+    <div className="p-3 bg-white" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}>
       <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-4xl mx-auto">
         <div className="flex-1 relative bg-slate-100 rounded-2xl border border-slate-200 focus-within:border-[#D32F2F] focus-within:ring-1 focus-within:ring-[#D32F2F] transition-all">
           <textarea
