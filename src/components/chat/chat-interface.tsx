@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Message } from '@core/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
@@ -44,7 +44,7 @@ export const ChatInterface: React.FC = () => {
       .catch(() => {}); // non-fatal
   }, []);
 
-  const saveConversation = async (msgs: Message[]) => {
+  const saveConversation = useCallback(async (msgs: Message[]) => {
     try {
       await fetch('/api/conversation', {
         method: 'POST',
@@ -61,7 +61,7 @@ export const ChatInterface: React.FC = () => {
     } catch (e) {
       console.warn('[Conversation] save failed:', e);
     }
-  };
+  }, [sessionId, location]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -218,8 +218,7 @@ export const ChatInterface: React.FC = () => {
     if (!isLoading && messages.some(m => m.role === 'assistant')) {
       saveConversation(messages);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
+  }, [isLoading, messages, saveConversation]);
 
   const handleSendMessage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

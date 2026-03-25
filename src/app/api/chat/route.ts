@@ -148,7 +148,7 @@ export async function POST(req: Request) {
           for await (const chunk of completion) {
             // Check for use_cases or usage in chunk
             // OpenAI Node SDK structure for stream usage
-            const usage = (chunk as any).usage;
+            const usage = (chunk as { usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } }).usage;
             if (usage) {
               usageData = {
                 prompt_tokens: usage.prompt_tokens,

@@ -6,9 +6,15 @@ export interface TokenUsage {
   total_tokens: number;
 }
 
+export interface ConversationMessage {
+  role: string;
+  content: string;
+  timestamp?: string;
+}
+
 export interface ConversationPayload {
   id: string;
-  messages: any[];
+  messages: ConversationMessage[];
   location_coords?: {
     latitude: number;
     longitude: number;

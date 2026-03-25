@@ -26,8 +26,7 @@ export class ManagerService {
    * Decomposes a user query using parallel specialists.
    */
   static async decompose(
-    messages: { role: string; content: string }[],
-    mode: ServiceMode = 'wiki'
+    messages: { role: string; content: string }[]
   ): Promise<QueryDecomposition> {
     const history = messages.map(m => ({
       role: m.role as 'user' | 'assistant' | 'system',
@@ -72,7 +71,7 @@ export class ManagerService {
   ): Promise<DecompositionWithRetrieval> {
     // Run decomposition + index-check in parallel
     const [decomposition, indexed] = await Promise.all([
-      ManagerService.decompose(messages, mode),
+      ManagerService.decompose(messages),
       isIndexed(mode).catch(() => false),
     ]);
 

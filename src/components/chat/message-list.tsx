@@ -18,9 +18,11 @@ interface MessageListProps {
   onSuggestionClick?: (text: string) => void;
 }
 
+const DefaultIcon = ({ className }: { className?: string }) => <Loader2 className={className} />;
+
 const TypingIndicator = ({ phase }: { phase?: string }) => {
   const config = phase ? PHASE_CONFIG[phase] : null;
-  const Icon = config?.Icon ?? (({ className }: { className?: string }) => <Loader2 className={className} />);
+  const Icon = config?.Icon ?? DefaultIcon;
   const label = config?.label ?? 'Đang xử lý...';
 
   return (
