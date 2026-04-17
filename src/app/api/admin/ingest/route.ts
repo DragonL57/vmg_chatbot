@@ -3,9 +3,6 @@ import { indexKnowledgeFile } from '@core/services/indexing.service';
 import { upsertKnowledgeFile } from '@core/services/supabase.service';
 import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
-
 export const runtime = 'nodejs';
 export const maxDuration = 300; 
 
@@ -23,9 +20,13 @@ export async function POST(req: NextRequest) {
     const filename = file.name;
 
     if (filename.toLowerCase().endsWith('.pdf')) {
+      // Lazy load pdf-parse ONLY at runtime to avoid build-time ENOENT errors
+      // with its internal test files.
+      const require = createRequire(import.meta.url);
+      const pdf = require('pdf-parse');
+      
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      // Using stable pdf-parse 1.1.1
       const data = await pdf(buffer);
       content = data.text;
     } else {
