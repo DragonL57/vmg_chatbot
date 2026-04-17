@@ -39,10 +39,20 @@ export default function AdminPage() {
   // Initialize Supabase client inside component
   const supabase = useMemo(() => {
     if (typeof window === 'undefined') return null;
-    return createClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_KEY
-    );
+    const url = env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = env.NEXT_PUBLIC_SUPABASE_KEY;
+    
+    if (!url || !key) {
+      console.warn('Supabase configuration missing for client-side uploads.');
+      return null;
+    }
+    
+    try {
+      return createClient(url, key);
+    } catch (e) {
+      console.error('Failed to create Supabase client:', e);
+      return null;
+    }
   }, []);
 
   // New Collection state
