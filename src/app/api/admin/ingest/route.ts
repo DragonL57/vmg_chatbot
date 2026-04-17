@@ -13,7 +13,7 @@ export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
-    const { storagePath, filename, mode } = await req.json();
+    const { storagePath, filename, mode, folder } = await req.json();
 
     if (!storagePath || !filename || !mode) {
       return NextResponse.json({ error: 'Missing storagePath, filename or collection' }, { status: 400 });
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     const record = await upsertKnowledgeFile({
       filename,
       mode,
+      folder: folder || 'root',
       status: 'indexing',
       progress: 0,
       logs: [`[${new Date().toLocaleTimeString('vi-VN')}] Đã tải file từ Storage...`]
@@ -69,8 +70,7 @@ export async function POST(req: NextRequest) {
           updatedAt: new Date(),
         });
 
-        // Optional: Cleanup the source file after indexing
-        await supabase.storage.from('knowledge-sources').remove([storagePath]);
+        // NOTE: We no longer remove the file from Storage as per user request
         
       } catch (err: any) {
         console.error('[Background Indexing Failed]', err);

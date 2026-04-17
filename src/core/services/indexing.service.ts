@@ -66,7 +66,7 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 async function dbLog(fileId: string, filename: string, mode: string, message: string, progress: number, logs: string[]) {
   const timestamp = new Date().toLocaleTimeString('vi-VN');
   const newLog = `[${timestamp}] ${message}`;
-  const updatedLogs = [...logs, newLog].slice(-50); // Keep last 50
+  const updatedLogs = [...logs, newLog].slice(-100); // Keep last 100 for "raw" feel
   
   await upsertKnowledgeFile({
     id: fileId,
@@ -173,12 +173,12 @@ export async function indexKnowledgeFile(
   const tokens: TokenAccum = { prompt: 0, completion: 0, total: 0 };
   let currentLogs: string[] = [];
 
-  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Bắt đầu xử lý: ${sourceFile}`, 5, currentLogs);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `INITIALIZING: ${sourceFile}`, 2, currentLogs);
   await ensureCollections(collectionName);
-  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã kết nối Qdrant: ${collectionName}`, 10, currentLogs);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `CONNECTED: Qdrant collection "${collectionName}" ready`, 5, currentLogs);
 
   const segments = hierarchicalChunk(markdown);
-  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã phân tách ${segments.length} đoạn hội thoại`, 15, currentLogs);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `CHUNKING: Split into ${segments.length} semantic segments`, 10, currentLogs);
 
   const limit = pLimit(2);
   let processedCount = 0;
@@ -186,17 +186,20 @@ export async function indexKnowledgeFile(
   const documentChunks: DocumentChunk[] = await Promise.all(
     segments.map((seg, i) =>
       limit(async () => {
+        const chunkIndex = i + 1;
+        currentLogs = await dbLog(fileId, sourceFile, collectionName, `PROCESSING: Chunk [${chunkIndex}/${segments.length}] rewriting...`, 10, currentLogs);
+
         let content = seg.child;
         if (!options.skipRewrite) {
           content = await rewriteChunk(seg.child, seg.parent, tokens);
         }
+        
         const title = await assignTitle(content, tokens);
         
         processedCount++;
-        const progress = 15 + Math.floor((processedCount / segments.length) * 70);
-        if (processedCount % 5 === 0 || processedCount === segments.length) {
-          currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã xử lý ${processedCount}/${segments.length} đoạn...`, progress, currentLogs);
-        }
+        const progress = 10 + Math.floor((processedCount / segments.length) * 75);
+        
+        currentLogs = await dbLog(fileId, sourceFile, collectionName, `COMPLETED: Chunk [${chunkIndex}/${segments.length}] — "${title}"`, progress, currentLogs);
 
         return { 
           id: randomUUID(), 
@@ -209,15 +212,21 @@ export async function indexKnowledgeFile(
     )
   );
 
-  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đang đẩy dữ liệu lên Vector Database...`, 90, currentLogs);
-  for (let i = 0; i < documentChunks.length; i += 20) {
-    await upsertDocuments(documentChunks.slice(i, i + 20), collectionName);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `UPLOADING: Sending ${documentChunks.length} points to Qdrant...`, 90, currentLogs);
+  
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < documentChunks.length; i += BATCH_SIZE) {
+    const batch = documentChunks.slice(i, i + BATCH_SIZE);
+    await upsertDocuments(batch, collectionName);
+    currentLogs = await dbLog(fileId, sourceFile, collectionName, `SYNCED: Batch [${i}-${i+batch.length}] pushed to vector store`, 90 + Math.floor((i/documentChunks.length)*10), currentLogs);
   }
 
-  const elapsed = Date.now() - startTime;
-  await dbLog(fileId, sourceFile, collectionName, `Hoàn tất! ${documentChunks.length} nodes đã được index.`, 100, currentLogs);
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const tokenSummary = `Tokens: ${tokens.total} (P: ${tokens.prompt} | C: ${tokens.completion})`;
+  
+  await dbLog(fileId, sourceFile, collectionName, `SUCCESS: Indexing finished in ${elapsed}s. ${tokenSummary}`, 100, currentLogs);
 
-  return { chunks: documentChunks.length, elapsed, tokens };
+  return { chunks: documentChunks.length, elapsed: Number(elapsed), tokens };
 }
 
 export async function removeKnowledgeFile(sourceFile: string, collectionName: string): Promise<void> {

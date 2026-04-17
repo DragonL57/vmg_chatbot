@@ -59,6 +59,7 @@ export interface KnowledgeFile {
   status: 'pending' | 'indexing' | 'completed' | 'failed';
   errorMessage: string | null;
   mode: string;
+  folder: string | null;
   progress: number | null;
   logs: string[] | null;
   createdAt: Date | null;
@@ -80,6 +81,7 @@ export async function upsertKnowledgeFile(payload: any) {
       status: payload.status,
       errorMessage: payload.errorMessage ?? payload.error_message,
       mode: payload.mode,
+      folder: payload.folder,
       progress: payload.progress,
       logs: payload.logs,
       updatedAt: new Date(),
@@ -90,6 +92,7 @@ export async function upsertKnowledgeFile(payload: any) {
         status: payload.status,
         errorMessage: payload.errorMessage ?? payload.error_message,
         mode: payload.mode,
+        folder: payload.folder,
         progress: payload.progress,
         logs: payload.logs,
         updatedAt: new Date(),
@@ -139,4 +142,16 @@ export async function createCollectionRecord(payload: any) {
 
 export async function deleteCollectionRecord(id: string) {
   return await db.delete(knowledgeCollections).where(eq(knowledgeCollections.id, id));
+}
+
+export async function updateCollectionRecord(id: string, data: Partial<KnowledgeCollection>) {
+  return await db.update(knowledgeCollections)
+    .set(data)
+    .where(eq(knowledgeCollections.id, id));
+}
+
+export async function updateKnowledgeFileRecord(id: string, data: Partial<KnowledgeFile>) {
+  return await db.update(knowledgeFiles)
+    .set(data)
+    .where(eq(knowledgeFiles.id, id));
 }

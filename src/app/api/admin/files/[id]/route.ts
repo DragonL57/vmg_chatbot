@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteKnowledgeFile, listKnowledgeFiles } from '@core/services/supabase.service';
-import { removeKnowledgeFile } from '@core/services/indexing.service';
+import { deleteKnowledgeFile, updateKnowledgeFileRecord, listKnowledgeFiles, listCollections } from '@core/services/supabase.service';
+import { deleteBySource } from '@core/services/qdrant.service';
 
 export async function DELETE(
   req: NextRequest,
@@ -8,28 +8,35 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    
-    // 1. Get file info first to know filename and mode
     const files = await listKnowledgeFiles();
     const file = files.find(f => f.id === id);
+    if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
 
-    if (!file) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    const collections = await listCollections();
+    const col = collections.find(c => c.qdrantName === file.mode);
+    if (col) {
+      await deleteBySource(file.filename, col.qdrantName);
     }
 
-    // 2. Resolve actual Qdrant collection name
-    // If mode matches a key in our static map, use that, otherwise use it directly (dynamic)
-    const collectionName = file.mode === 'wiki' ? 'vmg_docs_wiki' : file.mode;
-
-    // 3. Remove from Qdrant
-    await removeKnowledgeFile(file.filename, collectionName);
-
-    // 4. Remove from Supabase
     await deleteKnowledgeFile(id);
-
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Delete error:', error);
-    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Delete file error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    await updateKnowledgeFileRecord(id, body);
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Update file error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

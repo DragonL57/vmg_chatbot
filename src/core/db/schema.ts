@@ -7,6 +7,7 @@ export const knowledgeFiles = pgTable("knowledge_files", {
   status: text("status", { enum: ["pending", "indexing", "completed", "failed"] }).notNull(),
   errorMessage: text("error_message"),
   mode: text("mode").notNull(),
+  folder: text("folder").default("root"),
   progress: integer("progress").default(0),
   logs: jsonb("logs").default([]),
   createdAt: timestamp("created_at").defaultNow(),
