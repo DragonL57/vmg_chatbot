@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { indexKnowledgeFile } from '@core/services/indexing.service';
 import { upsertKnowledgeFile } from '@core/services/supabase.service';
-import { PDFParse } from 'pdf-parse';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pdf = require('pdf-parse');
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; 
@@ -22,8 +25,8 @@ export async function POST(req: NextRequest) {
     if (filename.toLowerCase().endsWith('.pdf')) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      const parser = new PDFParse(buffer);
-      const data = await parser.getText();
+      // Using stable pdf-parse 1.1.1
+      const data = await pdf(buffer);
       content = data.text;
     } else {
       content = await file.text();
@@ -42,8 +45,7 @@ export async function POST(req: NextRequest) {
       logs: [`[${new Date().toLocaleTimeString('vi-VN')}] Đã tiếp nhận yêu cầu...`]
     });
 
-    // 2. RUN IN BACKGROUND (using Vercel/Next.js waitUntil if available)
-    // In Next.js 15, we can use the waitUntil helper from next/server or global
+    // 2. RUN IN BACKGROUND
     const runIndexing = async () => {
       try {
         await indexKnowledgeFile(content, filename, mode, record.id);
@@ -70,15 +72,11 @@ export async function POST(req: NextRequest) {
     };
 
     // Trigger background task (Next.js 15+ waitUntil pattern)
-    // For local dev, this just runs in the background. 
-    // On Vercel, waitUntil is required to prevent lambda shutdown.
     (req as any).waitUntil?.(runIndexing());
     if (!(req as any).waitUntil) {
-       // Fallback for environments without waitUntil
        runIndexing(); 
     }
 
-    // 3. Return immediately to the UI
     return NextResponse.json({ 
       success: true, 
       id: record.id, 
