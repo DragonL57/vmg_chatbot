@@ -1,11 +1,13 @@
 import { defineConfig } from "drizzle-kit";
 import * as dotenv from "dotenv";
 
-// Manually load env for the CLI
+// Manually load env for the CLI (local dev)
 dotenv.config({ path: ".env.local" });
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set in .env.local");
+const dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl) {
+  throw new Error("DATABASE_URL is missing. Ensure it is set in .env.local (local) or Vercel Environment Variables (production).");
 }
 
 export default defineConfig({
@@ -13,6 +15,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: dbUrl,
   },
 });
