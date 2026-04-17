@@ -33,8 +33,9 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     if (filename.toLowerCase().endsWith('.pdf')) {
+      // Lazy load pdf-extraction (The serverless-safe replacement for pdf-parse)
       const require = createRequire(import.meta.url);
-      const pdf = require('pdf-parse');
+      const pdf = require('pdf-extraction');
       const data = await pdf(buffer);
       content = data.text;
     } else {

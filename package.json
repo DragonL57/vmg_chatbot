@@ -33,7 +33,7 @@
     "next": "16.1.1",
     "openai": "^6.15.0",
     "p-limit": "^7.3.0",
-    "pdf-parse": "1.1.1",
+    "pdf-extraction": "^1.0.2",
     "postgres": "^3.4.9",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -46,7 +46,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pdf-parse": "1.1.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^11.0.0",
