@@ -36,34 +36,22 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Initialize Supabase client with DIAGNOSTIC logging
+  // Use variables exactly as they are provided by the environment
   const supabase = useMemo(() => {
     if (typeof window === 'undefined') return null;
     
-    const clean = (str: string | undefined) => {
-      if (!str) return '';
-      return str.trim().replace(/^["']|["']$/g, '').trim();
-    };
-
-    const url = clean(env.NEXT_PUBLIC_SUPABASE_URL);
-    const key = clean(env.NEXT_PUBLIC_SUPABASE_KEY);
+    const url = env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = env.NEXT_PUBLIC_SUPABASE_KEY;
     
-    // SAFE LOGGING (only showing first 10 chars)
-    console.log(`[Diagnostic] Supabase URL starts with: ${url.slice(0, 10)}...`);
-    console.log(`[Diagnostic] Supabase Key starts with: ${key.slice(0, 10)}...`);
-    console.log(`[Diagnostic] Key length: ${key.length}`);
-
-    if (!url || !key || url === 'undefined' || key === 'undefined') {
-      console.error('[Diagnostic] Supabase configuration is invalid or missing.');
-      return null;
-    }
+    if (!url || !key) return null;
     
     try {
+      // Use the raw variables directly
       return createClient(url, key, {
         auth: { persistSession: false }
       });
     } catch (e) {
-      console.error('[Diagnostic] createClient crash:', e);
+      console.error('[Supabase] Initialization failed:', e);
       return null;
     }
   }, []);
@@ -168,7 +156,7 @@ export default function AdminPage() {
     if (!selectedFile || !mode) return;
     
     if (!supabase) {
-      alert('Không thể khởi tạo kết nối Supabase Storage. Vui lòng kiểm tra console browser và Environment Variables.');
+      alert('Không thể kết nối với Supabase Storage. Vui lòng kiểm tra lại cấu hình.');
       return;
     }
 
@@ -244,7 +232,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-black">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-          <div className="flex flex-col items-center mb-8 text-black">
+          <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-[#D32F2F] rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-red-100">
               <Lock className="w-8 h-8" />
             </div>
@@ -290,8 +278,8 @@ export default function AdminPage() {
             <div className="mb-10 p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500 text-black">
               <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-1" />
               <div>
-                <h4 className="font-bold text-rose-900">Thiếu cấu hình Supabase Client-Side</h4>
-                <p className="text-sm text-rose-700 mt-1">Hệ thống không tìm thấy <code>NEXT_PUBLIC_SUPABASE_URL</code> hoặc <code>NEXT_PUBLIC_SUPABASE_KEY</code>. Vui lòng kiểm tra lại Dashboard và mở Console Browser (F12) để xem chi tiết chẩn đoán.</p>
+                <h4 className="font-bold text-rose-900">Lỗi kết nối Supabase</h4>
+                <p className="text-sm text-rose-700 mt-1">Vui lòng kiểm tra lại Dashboard Vercel và đảm bảo <code>NEXT_PUBLIC_SUPABASE_URL</code> và <code>NEXT_PUBLIC_SUPABASE_KEY</code> đã được thiết lập đúng.</p>
               </div>
             </div>
           )}
