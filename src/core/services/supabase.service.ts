@@ -1,4 +1,6 @@
-import { env } from '@/env';
+import { db } from '../db';
+import { conversations, knowledgeFiles, knowledgeCollections } from '../db/schema';
+import { eq, desc, asc } from 'drizzle-orm';
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -27,21 +29,114 @@ export interface ConversationPayload {
 }
 
 export async function upsertConversation(payload: ConversationPayload) {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': env.SUPABASE_KEY,
-      'Authorization': `Bearer ${env.SUPABASE_KEY}`,
-      'Prefer': 'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(payload),
-  });
+  return await db.insert(conversations)
+    .values({
+      id: payload.id,
+      messages: payload.messages,
+      locationCoords: payload.location_coords,
+      locationAddress: payload.location_address,
+      tokenUsage: payload.token_usage,
+      messageCount: payload.message_count,
+      updatedAt: new Date(payload.updated_at),
+    })
+    .onConflictDoUpdate({
+      target: conversations.id,
+      set: {
+        messages: payload.messages,
+        locationCoords: payload.location_coords,
+        locationAddress: payload.location_address,
+        tokenUsage: payload.token_usage,
+        messageCount: payload.message_count,
+        updatedAt: new Date(payload.updated_at),
+      }
+    });
+}
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase error: ${err}`);
-  }
+export interface KnowledgeFile {
+  id: string;
+  filename: string;
+  sourceUrl: string | null;
+  status: 'pending' | 'indexing' | 'completed' | 'failed';
+  errorMessage: string | null;
+  mode: string;
+  progress: number | null;
+  logs: string[] | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
 
-  return res;
+export async function listKnowledgeFiles(): Promise<KnowledgeFile[]> {
+  return await db.query.knowledgeFiles.findMany({
+    orderBy: [desc(knowledgeFiles.createdAt)]
+  }) as KnowledgeFile[];
+}
+
+export async function upsertKnowledgeFile(payload: any) {
+  const result = await db.insert(knowledgeFiles)
+    .values({
+      id: payload.id,
+      filename: payload.filename,
+      sourceUrl: payload.sourceUrl ?? payload.source_url,
+      status: payload.status,
+      errorMessage: payload.errorMessage ?? payload.error_message,
+      mode: payload.mode,
+      progress: payload.progress,
+      logs: payload.logs,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: knowledgeFiles.filename,
+      set: {
+        status: payload.status,
+        errorMessage: payload.errorMessage ?? payload.error_message,
+        mode: payload.mode,
+        progress: payload.progress,
+        logs: payload.logs,
+        updatedAt: new Date(),
+      }
+    })
+    .returning();
+  
+  return result[0] as KnowledgeFile;
+}
+
+export async function deleteKnowledgeFile(id: string) {
+  return await db.delete(knowledgeFiles).where(eq(knowledgeFiles.id, id));
+}
+
+export interface KnowledgeCollection {
+  id: string;
+  name: string;
+  qdrantName: string;
+  description: string | null;
+  createdAt: Date | null;
+}
+
+export async function listCollections(): Promise<KnowledgeCollection[]> {
+  return await db.query.knowledgeCollections.findMany({
+    orderBy: [asc(knowledgeCollections.createdAt)]
+  }) as KnowledgeCollection[];
+}
+
+export async function createCollectionRecord(payload: any) {
+  const result = await db.insert(knowledgeCollections)
+    .values({
+      name: payload.name,
+      qdrantName: payload.qdrant_name ?? payload.qdrantName,
+      description: payload.description,
+    })
+    .onConflictDoUpdate({
+      target: knowledgeCollections.name,
+      set: {
+        qdrantName: payload.qdrant_name ?? payload.qdrantName,
+        description: payload.description,
+      }
+    })
+    .returning();
+  
+  return result[0] as KnowledgeCollection;
+}
+
+export async function deleteCollectionRecord(id: string) {
+  return await db.delete(knowledgeCollections).where(eq(knowledgeCollections.id, id));
 }

@@ -1,18 +1,33 @@
 /**
  * Safely parses a JSON string, handling potential markdown blocks or extra text.
  */
-export function safeJsonParse<T>(text: string): T | null {
-  if (!text) return null;
+/**
+ * Normalizes a string to ASCII-safe slug (lowercase, no accents, underscores instead of spaces).
+ * Critical for reliable Qdrant collection naming.
+ */
+export function slugify(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9\s_]/g, '') // Remove special chars
+    .trim()
+    .replace(/\s+/g, '_');
+}
+
+export function safeJsonParse<T>(str: string): T | null {
+  if (!str) return null;
 
   try {
     // 1. Try direct parse
-    return JSON.parse(text) as T;
+    return JSON.parse(str) as T;
   } catch {
     try {
       // 2. Try to extract JSON from markdown code blocks
       const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
       let match;
-      while ((match = jsonBlockRegex.exec(text)) !== null) {
+      while ((match = jsonBlockRegex.exec(str)) !== null) {
         try {
           return JSON.parse(match[1]) as T;
         } catch {
@@ -21,10 +36,10 @@ export function safeJsonParse<T>(text: string): T | null {
       }
 
       // 3. Fallback: Find the first '{' and last '}'
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
+      const firstBrace = str.indexOf('{');
+      const lastBrace = str.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        const potentialJson = text.substring(firstBrace, lastBrace + 1);
+        const potentialJson = str.substring(firstBrace, lastBrace + 1);
         return JSON.parse(potentialJson) as T;
       }
     } catch {

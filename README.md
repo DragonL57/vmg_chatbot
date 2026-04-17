@@ -2,7 +2,7 @@
 
 > **Current version: v1.0.0** — Modular `src/core` architecture + multi-environment staging support.
 
-An internal chatbot for VMG staff built on **URASys** (Unified Retrieval-Augmented System), an academic RAG pipeline architecture. Answers questions about company knowledge using a hybrid vector + BM25 search backed by Qdrant Cloud, with conversation analytics and quality reporting via Supabase.
+An internal chatbot for VMG staff built on **Agentic RAG**, a modular state-machine architecture using LangGraph. Answers questions about company knowledge using high-precision vector search backed by Qdrant Cloud, with conversation analytics and quality reporting via Supabase.
 
 ---
 
@@ -17,7 +17,7 @@ An internal chatbot for VMG staff built on **URASys** (Unified Retrieval-Augment
 | Indexing provider | Separate `INDEXING_*` overrides — can use any OpenAI-compatible endpoint |
 | Embeddings | Qdrant server-side inference — `intfloat/multilingual-e5-small` (384-dim) |
 | Vector DB | Qdrant Cloud |
-| Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion, capped at 5 docs + 5 FAQs |
+| Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion, capped at 6 documents |
 | Analytics DB | Supabase (conversations + reports) |
 | Package manager | pnpm |
 
@@ -40,26 +40,21 @@ User opens app
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  URASys Pipeline                            │
+│  Agentic RAG Pipeline                       │
 │                                             │
-│  1. Decompose — split query into sub-queries│
-│     ├─ chitchat detected? → skip retrieval  │
+│  1. Understand — analyze intent & context   │
+│     ├─ clarify if vague (Human-in-the-loop) │
 │     └─ getFastProvider() — POE or Inception │
 │                                             │
-│  2. Retrieve (per sub-query, parallel)      │
-│     ├─ Hybrid doc search (dense+BM25+RRF)  │
-│     │   └─ query reformulation via LLM      │
-│     └─ FAQ dense search                    │
-│         └─ query reformulation via LLM      │
+│  2. Research (State Machine Loop)           │
+│     ├─ Iterative high-precision Vector search│
+│     ├─ Self-Correction & Query Rewriting    │
 │     All retrieval via getFastProvider()     │
 │                                             │
-│  3. Generate                                │
-│     ├─ System: identity + domain-aware      │
-│     │   static.md injection                 │
-│     ├─ Context: top-5 docs + top-5 FAQs    │
-│     │   (each truncated to 1200 / 400 chars)│
-│     ├─ getGenerationProvider() — POE or     │
-│     │   Inception (with reasoning_effort)   │
+│  3. Synthesize                              │
+│     ├─ Context Compression (Fact Extraction)│
+│     ├─ domain-aware static.md injection     │
+│     ├─ getGenerationProvider()              │
 │     └─ Stream response + __TOKENS__ signal  │
 └─────────────────────────────────────────────┘
     │
@@ -290,19 +285,10 @@ vercel env pull .env.production.local --environment production
 
 ---
 
-## Indexing Pipeline (URASys)
+## Ingestion Pipeline (Agentic)
 
-Each `index.md` file goes through two phases, both parallelised with a concurrency limiter:
+Each knowledge source goes through an automated agentic pipeline:
 
-**Phase 1 — Chunk & Title** (concurrency = 3)
-- Semantic chunking by heading/paragraph
-- LLM rewrites each chunk for retrieval clarity (via `getIndexingProvider()`)
-- LLM assigns a descriptive title
-
-**Phase 2 — FAQ Generation** (concurrency = 1 outer, 2 inner)
-- LLM generates up to 5 Q&A pairs per chunk
-- LLM expands each question into 3 paraphrase variants
-- All variants upserted as FAQ vectors (question → answer)
-- Rate-limit errors are retried with exponential backoff (max 4 attempts)
-
-At query time, **hybrid search** fuses dense vector results with BM25 keyword results using Reciprocal Rank Fusion.
+1. **Hierarchical Chunking**: Splits document into logical "Parent" sections (based on headers) and overlapping "Child" chunks for high-precision search.
+2. **Contextual Augmentation**: LLM rewrites chunks to be self-contained and assigns optimized titles for vector retrieval.
+3. **Deep Storage**: Child vectors are stored in Qdrant with full Parent context in the payload, allowing the Agent to retrieve broad context from narrow search hits.

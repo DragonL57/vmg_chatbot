@@ -1,44 +1,21 @@
 import { randomUUID } from 'crypto';
 import { getIndexingProvider } from '@core/lib/providers';
 import {
-  CHUNK_REWRITER_PROMPT,
-  TITLE_ASSIGNER_PROMPT,
-  FAQ_CREATOR_PROMPT,
-  FAQ_EXPANDER_PROMPT,
-} from '@core/prompts/uras';
+  DOCUMENT_REWRITER_PROMPT,
+  KNOWLEDGE_TITLE_PROMPT,
+} from '@core/prompts/rag-agents';
 import {
   ensureCollections,
   upsertDocuments,
-  upsertFAQs,
+  deleteBySource,
   type DocumentChunk,
-  type FAQPair,
 } from './qdrant.service';
 import { safeJsonParse } from '@core/lib/utils';
-import type { ServiceMode } from '@core/lib/qdrant';
-import type { FAQGeneration, FAQExpansion } from '@core/types/indexing';
+import pLimit from 'p-limit';
+import { upsertKnowledgeFile } from './supabase.service';
 
-const DELAY_MS = 500; // Rate-limit safety between LLM calls in sequential paths
-const MAX_RETRIES = 4;
-
-async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
-  let delay = 2000;
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await fn();
-    } catch (err: unknown) {
-      const isRateLimit = (err as { status?: number })?.status === 429
-        || (err as { message?: string })?.message?.includes('429')
-        || (err as { message?: string })?.message?.includes('Rate limit');
-      if (isRateLimit && attempt < MAX_RETRIES) {
-        await sleep(delay);
-        delay *= 2;
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
+const BASE_OP_DELAY = 1000; // 1s delay for steadier flow
+const MAX_RETRIES = 10;
 
 // ─── TOKEN ACCUMULATOR ───────────────────────────────────────────────────────
 
@@ -54,268 +31,195 @@ function addUsage(accum: TokenAccum, usage: { prompt_tokens?: number; completion
   accum.total      += usage?.total_tokens      ?? 0;
 }
 
-function sleep(ms: number) {
+async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Simple concurrency limiter — at most `limit` async tasks run simultaneously.
- */
-function pLimit(limit: number) {
-  let active = 0;
-  const queue: Array<() => void> = [];
-  const next = () => {
-    if (queue.length > 0 && active < limit) {
-      active++;
-      queue.shift()!();
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let delay = 5000;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await fn();
+      await sleep(BASE_OP_DELAY);
+      return result;
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? '';
+      const status = (err as { status?: number })?.status;
+      const isRateLimit = status === 429 || msg.includes('429') || msg.toLowerCase().includes('rate limit');
+
+      if (isRateLimit && attempt < MAX_RETRIES) {
+        const jitter = Math.random() * 2000;
+        console.warn(`  [Retry ${attempt}/${MAX_RETRIES}] LLM Rate limited, cooling down...`);
+        await sleep(delay + jitter);
+        delay *= 2;
+        continue;
+      }
+      throw err;
     }
-  };
-  return function run<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      queue.push(() => {
-        fn().then(resolve, reject).finally(() => { active--; next(); });
-      });
-      next();
-    });
-  };
+  }
+  throw new Error('Max retries exceeded');
+}
+
+/**
+ * Appends a log line to the database record for real-time UI tracking.
+ */
+async function dbLog(fileId: string, filename: string, mode: string, message: string, progress: number, logs: string[]) {
+  const timestamp = new Date().toLocaleTimeString('vi-VN');
+  const newLog = `[${timestamp}] ${message}`;
+  const updatedLogs = [...logs, newLog].slice(-50); // Keep last 50
+  
+  await upsertKnowledgeFile({
+    id: fileId,
+    filename,
+    mode,
+    status: 'indexing',
+    progress,
+    logs: updatedLogs
+  }).catch(err => console.error('[DB LOG ERROR]', err));
+  
+  return updatedLogs;
 }
 
 // ─── PHASE 1: SEMANTIC CHUNKING ──────────────────────────────────────────────
 
-/**
- * Splits a markdown document into semantic chunks using natural boundaries:
- * `---` separators and `###` / `##` headers.
- * Groups small fragments to meet minimum chunk size.
- */
-export function semanticChunk(markdown: string, minChars = 150, maxChars = 2500): string[] {
-  // Split on section boundaries
-  const rawSections = markdown.split(/\n(?=###?\s|\n---)/);
-  const chunks: string[] = [];
-  let buffer = '';
+export function hierarchicalChunk(markdown: string): Array<{ child: string; parent: string }> {
+  const MIN_PARENT_SIZE = 1000;
+  const CHILD_SIZE = 1000;
+  const CHILD_OVERLAP = 100;
+
+  const rawSections = markdown.split(/\n(?=##?\s)/);
+  const processedParents: string[] = [];
+  let buffer = "";
 
   for (const section of rawSections) {
     const trimmed = section.trim();
     if (!trimmed) continue;
-
-    if (buffer.length + trimmed.length <= maxChars) {
-      buffer += (buffer ? '\n\n' : '') + trimmed;
+    if (buffer.length + trimmed.length < MIN_PARENT_SIZE) {
+      buffer += (buffer ? "\n\n" : "") + trimmed;
     } else {
-      if (buffer.length >= minChars) {
-        chunks.push(buffer.trim());
-      }
+      if (buffer) processedParents.push(buffer);
       buffer = trimmed;
     }
   }
-  if (buffer.length >= minChars) {
-    chunks.push(buffer.trim());
-  }
+  if (buffer) processedParents.push(buffer);
 
-  return chunks;
+  const results: Array<{ child: string; parent: string }> = [];
+  for (const parent of processedParents) {
+    let start = 0;
+    while (start < parent.length) {
+      let end = start + CHILD_SIZE;
+      if (end < parent.length) {
+        const nextSpace = parent.indexOf(" ", end);
+        if (nextSpace !== -1 && nextSpace < end + 20) end = nextSpace;
+      }
+      const child = parent.slice(start, end).trim();
+      if (child.length > 50) results.push({ child, parent });
+      start = end - CHILD_OVERLAP;
+      if (start >= parent.length - CHILD_OVERLAP) break;
+    }
+  }
+  return results;
 }
 
-// ─── PHASE 1: CHUNK REWRITER ─────────────────────────────────────────────────
+// ─── PHASE 1: AGENTS ─────────────────────────────────────────────────────────
 
 async function rewriteChunk(chunk: string, fullContext: string, accum: TokenAccum): Promise<string> {
-  const contextHint = fullContext.slice(0, 300); // Brief document context
-  try {
-    const { client, model, extraBody } = getIndexingProvider();
-    const res = await withRetry(() => client.chat.completions.create({
-      model,
-      stream: false as const,
-      messages: [
-        { role: 'system', content: CHUNK_REWRITER_PROMPT },
-        {
-          role: 'user',
-          content: `Ngữ cảnh tài liệu:\n${contextHint}\n\n---\nĐoạn cần viết lại:\n${chunk}`,
-        },
-      ],
-      ...(extraBody ? { extra_body: extraBody } : {}),
-    }));
-    addUsage(accum, res.usage);
-    return (res.choices[0].message.content ?? chunk).trim();
-  } catch {
-    return chunk; // Fallback: keep original
-  }
+  const contextHint = fullContext.slice(0, 300);
+  const { client, model, extraBody } = getIndexingProvider();
+  const res = await withRetry(() => client.chat.completions.create({
+    model,
+    stream: false as const,
+    messages: [
+      { role: 'system', content: DOCUMENT_REWRITER_PROMPT },
+      { role: 'user', content: `Context: ${contextHint}\n\nContent: ${chunk}` },
+    ],
+    ...(extraBody ? { extra_body: extraBody } : {}),
+  }));
+  addUsage(accum, res.usage);
+  return (res.choices[0].message.content ?? chunk).trim();
 }
-
-// ─── PHASE 1: TITLE ASSIGNER ─────────────────────────────────────────────────
 
 async function assignTitle(chunk: string, accum: TokenAccum): Promise<string> {
-  // Try to extract existing header first (## Title or ### Title)
-  const headerMatch = chunk.match(/^#{2,3}\s+(.+)/m);
-  if (headerMatch?.[1]) {
-    return headerMatch[1].trim().slice(0, 80);
-  }
-
-  try {
-    const { client, model, extraBody } = getIndexingProvider();
-    const res = await withRetry(() => client.chat.completions.create({
-      model,
-      stream: false as const,
-      messages: [
-        { role: 'system', content: TITLE_ASSIGNER_PROMPT },
-        { role: 'user', content: `Đoạn văn bản:\n${chunk.slice(0, 600)}` },
-      ],
-      ...(extraBody ? { extra_body: extraBody } : {}),
-    }));
-    addUsage(accum, res.usage);
-    return (res.choices[0].message.content ?? 'Thông tin VMG').trim().slice(0, 80);
-  } catch {
-    return 'Thông tin VMG';
-  }
-}
-
-// ─── PHASE 2: FAQ CREATOR ────────────────────────────────────────────────────
-
-async function createFAQs(chunk: DocumentChunk, accum: TokenAccum): Promise<Array<{ question: string; answer: string }>> {
-  try {
-    const { client, model, extraBody } = getIndexingProvider();
-    const res = await withRetry(() => client.chat.completions.create({
-      model,
-      stream: false as const,
-      messages: [
-        { role: 'system', content: FAQ_CREATOR_PROMPT },
-        {
-          role: 'user',
-          content: `Tiêu đề: ${chunk.title}\n\nNội dung:\n${chunk.content}`,
-        },
-      ],
-      ...(extraBody ? { extra_body: extraBody } : {}),
-    }));
-    addUsage(accum, res.usage);
-    const content = res.choices[0].message.content ?? '{}';
-    const parsed = safeJsonParse<FAQGeneration>(content);
-    return parsed?.pairs ?? [];
-  } catch (err) {
-    console.warn(`  [FAQ] createFAQs failed: ${(err as Error)?.message?.slice(0, 120)}`);
-    return [];
-  }
-}
-
-// ─── PHASE 2: FAQ EXPANDER ───────────────────────────────────────────────────
-
-async function expandFAQ(question: string, accum: TokenAccum): Promise<string[]> {
-  try {
-    const { client, model, extraBody } = getIndexingProvider();
-    const res = await withRetry(() => client.chat.completions.create({
-      model,
-      stream: false as const,
-      messages: [
-        { role: 'system', content: FAQ_EXPANDER_PROMPT },
-        { role: 'user', content: `Câu hỏi gốc: ${question}` },
-      ],
-      ...(extraBody ? { extra_body: extraBody } : {}),
-    }));
-    addUsage(accum, res.usage);
-    const content = res.choices[0].message.content ?? '{}';
-    const parsed = safeJsonParse<FAQExpansion>(content);
-    return parsed?.variations ?? [];
-  } catch {
-    return [];
-  }
+  const { client, model, extraBody } = getIndexingProvider();
+  const res = await withRetry(() => client.chat.completions.create({
+    model,
+    stream: false as const,
+    messages: [
+      { role: 'system', content: KNOWLEDGE_TITLE_PROMPT },
+      { role: 'user', content: chunk.slice(0, 600) },
+    ],
+    ...(extraBody ? { extra_body: extraBody } : {}),
+  }));
+  addUsage(accum, res.usage);
+  return (res.choices[0].message.content ?? 'Knowledge Node').trim().slice(0, 80);
 }
 
 // ─── MAIN INDEXING PIPELINE ──────────────────────────────────────────────────
 
 export interface IndexingStats {
   chunks: number;
-  faqs: number;
   elapsed: number;
   tokens: TokenAccum;
 }
 
-/**
- * Full two-phase indexing pipeline for a knowledge file.
- *
- * Phase 1 (Chunk-and-Title): chunk → rewrite → title assign → upsert to Qdrant docs
- * Phase 2 (Ask-and-Augment): for each chunk → create FAQs → expand → upsert to Qdrant FAQs
- */
 export async function indexKnowledgeFile(
   markdown: string,
   sourceFile: string,
-  mode: ServiceMode,
+  collectionName: string,
+  fileId: string,
   options: { skipRewrite?: boolean } = {}
 ): Promise<IndexingStats> {
   const startTime = Date.now();
   const tokens: TokenAccum = { prompt: 0, completion: 0, total: 0 };
-  console.log(`\n📚 Indexing "${sourceFile}" as mode="${mode}"…`);
+  let currentLogs: string[] = [];
 
-  await ensureCollections(mode);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Bắt đầu xử lý: ${sourceFile}`, 5, currentLogs);
+  await ensureCollections(collectionName);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã kết nối Qdrant: ${collectionName}`, 10, currentLogs);
 
-  // ── Phase 1: Chunk-and-Title (parallel, concurrency=5) ─────────────────────
-  console.log('  Phase 1: Chunking…');
-  const rawChunks = semanticChunk(markdown);
-  console.log(`  → ${rawChunks.length} raw chunks`);
+  const segments = hierarchicalChunk(markdown);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã phân tách ${segments.length} đoạn hội thoại`, 15, currentLogs);
 
-  const limit1 = pLimit(3);
+  const limit = pLimit(2);
+  let processedCount = 0;
+
   const documentChunks: DocumentChunk[] = await Promise.all(
-    rawChunks.map((raw, i) =>
-      limit1(async () => {
-        let content = raw;
+    segments.map((seg, i) =>
+      limit(async () => {
+        let content = seg.child;
         if (!options.skipRewrite) {
-          content = await rewriteChunk(raw, markdown.slice(0, 500), tokens);
+          content = await rewriteChunk(seg.child, seg.parent, tokens);
         }
         const title = await assignTitle(content, tokens);
-        console.log(`  [Chunk ${i + 1}/${rawChunks.length}] title="${title.slice(0, 80)}" (${content.length} chars)`);
-        return { id: randomUUID(), title, content, source: sourceFile } as DocumentChunk;
+        
+        processedCount++;
+        const progress = 15 + Math.floor((processedCount / segments.length) * 70);
+        if (processedCount % 5 === 0 || processedCount === segments.length) {
+          currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đã xử lý ${processedCount}/${segments.length} đoạn...`, progress, currentLogs);
+        }
+
+        return { 
+          id: randomUUID(), 
+          title, 
+          content, 
+          source: sourceFile,
+          parentContent: seg.parent 
+        } as DocumentChunk;
       })
     )
   );
 
-  console.log(`\n  Upserting ${documentChunks.length} document chunks to Qdrant…`);
+  currentLogs = await dbLog(fileId, sourceFile, collectionName, `Đang đẩy dữ liệu lên Vector Database...`, 90, currentLogs);
   for (let i = 0; i < documentChunks.length; i += 20) {
-    await upsertDocuments(documentChunks.slice(i, i + 20), mode);
+    await upsertDocuments(documentChunks.slice(i, i + 20), collectionName);
   }
-  console.log('  ✅ Phase 1 done.');
-
-  // ── Phase 2: Ask-and-Augment (parallel per chunk, concurrency=4) ─────────────
-  console.log('  Phase 2: Generating FAQs…');
-
-  const limit2 = pLimit(1);
-  const perChunkFAQs: FAQPair[][] = await Promise.all(
-    documentChunks.map((chunk, i) =>
-      limit2(async () => {
-        const pairs = await createFAQs(chunk, tokens);
-        await sleep(DELAY_MS); // pace between chunks
-
-        // Expand all variants sequentially to avoid burst
-        const expandLimit = pLimit(2);
-        const expanded = await Promise.all(
-          pairs.map(pair =>
-            expandLimit(async () => {
-              const variants = await expandFAQ(pair.question, tokens);
-              return [pair, ...variants.map(v => ({ question: v, answer: pair.answer }))] as Array<{ question: string; answer: string }>;
-            })
-          )
-        );
-
-        const chunkFAQs: FAQPair[] = expanded.flat().map(p => ({
-          id: randomUUID(),
-          question: p.question,
-          answer: p.answer,
-          sourceChunkId: chunk.id,
-        }));
-
-        console.log(
-          `  [Chunk ${i + 1}/${documentChunks.length}] "${chunk.title.slice(0, 50)}" → ${pairs.length} FAQs × ${pairs.length > 0 ? Math.round((chunkFAQs.length - pairs.length) / pairs.length + 1) : 0} variants = ${chunkFAQs.length} total`
-        );
-        return chunkFAQs;
-      })
-    )
-  );
-
-  const allFAQs = perChunkFAQs.flat();
-
-  console.log(`\n  Upserting ${allFAQs.length} FAQ pairs to Qdrant…`);
-  for (let i = 0; i < allFAQs.length; i += 50) {
-    await upsertFAQs(allFAQs.slice(i, i + 50), mode);
-  }
-  console.log('  ✅ Phase 2 done.');
 
   const elapsed = Date.now() - startTime;
-  console.log(`\n✅ Indexing complete: ${documentChunks.length} chunks, ${allFAQs.length} FAQs in ${(elapsed / 1000).toFixed(1)}s`);
-  console.log(`   Tokens used — prompt: ${tokens.prompt.toLocaleString()} | completion: ${tokens.completion.toLocaleString()} | total: ${tokens.total.toLocaleString()}`);
+  await dbLog(fileId, sourceFile, collectionName, `Hoàn tất! ${documentChunks.length} nodes đã được index.`, 100, currentLogs);
 
-  return { chunks: documentChunks.length, faqs: allFAQs.length, elapsed, tokens };
+  return { chunks: documentChunks.length, elapsed, tokens };
 }
 
+export async function removeKnowledgeFile(sourceFile: string, collectionName: string): Promise<void> {
+  await deleteBySource(sourceFile, collectionName);
+}

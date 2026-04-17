@@ -1,4 +1,4 @@
-import { qdrantClient, COLLECTIONS, EMBEDDING_DIM, INFERENCE_MODEL, type ServiceMode } from '@core/lib/qdrant';
+import { qdrantClient, EMBEDDING_DIM, INFERENCE_MODEL } from '@core/lib/qdrant';
 import { env } from '@/env';
 import { bm25Search, reciprocalRankFusion } from '@core/lib/bm25';
 
@@ -7,13 +7,7 @@ export interface DocumentChunk {
   title: string;
   content: string;
   source: string; // filename
-}
-
-export interface FAQPair {
-  id: string;
-  question: string;
-  answer: string;
-  sourceChunkId: string;
+  parentContent?: string; // The larger context for better answering
 }
 
 export interface SearchResult {
@@ -23,36 +17,43 @@ export interface SearchResult {
 }
 
 /**
- * Ensures required collections exist in Qdrant with correct vector config.
+ * Ensures required collection exists in Qdrant with correct vector config and payload indices.
  */
-export async function ensureCollections(mode: ServiceMode): Promise<void> {
-  const { documents, faqs } = COLLECTIONS[mode];
-
-  for (const collectionName of [documents, faqs]) {
-    try {
-      const info = await qdrantClient.getCollection(collectionName);
-      const existingDim = (info.config?.params?.vectors as { size?: number } | undefined)?.size;
-      if (existingDim && existingDim !== EMBEDDING_DIM) {
-        console.log(`⚠️  Collection "${collectionName}" has dim ${existingDim}, expected ${EMBEDDING_DIM} — recreating…`);
-        await qdrantClient.deleteCollection(collectionName);
-        await qdrantClient.createCollection(collectionName, { vectors: { size: EMBEDDING_DIM, distance: 'Cosine' } });
-        console.log(`✅ Recreated collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
-      } else {
-        console.log(`Collection "${collectionName}" already exists (dim ${existingDim ?? '?'}).`);
-      }
-    } catch {
+export async function ensureCollections(collectionName: string): Promise<void> {
+  try {
+    const info = await qdrantClient.getCollection(collectionName);
+    const existingDim = (info.config?.params?.vectors as { size?: number } | undefined)?.size;
+    if (existingDim && existingDim !== EMBEDDING_DIM) {
+      console.log(`⚠️  Collection "${collectionName}" has dim ${existingDim}, expected ${EMBEDDING_DIM} — recreating…`);
+      await qdrantClient.deleteCollection(collectionName);
       await qdrantClient.createCollection(collectionName, { vectors: { size: EMBEDDING_DIM, distance: 'Cosine' } });
-      console.log(`Created collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
+      console.log(`✅ Recreated collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
+    } else {
+      console.log(`Collection "${collectionName}" already exists (dim ${existingDim ?? '?'}).`);
     }
+  } catch {
+    await qdrantClient.createCollection(collectionName, { vectors: { size: EMBEDDING_DIM, distance: 'Cosine' } });
+    console.log(`Created collection "${collectionName}" (dim ${EMBEDDING_DIM}).`);
+  }
+
+  // Ensure 'source' index exists for filtering/deletion
+  try {
+    await qdrantClient.createPayloadIndex(collectionName, {
+      field_name: 'source',
+      field_schema: 'keyword',
+      wait: true,
+    });
+    console.log(`✅ Ensured "source" index on "${collectionName}"`);
+  } catch (err) {
+    // Index might already exist, which is fine
   }
 }
 
 /**
  * Upserts document chunks into Qdrant.
  */
-export async function upsertDocuments(chunks: DocumentChunk[], mode: ServiceMode): Promise<void> {
-  const collection = COLLECTIONS[mode].documents;
-  console.log(`[DB SEND] Upserting ${chunks.length} doc chunks → "${collection}" via inference`);
+export async function upsertDocuments(chunks: DocumentChunk[], collectionName: string): Promise<void> {
+  console.log(`[DB SEND] Upserting ${chunks.length} doc chunks → "${collectionName}" via inference`);
 
   const BATCH = 50;
   for (let i = 0; i < chunks.length; i += BATCH) {
@@ -61,30 +62,15 @@ export async function upsertDocuments(chunks: DocumentChunk[], mode: ServiceMode
       id: chunk.id,
       // Qdrant server-side inference — no external embedding call needed
       vector: { text: `${chunk.title}\n${chunk.content}`, model: INFERENCE_MODEL } as unknown as number[],
-      payload: { title: chunk.title, content: chunk.content, source: chunk.source },
+      payload: { 
+        title: chunk.title, 
+        content: chunk.content, 
+        source: chunk.source,
+        parentContent: chunk.parentContent 
+      },
     }));
-    await qdrantClient.upsert(collection, { points, wait: true });
-    console.log(`[DB SEND] ✓ Upserted ${batch.length} docs to "${collection}"`);
-  }
-}
-
-/**
- * Upserts FAQ pairs into Qdrant (embedding the question text).
- */
-export async function upsertFAQs(faqs: FAQPair[], mode: ServiceMode): Promise<void> {
-  const collection = COLLECTIONS[mode].faqs;
-  console.log(`[DB SEND] Upserting ${faqs.length} FAQ pairs → "${collection}" via inference`);
-
-  const BATCH = 50;
-  for (let i = 0; i < faqs.length; i += BATCH) {
-    const batch = faqs.slice(i, i + BATCH);
-    const points = batch.map(faq => ({
-      id: faq.id,
-      vector: { text: faq.question, model: INFERENCE_MODEL } as unknown as number[],
-      payload: { question: faq.question, answer: faq.answer, sourceChunkId: faq.sourceChunkId },
-    }));
-    await qdrantClient.upsert(collection, { points, wait: true });
-    console.log(`[DB SEND] ✓ Upserted ${batch.length} FAQs to "${collection}"`);
+    await qdrantClient.upsert(collectionName, { points, wait: true });
+    console.log(`[DB SEND] ✓ Upserted ${batch.length} docs to "${collectionName}"`);
   }
 }
 
@@ -93,16 +79,16 @@ export async function upsertFAQs(faqs: FAQPair[], mode: ServiceMode): Promise<vo
  */
 export async function denseSearch(
   query: string,
-  collection: string,
+  collectionName: string,
   topK = 10
 ): Promise<SearchResult[]> {
-  const response = await qdrantClient.query(collection, {
+  const response = await qdrantClient.query(collectionName, {
     query: { text: query, model: INFERENCE_MODEL },
     limit: topK,
     with_payload: true,
   });
   const results = response.points;
-  console.log(`[DB RETRIEVE] Dense "${collection}" query="${query.slice(0, 60)}" → ${results.length} hits, top score: ${results[0]?.score.toFixed(3) ?? 'n/a'}`);
+  console.log(`[DB RETRIEVE] Dense "${collectionName}" query="${query.slice(0, 60)}" → ${results.length} hits, top score: ${results[0]?.score.toFixed(3) ?? 'n/a'}`);
   return results.map(r => ({
     id: String(r.id),
     score: r.score,
@@ -116,13 +102,11 @@ export async function denseSearch(
  */
 export async function hybridDocumentSearch(
   query: string,
-  mode: ServiceMode,
+  collectionName: string,
   topK = 5
 ): Promise<SearchResult[]> {
-  const collection = COLLECTIONS[mode].documents;
-
   // Dense search (over-fetch for RRF candidate pool)
-  const denseResults = await denseSearch(query, collection, topK * 3);
+  const denseResults = await denseSearch(query, collectionName, topK * 3);
 
   // Fetch full text for BM25 (from dense candidates to avoid loading all)
   const bm25Docs = denseResults.map(r => ({
@@ -145,23 +129,9 @@ export async function hybridDocumentSearch(
   const fused = fusedIds
     .map(id => resultMap.get(id))
     .filter((r): r is SearchResult => r !== undefined);
-  console.log(`[DB RETRIEVE] Hybrid RRF "${collection}" query="${query.slice(0, 60)}" → ${fused.length} results, top score: ${fused[0]?.score.toFixed(3) ?? 'n/a'}`);
+  console.log(`[DB RETRIEVE] Hybrid RRF "${collectionName}" query="${query.slice(0, 60)}" → ${fused.length} results, top score: ${fused[0]?.score.toFixed(3) ?? 'n/a'}`);
   fused.forEach((r, i) => console.log(`  [${i + 1}] score=${r.score.toFixed(3)} title="${String(r.payload.title ?? '').slice(0, 50)}"`));
   return fused;
-}
-
-/**
- * FAQ search (dense only, FAQs are already normalized).
- */
-export async function faqSearch(
-  query: string,
-  mode: ServiceMode,
-  topK = 5
-): Promise<SearchResult[]> {
-  const results = await denseSearch(query, COLLECTIONS[mode].faqs, topK);
-  console.log(`[DB RETRIEVE] FAQ search top hits:`);
-  results.slice(0, 3).forEach((r, i) => console.log(`  [${i + 1}] score=${r.score.toFixed(3)} q="${String(r.payload.question ?? '').slice(0, 60)}"`));
-  return results;
 }
 
 /**
@@ -169,27 +139,59 @@ export async function faqSearch(
  * Uses a direct fetch instead of the Qdrant client to avoid URL-construction
  * issues seen on some hosted runtimes (e.g. Vercel).
  */
-export async function isIndexed(mode: ServiceMode): Promise<boolean> {
-  const { documents } = COLLECTIONS[mode];
+export async function isIndexed(collectionName: string): Promise<boolean> {
   const base = env.QDRANT_URL.replace(/\/$/, '');
-  const url = `${base}/collections/${encodeURIComponent(documents)}`;
-  console.log(`[isIndexed] GET ${url} (QDRANT_ENV=${env.QDRANT_ENV})`);
+  const url = `${base}/collections/${encodeURIComponent(collectionName)}`;
   try {
     const res = await fetch(url, {
       headers: { 'api-key': env.QDRANT_API_KEY },
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      console.log(`[isIndexed] ${res.status} ${res.statusText} — ${body.slice(0, 200)}`);
-      return false;
-    }
+    if (!res.ok) return false;
     const json = await res.json() as { result?: { points_count?: number; vectors_count?: number } };
     const count = json.result?.points_count ?? json.result?.vectors_count ?? 0;
-    console.log(`[isIndexed] "${documents}" → ${count} points`);
     return count > 0;
   } catch (err) {
-    console.log(`[isIndexed] fetch failed: ${err instanceof Error ? err.message : String(err)}`);
     return false;
+  }
+}
+
+/**
+ * Removes all document chunks associated with a specific source file.
+ */
+export async function deleteBySource(source: string, collectionName: string): Promise<void> {
+  console.log(`[DB DELETE] Removing all points with source="${source}" from "${collectionName}"`);
+
+  // Ensure index exists on documents collection before deleting
+  try {
+    await qdrantClient.createPayloadIndex(collectionName, {
+      field_name: 'source',
+      field_schema: 'keyword',
+      wait: true,
+    });
+  } catch (err) {
+    // Ignore if already exists
+  }
+
+  const filter = {
+    must: [
+      {
+        key: 'source',
+        match: { value: source }
+      }
+    ]
+  };
+
+  try {
+    // 1. Delete from documents
+    await qdrantClient.delete(collectionName, {
+      filter,
+      wait: true,
+    });
+
+    console.log(`[DB DELETE] ✓ Removed all points with source="${source}"`);
+  } catch (err: any) {
+    console.error(`[DB DELETE] Failed to delete points for source "${source}":`, err?.data || err?.message || err);
+    throw err;
   }
 }
 

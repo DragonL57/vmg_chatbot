@@ -10,9 +10,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Info, Phone, Menu, BookOpen } from 'lucide-react';
 import { LocationData } from './location-modal';
+import { type KnowledgeCollection } from '@core/services/supabase.service';
 
 /**
- * The main chat interface component for URASys.
+ * The main chat interface component for VMG Wiki.
  * Handles message state and streams backend responses manually.
  */
 export const ChatInterface: React.FC = () => {
@@ -23,9 +24,25 @@ export const ChatInterface: React.FC = () => {
   const [loadingPhase, setLoadingPhase] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
+  
+  // Collections state
+  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
+  const [selectedCollection, setSelectedCollection] = useState('auto');
+
   const sessionIdRef = useRef<string>(uuidv4());
   const sessionId = sessionIdRef.current;
   const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
+  const [phaseDetail, setPhaseDetail] = useState<string>('');
+
+  // Fetch collections on mount
+  useEffect(() => {
+    fetch('/api/admin/collections')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setCollections(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Silently fetch IP-based location on mount — no browser prompt needed
   useEffect(() => {
@@ -93,14 +110,14 @@ export const ChatInterface: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: apiMessages,
-          serviceMode: 'wiki'
+          serviceMode: selectedCollection
         }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
       if (!response.body) throw new Error('No response body');
 
-      const ambiguousHeader = response.headers.get('X-URASys-Ambiguous');
+      const isAmbiguous = response.headers.get('X-Agentic-Ambiguous');
       const leadDataHeader = response.headers.get('X-Lead-Data');
 
       if (leadDataHeader) {
@@ -123,7 +140,7 @@ export const ChatInterface: React.FC = () => {
       const decoder = new TextDecoder();
       let done = false;
       let assistantId = '';
-      let toolCallMessageId = '';
+      let streamBuffer = ''; 
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -131,71 +148,51 @@ export const ChatInterface: React.FC = () => {
         const chunkValue = decoder.decode(value, { stream: !done });
         
         if (chunkValue) {
-          // Phase signals
-          if (chunkValue.includes('__PHASE__:decompose')) { setLoadingPhase('decompose'); continue; }
-          if (chunkValue.includes('__PHASE__:search'))   { setLoadingPhase('search');   continue; }
+          streamBuffer += chunkValue;
+          
+          // Process individual JSON objects separated by \n
+          const lines = streamBuffer.split('\n');
+          // Keep the last partial line in the buffer
+          streamBuffer = lines.pop() || '';
 
-          // Token usage signal — may arrive appended to last content chunk, strip it out
-          let cleanChunk = chunkValue;
-          const tokenMatch = chunkValue.match(/__TOKENS__:(\d+):(\d+):(\d+)/);
-          if (tokenMatch) {
-            tokenUsageRef.current = {
-              prompt_tokens: parseInt(tokenMatch[1], 10),
-              completion_tokens: parseInt(tokenMatch[2], 10),
-              total_tokens: parseInt(tokenMatch[3], 10),
-            };
-            cleanChunk = chunkValue.replace(/__TOKENS__:\d+:\d+:\d+/, '').trimEnd();
-            if (!cleanChunk) continue;
-          }
-
-          // Check for Tool Call signals
-          if (chunkValue.includes('__TOOL_CALL_START__')) {
-            toolCallMessageId = uuidv4();
-            const toolMessage: Message = {
-              id: toolCallMessageId,
-              role: 'system',
-              content: 'Chuyên viên đang truy xuất dữ liệu từ hệ thống giáo dục Mỹ...',
-              timestamp: new Date(),
-              isToolCall: true
-            };
-            setMessages((prev) => [...prev, toolMessage]);
-            continue;
-          }
-
-          if (chunkValue.includes('__TOOL_CALL_DONE__')) {
-            // We could update the message or just let it stay. 
-            // Let's update it to "Đã hoàn tất truy xuất"
-            if (toolCallMessageId) {
-              setMessages((prev) => 
-                prev.map(msg => msg.id === toolCallMessageId ? { ...msg, content: 'Đã hoàn tất truy xuất dữ liệu từ College Scorecard' } : msg)
-              );
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const data = JSON.parse(line);
+              
+              if (data.type === 'phase') {
+                setLoadingPhase(data.value);
+                setPhaseDetail(data.detail || '');
+              } else if (data.type === 'tokens') {
+                tokenUsageRef.current = data.value;
+              } else if (data.type === 'error') {
+                alert(data.value);
+              } else if (data.type === 'content') {
+                const text = data.value;
+                if (!assistantId) {
+                  assistantId = uuidv4();
+                  setMessages((prev) => [...prev, {
+                    id: assistantId,
+                    role: 'assistant',
+                    content: text,
+                    timestamp: new Date(),
+                  }]);
+                } else {
+                  setMessages((prev) => 
+                    prev.map((msg) => 
+                      msg.id === assistantId ? { ...msg, content: msg.content + text } : msg
+                    )
+                  );
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse line:', line);
             }
-            continue;
-          }
-
-          // Normal content streaming
-          if (!assistantId) {
-            assistantId = uuidv4();
-            const assistantMessage: Message = {
-              id: assistantId,
-              role: 'assistant',
-              content: cleanChunk,
-              timestamp: new Date(),
-            };
-            setMessages((prev) => [...prev, assistantMessage]);
-          } else {
-            setMessages((prev) => 
-              prev.map((msg) => 
-                msg.id === assistantId 
-                  ? { ...msg, content: msg.content + cleanChunk } 
-                  : msg
-              )
-            );
           }
         }
       }
 
-      if (ambiguousHeader === 'true' && assistantId) {
+      if (isAmbiguous === 'true' && assistantId) {
         setMessages((prev) => 
           prev.map((msg) => 
             msg.id === assistantId 
@@ -236,7 +233,7 @@ export const ChatInterface: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)} 
       />
 
-      <div className={`flex-1 flex flex-col min-w-0 relative transition-all duration-300 ${isSidebarOpen ? 'md:ml-72' : 'ml-0'}`}>
+      <div className="flex-1 flex flex-col min-w-0 relative transition-all duration-300 md:ml-72">
         {/* VMG Brand Header */}
         <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 z-10">
           <div className="flex items-center gap-3">
@@ -282,8 +279,10 @@ export const ChatInterface: React.FC = () => {
             messages={messages} 
             isLoading={isLoading}
             loadingPhase={loadingPhase}
-            currentMode="wiki"
+            currentMode={selectedCollection}
             sessionId={sessionId}
+            collections={collections}
+            onCollectionSelect={setSelectedCollection}
             onSuggestionClick={onSuggestionClick} 
           />
         </div>

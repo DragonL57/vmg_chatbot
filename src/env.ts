@@ -25,9 +25,11 @@ export const env = createEnv({
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
     QDRANT_ENV: z.preprocess(v => String(v ?? '').trim(), z.enum(['dev', 'staging', 'prod'])).default('dev'),
-    SUPABASE_URL: z.string().min(1),
+    SUPABASE_URL: z.string().url(),
     SUPABASE_KEY: z.string().min(1),
-  },
+    DATABASE_URL: z.string().min(1),
+    },
+
   client: {
     // Add client-side variables here (e.g. NEXT_PUBLIC_...)
   },

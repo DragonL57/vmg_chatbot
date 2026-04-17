@@ -2,28 +2,26 @@ import { PoeService } from './poe.service';
 import { QueryDecompositionSchema, type QueryDecomposition } from '@core/types/agent';
 import { safeJsonParse } from '@core/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
-import { URAS_DECOMPOSE_PROMPT } from '@core/prompts/uras';
-import type { ServiceMode } from '@core/types/chat';
-import { DocumentSearchService, type DocumentEvidence } from './document-search.service';
-import { FAQSearchService, type FAQEvidence } from './faq-search.service';
+import { QUERY_ANALYSIS_PROMPT } from '@core/prompts/rag-agents';
+import { VectorSearchService, type DocumentEvidence } from './vector-search.service';
 import { isIndexed } from './qdrant.service';
 
 export interface RetrievalEvidence {
   docs: DocumentEvidence[];
-  faqs: FAQEvidence[];
 }
 
-export interface DecompositionWithRetrieval {
-  decomposition: QueryDecomposition;
+export interface QueryAnalysisWithRetrieval {
+  analysis: QueryDecomposition;
   evidence: RetrievalEvidence | null;
 }
 
 /**
- * Orchestrator Service that coordinates specialized agents in parallel.
+ * Core Orchestrator Service
+ * Decomposes queries and coordinates high-precision retrieval agents.
  */
 export class ManagerService {
   /**
-   * Decomposes a user query using parallel specialists.
+   * Analyzes user intent and generates optimized search sub-queries.
    */
   static async decompose(
     messages: { role: string; content: string }[]
@@ -33,107 +31,82 @@ export class ManagerService {
       content: m.content,
     }));
 
-    const decomposeRes = await PoeService.chat([
-      { role: 'system', content: URAS_DECOMPOSE_PROMPT },
+    const response = await PoeService.chat([
+      { role: 'system', content: QUERY_ANALYSIS_PROMPT },
       ...history,
     ]);
 
-    const decomposeContent = (decomposeRes as ChatCompletion).choices[0].message.content || '';
-    console.log('[Decompose]', decomposeContent);
+    const content = (response as ChatCompletion).choices[0].message.content || '';
+    const parsed = safeJsonParse<QueryDecomposition>(content);
 
-    const decomposeData = safeJsonParse<{ subQueries: string[]; reasoning: string; chitchat?: boolean }>(decomposeContent);
+    const result = QueryDecompositionSchema.safeParse({
+      chitchat: parsed?.chitchat ?? false,
+      subQueries: parsed?.subQueries ?? null,
+      reasoning: parsed?.reasoning ?? 'Analyzed',
+      is_clear: parsed?.is_clear ?? true,
+      clarification_needed: parsed?.clarification_needed ?? null,
+    });
 
-    const combined = {
-      chitchat: decomposeData?.chitchat ?? false,
-      subQueries: decomposeData?.subQueries ?? null,
-      reasoning: decomposeData?.reasoning ?? 'Decomposed',
-    } as Record<string, unknown>;
-
-    const result = QueryDecompositionSchema.safeParse(combined);
     if (!result.success) {
-      console.error('Decomposition Validation Error:', result.error);
       return {
-        reasoning: String(combined.reasoning ?? 'Fallback'),
-        subQueries: combined.subQueries as string[] | null,
+        reasoning: 'Fallback analysis',
+        subQueries: null,
+        is_clear: true,
       };
     }
 
     return result.data;
   }
 
-  /**
-   * Decomposes query AND retrieves relevant evidence from Qdrant (if indexed).
-   * Falls back to evidence=null when the knowledge base hasn't been indexed yet.
-   */
-  static async decomposeWithRetrieval(
+  static async analyzeWithRetrieval(
     messages: { role: string; content: string }[],
-    mode: ServiceMode = 'wiki'
-  ): Promise<DecompositionWithRetrieval> {
-    // Run decomposition + index-check in parallel
-    const [decomposition, indexed] = await Promise.all([
-      ManagerService.decompose(messages),
+    mode: string
+  ): Promise<QueryAnalysisWithRetrieval> {
+    const [analysis, indexed] = await Promise.all([
+      this.decompose(messages),
       isIndexed(mode).catch(() => false),
     ]);
 
-    if (!indexed) {
-      console.log(`[URASys] Collection "${mode}" not indexed — skipping retrieval, using fallback`);
-      return { decomposition, evidence: null };
+    if (!indexed || analysis.chitchat || !analysis.is_clear) {
+      return { analysis, evidence: null };
     }
 
-    if (decomposition.chitchat) {
-      console.log('[URASys] Chitchat detected — skipping retrieval');
-      return { decomposition, evidence: null };
-    }
-
-    // Fan out retrieval across all sub-queries (Algorithm 1: foreach qi ∈ S)
-    // Fall back to raw user message if decomposition produced no sub-queries
     const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content ?? '';
-    const subQueries = (decomposition.subQueries && decomposition.subQueries.length > 0)
-      ? decomposition.subQueries
-      : (lastUserMsg.trim() ? [lastUserMsg] : null);
+    const queries = (analysis.subQueries && analysis.subQueries.length > 0)
+      ? analysis.subQueries
+      : (lastUserMsg.trim() ? [lastUserMsg] : []);
 
-    if (!subQueries) {
-      return { decomposition, evidence: null };
+    if (queries.length === 0) {
+      return { analysis, evidence: null };
     }
 
     try {
-      // Run dual retrieval in parallel for EACH sub-query, then union evidence pools
       const perQueryResults = await Promise.all(
-        subQueries.map(qi => Promise.all([
-          DocumentSearchService.search(qi, mode, 5).catch(() => [] as DocumentEvidence[]),
-          FAQSearchService.search(qi, mode, 5).catch(() => [] as FAQEvidence[]),
-        ]))
+        queries.map(q => VectorSearchService.search(q, mode, 5))
       );
 
-      // Union and deduplicate by content
-      const seenDocContents = new Set<string>();
-      const seenFaqQuestions = new Set<string>();
+      // Union and deduplicate
+      const seen = new Set<string>();
       const docs: DocumentEvidence[] = [];
-      const faqs: FAQEvidence[] = [];
 
-      for (const [qDocs, qFaqs] of perQueryResults) {
-        for (const d of qDocs) {
-          if (!seenDocContents.has(d.content)) {
-            seenDocContents.add(d.content);
-            docs.push(d);
-          }
-        }
-        for (const f of qFaqs) {
-          if (!seenFaqQuestions.has(f.question)) {
-            seenFaqQuestions.add(f.question);
-            faqs.push(f);
+      for (const results of perQueryResults) {
+        for (const doc of results) {
+          if (!seen.has(doc.content)) {
+            seen.add(doc.content);
+            docs.push(doc);
           }
         }
       }
 
-      // Sort by score descending and cap at top 5 each
       docs.sort((a, b) => b.score - a.score);
-      faqs.sort((a, b) => b.score - a.score);
 
-      return { decomposition, evidence: { docs: docs.slice(0, 5), faqs: faqs.slice(0, 5) } };
+      return { 
+        analysis, 
+        evidence: { docs: docs.slice(0, 6) } 
+      };
     } catch (err) {
-      console.error('Retrieval failed, continuing without evidence:', err);
-      return { decomposition, evidence: null };
+      console.error('[Manager] Retrieval error:', err);
+      return { analysis, evidence: null };
     }
   }
 }

@@ -68,23 +68,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
 
   if (isSystem) {
     return (
-      <div className="flex justify-center my-4 animate-in fade-in zoom-in-95 duration-500">
+      <div className="flex justify-center my-4 animate-in fade-in zoom-in-95 duration-500 text-black">
         <div className="flex flex-col items-center max-w-[90%] w-full">
           <button 
             onClick={() => isTool ? null : setShowData(!showData)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-colors shadow-sm ${
               isTool 
-                ? 'bg-blue-50 border border-blue-100 text-blue-600' 
+                ? 'bg-red-50 border border-red-100 text-[#D32F2F]' 
                 : 'bg-slate-100 border border-slate-200 text-slate-500 hover:bg-slate-200'
             }`}
           >
-            {isTool ? <Search className="w-3 h-3 animate-pulse" /> : <Database className="w-3 h-3 text-blue-500" />}
+            {isTool ? <Search className="w-3 h-3 animate-pulse" /> : <Database className="w-3 h-3 text-[#D32F2F]" />}
             {message.content}
             {!isTool && (showData ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
           </button>
           
           {showData && message.leadData && (
-            <div className="mt-2 w-full bg-slate-800 text-blue-300 p-3 rounded-xl text-[10px] font-mono overflow-x-auto max-h-60 overflow-y-auto shadow-inner border border-slate-700 animate-in slide-in-from-top-2 duration-300 custom-scrollbar">
+            <div className="mt-2 w-full bg-slate-800 text-red-300 p-3 rounded-xl text-[10px] font-mono overflow-x-auto max-h-60 overflow-y-auto shadow-inner border border-slate-700 animate-in slide-in-from-top-2 duration-300 custom-scrollbar">
               <pre className="whitespace-pre-wrap break-words">{JSON.stringify(message.leadData, null, 2)}</pre>
             </div>
           )}
@@ -101,12 +101,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={(e) => { if (e.target === e.currentTarget) { setShowModal(false); setReportState('idle'); setProblemType(''); setNote(''); } }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 duration-200 text-black">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="bg-red-50 p-1.5 rounded-lg">
-                  <Flag className="w-4 h-4 text-red-500" />
+                  <Flag className="w-4 h-4 text-[#D32F2F]" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Báo cáo câu trả lời</p>
@@ -135,8 +135,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
                       onClick={() => setProblemType(opt === problemType ? '' : opt)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
                         problemType === opt
-                          ? 'bg-red-500 text-white border-red-500'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-red-300 hover:text-red-500'
+                          ? 'bg-[#D32F2F] text-white border-[#D32F2F]'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-red-300 hover:text-[#D32F2F]'
                       }`}
                     >
                       {opt}
@@ -172,7 +172,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
               <button
                 onClick={handleReport}
                 disabled={reportState === 'loading' || !problemType}
-                className="px-4 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-60 disabled:cursor-wait rounded-xl transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-semibold text-white bg-[#D32F2F] hover:bg-red-600 disabled:opacity-60 disabled:cursor-wait rounded-xl transition-colors flex items-center gap-1.5"
               >
                 <Send className="w-3 h-3" />
                 {reportState === 'loading' ? 'Đang gửi...' : 'Gửi báo cáo'}
@@ -246,7 +246,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
                 isUser ? 'text-white/70' : 'text-slate-400'
               }`}
             >
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
               {isUser && <span className="text-[8px]">✓</span>}
             </div>
           </div>
@@ -274,4 +274,3 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
     </>
   );
 };
-
