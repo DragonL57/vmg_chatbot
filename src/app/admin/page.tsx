@@ -24,12 +24,6 @@ import { slugify } from '@/core/lib/utils';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
 
-// Initialize Supabase client for storage
-const supabase = createClient(
-  env.NEXT_PUBLIC_SUPABASE_URL,
-  env.NEXT_PUBLIC_SUPABASE_KEY
-);
-
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -41,6 +35,15 @@ export default function AdminPage() {
   const [mode, setMode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Initialize Supabase client inside component
+  const supabase = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return createClient(
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.NEXT_PUBLIC_SUPABASE_KEY
+    );
+  }, []);
 
   // New Collection state
   const [showColModal, setShowColModal] = useState(false);
@@ -139,7 +142,7 @@ export default function AdminPage() {
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedFile || !mode) return;
+    if (!selectedFile || !mode || !supabase) return;
 
     setUploading(true);
     try {
@@ -321,7 +324,7 @@ export default function AdminPage() {
                       {selectedFile ? (
                         <><div className="w-12 h-12 bg-[#D32F2F] text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-200 text-black text-black text-black"><FileText className="w-6 h-6 text-black text-black" /></div><div className="text-sm font-semibold text-slate-700 truncate max-w-full px-4 text-black text-black text-black">{selectedFile.name}</div><button type="button" onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }} className="text-xs font-bold text-rose-500 hover:text-rose-600 text-black text-black text-black">Remove</button></>
                       ) : (
-                        <><div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 shadow-sm group-hover:text-[#D32F2F] transition-all text-black text-black text-black text-black"><Plus className="w-6 h-6 text-black" /></div><div className="space-y-1 text-black text-black text-black"><p className="text-sm font-bold text-slate-700 text-black">Drop file here</p><p className="text-xs text-slate-500 font-medium text-black text-black text-black text-black">PDF, Markdown or Text</p></div></>
+                        <><div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 shadow-sm group-hover:text-[#D32F2F] transition-all text-black text-black text-black text-black"><Plus className="w-6 h-6" /></div><div className="space-y-1 text-black text-black text-black"><p className="text-sm font-bold text-slate-700 text-black">Drop file here</p><p className="text-xs text-slate-500 font-medium text-black text-black text-black text-black">PDF, Markdown or Text</p></div></>
                       )}
                     </div>
                   </div>
@@ -377,7 +380,7 @@ export default function AdminPage() {
             <p className="text-slate-500 text-sm mb-6 text-black text-black text-black text-black text-black">Tạo một không gian kiến thức mới cho RAG Agent</p>
             <form onSubmit={handleCreateCollection} className="space-y-4 text-black text-black text-black text-black">
               <div className="space-y-1.5 text-black text-black text-black text-black"><label className="text-xs font-bold uppercase tracking-wider text-slate-400 text-black text-black text-black text-black text-black">Display Name</label><input type="text" required placeholder="e.g. Tuyển sinh 2026" value={newColName} onChange={(e) => setNewColName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#D32F2F] transition-all text-black text-black text-black text-black text-black text-black" /></div>
-              <div className="space-y-1.5 text-black text-black text-black text-black text-black"><label className="text-xs font-bold uppercase tracking-wider text-slate-400 text-black text-black text-black text-black text-black text-black">Qdrant Identifier</label><input type="text" placeholder="vmg_docs_custom" value={newColQName} onChange={(e) => setNewColQName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#D32F2F] transition-all text-black text-black text-black text-black text-black text-black text-black text-black" /></div>
+              <div className="space-y-1.5 text-black text-black text-black text-black text-black"><label className="text-xs font-bold uppercase tracking-wider text-slate-400 text-black text-black text-black text-black text-black text-black">Qdrant Identifier</label><input type="text" placeholder="vmg_docs_custom" value={newColQName} onChange={(e) => setNewColQName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#D32F2F] text-black text-black text-black text-black text-black text-black text-black text-black" /></div>
               <div className="space-y-1.5 text-black text-black text-black text-black text-black text-black text-black"><label className="text-xs font-bold uppercase tracking-wider text-slate-400 text-black text-black text-black text-black text-black text-black text-black">Description</label><textarea placeholder="e.g. Thông tin về các chương trình du học hè 2026" value={newColDesc} onChange={(e) => setNewColDesc(e.target.value)} rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#D32F2F] transition-all resize-none text-sm text-black text-black text-black text-black text-black text-black text-black text-black" /></div>
               <div className="flex items-center gap-3 mt-8 text-black text-black text-black text-black">
                 <button type="button" onClick={() => setShowColModal(false)} className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all text-black text-black text-black text-black text-black text-black">Hủy bỏ</button>
