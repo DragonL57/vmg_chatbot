@@ -36,7 +36,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Use variables exactly as they are provided by the environment
+  // Initialize Supabase client with TRUNCATION detection
   const supabase = useMemo(() => {
     if (typeof window === 'undefined') return null;
     
@@ -44,14 +44,19 @@ export default function AdminPage() {
     const key = env.NEXT_PUBLIC_SUPABASE_KEY;
     
     if (!url || !key) return null;
+
+    // Detect truncation (The key should be around 46-50 chars minimum)
+    if (key.length < 40) {
+      console.error(`[Supabase] Key is likely truncated. Length: ${key.length}. Expected ~46+`);
+      return null;
+    }
     
     try {
-      // Use the raw variables directly
       return createClient(url, key, {
         auth: { persistSession: false }
       });
     } catch (e) {
-      console.error('[Supabase] Initialization failed:', e);
+      console.error('[Supabase] Init failed:', e);
       return null;
     }
   }, []);
@@ -156,7 +161,12 @@ export default function AdminPage() {
     if (!selectedFile || !mode) return;
     
     if (!supabase) {
-      alert('Không thể kết nối với Supabase Storage. Vui lòng kiểm tra lại cấu hình.');
+      const keyLen = env.NEXT_PUBLIC_SUPABASE_KEY?.length || 0;
+      if (keyLen > 0 && keyLen < 40) {
+        alert(`Lỗi: Supabase Key bị cắt ngắn (${keyLen} ký tự). Vui lòng kiểm tra lại Dashboard Vercel và dán FULL KEY.`);
+      } else {
+        alert('Không thể kết nối với Supabase Storage. Vui lòng kiểm tra lại cấu hình.');
+      }
       return;
     }
 
@@ -231,7 +241,7 @@ export default function AdminPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-black">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-black">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-[#D32F2F] rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-red-100">
               <Lock className="w-8 h-8" />
@@ -247,6 +257,9 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  const keyLen = env.NEXT_PUBLIC_SUPABASE_KEY?.length || 0;
+  const isKeyBroken = keyLen > 0 && keyLen < 40;
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
@@ -274,12 +287,16 @@ export default function AdminPage() {
             </div>
           </header>
 
-          {!supabase && (
+          {(!supabase || isKeyBroken) && (
             <div className="mb-10 p-5 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500 text-black">
               <AlertCircle className="w-6 h-6 text-rose-500 shrink-0 mt-1" />
               <div>
-                <h4 className="font-bold text-rose-900">Lỗi kết nối Supabase</h4>
-                <p className="text-sm text-rose-700 mt-1">Vui lòng kiểm tra lại Dashboard Vercel và đảm bảo <code>NEXT_PUBLIC_SUPABASE_URL</code> và <code>NEXT_PUBLIC_SUPABASE_KEY</code> đã được thiết lập đúng.</p>
+                <h4 className="font-bold text-rose-900">Cấu hình Supabase không hợp lệ</h4>
+                {isKeyBroken ? (
+                  <p className="text-sm text-rose-700 mt-1">Supabase Key hiện tại quá ngắn (<b>{keyLen} ký tự</b>). Có vẻ như key đã bị cắt ngắn khi dán vào Vercel Dashboard. Vui lòng dán lại <b>FULL KEY</b> (~46+ ký tự).</p>
+                ) : (
+                  <p className="text-sm text-rose-700 mt-1">Hệ thống không tìm thấy cấu hình kết nối. Vui lòng kiểm tra lại Dashboard Vercel.</p>
+                )}
               </div>
             </div>
           )}
@@ -353,7 +370,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between"><label className="text-xs font-bold uppercase tracking-wider text-slate-400">Namespace</label><button type="button" onClick={() => setShowColModal(true)} className="text-[10px] font-bold text-[#D32F2F] hover:underline">+ New</button></div>
+                    <div className="flex items-center justify-between text-black"><label className="text-xs font-bold uppercase tracking-wider text-slate-400">Namespace</label><button type="button" onClick={() => setShowColModal(true)} className="text-[10px] font-bold text-[#D32F2F] hover:underline">+ New</button></div>
                     <select value={mode} onChange={(e) => setMode(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-red-500/20 text-black text-black" disabled={uploading}>
                       {collections.length === 0 ? <option value="">No collections</option> : collections.map(col => <option key={col.id} value={col.qdrantName}>{col.name}</option>)}
                     </select>
