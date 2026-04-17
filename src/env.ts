@@ -31,8 +31,8 @@ export const env = createEnv({
     },
 
   client: {
-    NEXT_PUBLIC_SUPABASE_URL: z.string().url().catch(''),
-    NEXT_PUBLIC_SUPABASE_KEY: z.string().min(1).catch(''),
+    NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+    NEXT_PUBLIC_SUPABASE_KEY: z.string().min(1),
   },
   // For Next.js >= 13.4.4, we use experimental__runtimeEnv
   experimental__runtimeEnv: {
