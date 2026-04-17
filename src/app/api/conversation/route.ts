@@ -1,5 +1,5 @@
-import { env } from '@/env';
 import { NextResponse } from 'next/server';
+import { upsertConversation } from '@core/services/supabase.service';
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Use IP-provided city/region if available, otherwise skip reverse geocode
+    // Use IP-provided city/region if available
     let locationAddress: string | null = null;
     if (location?.city) {
       locationAddress = [location.city, location.region, location.country].filter(Boolean).join(', ');
@@ -31,26 +31,11 @@ export async function POST(req: Request) {
       ...(tokenUsage ? { token_usage: tokenUsage } : {}),
     };
 
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/conversations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': env.SUPABASE_KEY,
-        'Authorization': `Bearer ${env.SUPABASE_KEY}`,
-        'Prefer': 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[Conversation] Supabase error:', err);
-      return NextResponse.json({ error: 'Failed to save conversation' }, { status: 500 });
-    }
+    await upsertConversation(payload);
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error('[Conversation] Unexpected error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err: any) {
+    console.error('[Conversation] Error saving to DB:', err);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
