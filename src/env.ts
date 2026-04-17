@@ -2,7 +2,11 @@ import "dotenv/config";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-const trimString = (v: unknown) => String(v ?? '').trim().replace(/^["']|["']$/g, '');
+const trimString = (v: unknown) => {
+  const s = String(v ?? '').trim();
+  // Remove all types of quotes that might be injected
+  return s.replace(/^["']|["']$/g, '').trim();
+};
 
 export const env = createEnv({
   server: {
@@ -33,8 +37,8 @@ export const env = createEnv({
   },
 
   client: {
-    NEXT_PUBLIC_SUPABASE_URL: z.preprocess(trimString, z.string().url()),
-    NEXT_PUBLIC_SUPABASE_KEY: z.preprocess(trimString, z.string().min(1)),
+    NEXT_PUBLIC_SUPABASE_URL: z.preprocess(trimString, z.string().url().optional()),
+    NEXT_PUBLIC_SUPABASE_KEY: z.preprocess(trimString, z.string().min(1).optional()),
   },
   
   experimental__runtimeEnv: {
