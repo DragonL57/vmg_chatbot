@@ -1,8 +1,19 @@
-# VMG Wiki — Internal Knowledge Chatbot
+# VMG Knowledge Center — Agentic RAG Platform
 
-> **Current version: v1.0.0** — Modular `src/core` architecture + multi-environment staging support.
+> **Version: 2.0.0** — Fully Agentic Architecture with Dynamic Knowledge Silos.
 
-An internal chatbot for VMG staff built on **Agentic RAG**, a modular state-machine architecture using LangGraph. Answers questions about company knowledge using high-precision vector search backed by Qdrant Cloud, with conversation analytics and quality reporting via Supabase.
+An enterprise-grade internal knowledge chatbot for VMG staff, powered by an **Agentic RAG State Machine** (LangGraph). This system features a professional Admin UI for real-time knowledge management, folder-based organization, and a "Storage-First" ingestion pipeline to handle massive documentation.
+
+---
+
+## Key Features
+
+*   **Agentic Reasoning:** Uses LangGraph to orchestrate a multi-stage workflow: Decompose → Parallel Retrieval → Grading → Self-Correction → Context Compression.
+*   **Dynamic Knowledge Silos:** Create, rename, and manage independent knowledge domains (e.g., ESL, Study Abroad, HR) via the Admin UI.
+*   **High-Integrity Retrieval:** Hybrid search (Dense + BM25) with a strict **0.45 score threshold** and full silo traceability.
+*   **Enterprise Ingestion:** Supports PDF, Markdown, and TXT files. Uses Supabase Storage to bypass Vercel's 4.5MB payload limit.
+*   **Real-Time Monitoring:** Live "Research Log" terminal in the Admin panel showing every step of the indexing process.
+*   **ORM Managed:** 100% type-safe database management using **Drizzle ORM**.
 
 ---
 
@@ -10,285 +21,92 @@ An internal chatbot for VMG staff built on **Agentic RAG**, a modular state-mach
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| LLM — fast calls ¹ | POE API (`grok-4.1-fast-non-reasoning`) **or** Inception Labs (`mercury-2`) |
-| LLM — generation ¹ | POE API (`grok-4.1-fast-reasoning`) **or** Inception Labs (`mercury-2`, reasoning_effort) |
-| Provider selection | `LLM_PROVIDER=poe\|inception` env var — all phases respect it |
-| Indexing provider | Separate `INDEXING_*` overrides — can use any OpenAI-compatible endpoint |
-| Embeddings | Qdrant server-side inference — `intfloat/multilingual-e5-small` (384-dim) |
-| Vector DB | Qdrant Cloud |
-| Search | Hybrid: Dense + BM25 + Reciprocal Rank Fusion, capped at 6 documents |
-| Analytics DB | Supabase (conversations + reports) |
-| Package manager | pnpm |
-
-> ¹ Switch between providers by setting `LLM_PROVIDER`. All three pipeline phases (decompose, retrieve, generate) use the same provider.
+| **Framework** | Next.js 16 (App Router, Turbopack) |
+| **Orchestration** | LangGraph (State Machine) |
+| **Database (SQL)** | Supabase (PostgreSQL) + Drizzle ORM |
+| **Vector DB** | Qdrant Cloud (Hybrid Search + RRF) |
+| **Storage** | Supabase Storage (Storage-First Pipeline) |
+| **LLM Providers** | POE API (Grok 4.1) or Inception Labs (Mercury-2) |
+| **Embeddings** | Server-side Inference (`intfloat/multilingual-e5-small`) |
 
 ---
 
 ## Architecture
 
-```
-User opens app
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│  Location (silent IP lookup)                │
-│  Fires on first load via ipapi.co — no      │
-│  browser prompt. Returns city/region/       │
-│  country and stores with the session.       │
-└─────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│  Agentic RAG Pipeline                       │
-│                                             │
-│  1. Understand — analyze intent & context   │
-│     ├─ clarify if vague (Human-in-the-loop) │
-│     └─ getFastProvider() — POE or Inception │
-│                                             │
-│  2. Research (State Machine Loop)           │
-│     ├─ Iterative high-precision Vector search│
-│     ├─ Self-Correction & Query Rewriting    │
-│     All retrieval via getFastProvider()     │
-│                                             │
-│  3. Synthesize                              │
-│     ├─ Context Compression (Fact Extraction)│
-│     ├─ domain-aware static.md injection     │
-│     ├─ getGenerationProvider()              │
-│     └─ Stream response + __TOKENS__ signal  │
-└─────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│  Post-response: Save to Supabase            │
-│  POST /api/conversation — upsert session    │
-│  with full message history, location data, │
-│  and token usage breakdown                 │
-└─────────────────────────────────────────────┘
-```
+### The Agentic Workflow (LangGraph)
+1.  **Understand:** Analyze user intent and decompose complex questions.
+2.  **Retrieve:** Query **all active silos** in parallel for maximum coverage.
+3.  **Grade:** Automatically filter out low-score noise (Threshold: 0.45).
+4.  **Rewrite:** If context is insufficient, the agent reformulates search queries and tries again.
+5.  **Compress:** Extract key facts and figures into a concise Vietnamese summary.
+6.  **Synthesize:** Generate a grounded answer with full source traceability.
+
+### Ingestion Pipeline
+1.  **Direct Upload:** Frontend uploads file to Supabase Storage (Bypasses Vercel limits).
+2.  **Background Processing:** API downloads file and triggers hierarchical chunking.
+3.  **Semantic Enrichment:** LLM rewrites chunks for better searchability and assigns titles.
+4.  **Vector Sync:** Upserts enriched chunks to Qdrant with parent-child context preservation.
 
 ---
 
-## Knowledge Folder Structure
+## Knowledge Organization
 
-```
-data/knowledge/
-  <domain>/
-    index.md    ← chunked, embedded, and indexed into Qdrant
-    static.md   ← injected verbatim into system prompt (domain-aware, only when relevant docs are retrieved)
-```
-
-**Plug-and-play**: drop a new subfolder with `index.md` and it is auto-discovered by both the index script and the API route. No code changes needed.
-
-The `static.md` file for a domain is **only injected** when the retrieval step returns at least one document from that domain — avoiding token waste when a query is unrelated.
-
----
-
-## Multi-Provider LLM
-
-All three pipeline phases (decompose, retrieve reformulation, generate) route through a single provider selected by `LLM_PROVIDER`:
-
-| `LLM_PROVIDER` | Fast calls (phases 1–2) | Generation (phase 3) |
-|---|---|---|
-| `poe` | `POE_BOT_NAME` | `POE_REASONING_MODEL` |
-| `inception` | `INCEPTION_MODEL` + `INCEPTION_MODEL_EFFORT` | `INCEPTION_REASONING_MODEL` + `INCEPTION_REASONING_EFFORT` |
-
-**Inception Labs** (`mercury-2`) is an OpenAI-compatible diffusion LLM. The `reasoning_effort` parameter accepts `instant`, `low`, `medium`, or `high` — `instant` for fast decomposition, `medium` for generation.
-
-### Indexing Provider (separate override)
-
-The indexing pipeline can use a completely different model from the chatbot, controlled by `INDEXING_*` env vars:
-
-```env
-INDEXING_API_KEY=...           # any API key
-INDEXING_BASE_URL=...          # any OpenAI-compatible base URL
-INDEXING_MODEL=...             # model name
-INDEXING_MODEL_EFFORT=...      # optional reasoning_effort (leave blank for non-reasoning models)
-```
-
-If these are not set, the indexing pipeline falls back to `getFastProvider()` (same as chatbot fast calls). This is useful when the chatbot uses a strong reasoning model but indexing should use a faster/cheaper model.
+Manage your data hierarchically in the Admin Panel:
+*   **Silos:** Independent knowledge spaces (e.g., `vmg_docs_hr`).
+*   **Folders:** Organize files within a silo (e.g., `/2025/tuition-fees`).
+*   **Files:** Support for `.pdf`, `.md`, and `.txt`.
 
 ---
 
 ## Environment Variables
 
-Local env files are managed via Vercel CLI — **never hand-edit** the pulled files.
-
-```powershell
-# Pull all three environments at once
-vercel env pull .env.local --environment development
-vercel env pull .env.staging.local --environment preview
-vercel env pull .env.production.local --environment production
-```
-
-Full variable reference:
+Required variables for Vercel and local development:
 
 ```env
-# ── POE ───────────────────────────────────────────────────────────────────────
-POE_API_KEY=...                          # required
-POE_BOT_NAME=grok-4.1-fast-non-reasoning
-POE_REASONING_MODEL=grok-4.1-fast-reasoning
+# ── LLM Configuration ────────────────────────────────────────────────────────
+LLM_PROVIDER=inception                   # 'poe' | 'inception'
+POE_API_KEY=...
+INCEPTION_API_KEY=...
 
-# ── LLM Provider selector ────────────────────────────────────────────────────
-LLM_PROVIDER=inception                   # 'poe' | 'inception' — controls all 3 pipeline phases
-
-# ── Inception Labs ────────────────────────────────────────────────────────────
-INCEPTION_API_KEY=sk_...
-INCEPTION_MODEL=mercury-2
-INCEPTION_MODEL_EFFORT=instant           # instant|low|medium|high
-INCEPTION_REASONING_MODEL=mercury-2
-INCEPTION_REASONING_EFFORT=medium
-
-# ── Indexing overrides (optional) ────────────────────────────────────────────
-INDEXING_API_KEY=...                     # leave blank to use LLM_PROVIDER settings
-INDEXING_BASE_URL=https://api.poe.com/v1
-INDEXING_MODEL=grok-4.1-fast-non-reasoning
-INDEXING_MODEL_EFFORT=                   # blank = no reasoning_effort sent
-
-# ── Qdrant ────────────────────────────────────────────────────────────────────
+# ── Vector Store (Qdrant) ────────────────────────────────────────────────────
 QDRANT_URL=...
 QDRANT_API_KEY=...
-QDRANT_ENV=dev                           # dev | staging | prod
 
-# ── Supabase ─────────────────────────────────────────────────────────────────
+# ── Database & Storage (Supabase) ────────────────────────────────────────────
+DATABASE_URL=...                         # Postgres connection string
 SUPABASE_URL=...
-SUPABASE_KEY=...
+SUPABASE_KEY=...                         # service_role key for backend
+NEXT_PUBLIC_SUPABASE_URL=...             # public URL for frontend
+NEXT_PUBLIC_SUPABASE_KEY=...             # anon/public key for frontend
 ```
 
 ---
 
-## Multi-Environment Setup
+## Deployment
 
-The project has three fully isolated environments, each with its own Qdrant collection namespace:
-
-| Environment | Git Branch | Vercel Target | `QDRANT_ENV` | Qdrant Prefix | Local File |
-|---|---|---|---|---|---|
-| Development | any (local) | — | `dev` | `dev_` | `.env.local` |
-| Staging | `staging` | Preview | `staging` | `stg_` | `.env.staging.local` |
-| Production | `master` | Production | `prod` | *(none)* | `.env.production.local` |
-
-### Deployment Flow
-```
-feature branch → local test → push to staging → verify on preview URL → merge to master → live
+### 1. Database Setup
+The build process automatically synchronizes the schema:
+```bash
+# Handled automatically on Vercel via 'pnpm build'
+drizzle-kit push --force
 ```
 
-### Vercel Dashboard Settings
-- **Project Settings → Git → Production Branch**: `master`
-- **Environment Variables**: `QDRANT_ENV=prod` (Production), `QDRANT_ENV=staging` (Preview)
+### 2. Storage Setup
+Run the SQL provided in `SUPABASE_STORAGE_SETUP.md` in your Supabase Dashboard to enable large file support.
+
+### 3. Vercel Configuration
+Ensure all environment variables are added to the Vercel Dashboard. **Note:** `NEXT_PUBLIC_` variables are required for the browser to communicate with Supabase Storage.
 
 ---
 
-## Supabase Schema
+## Development
 
-Run once in the Supabase SQL Editor:
-
-```sql
--- Stores every conversation session with location + message history
-create table conversations (
-  id text primary key,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  messages jsonb not null default '[]',
-  location_coords jsonb,       -- { latitude, longitude } from IP lookup
-  location_address text,       -- "City, Region, Country" from ipapi.co
-  message_count int default 0,
-  token_usage jsonb            -- { prompt, completion, total } per final response
-);
-
--- If upgrading an existing database, add the column:
-alter table conversations add column if not exists token_usage jsonb;
-
--- Stores flagged assistant messages reported by staff
-create table reports (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamptz default now(),
-  reported_message text not null,
-  conversation jsonb not null,
-  note text,                   -- "<problem type> — <free text>"
-  status text default 'open',
-  session_id text references conversations(id)
-);
-```
-
----
-
-## Analytics Features
-
-### Conversation Tracking
-- Each page load generates a UUID **session ID** that persists for the session.
-- After every completed assistant response, `POST /api/conversation` upserts the full message history (excluding tool-call system messages) along with location data and token usage.
-- Token usage (`{ prompt, completion, total }`) is extracted from the `__TOKENS__` signal appended to the stream and stored in the `token_usage` jsonb column.
-- Use Supabase Table Editor or SQL to query patterns: busiest hours, common topics, geographic distribution, and token costs.
-
-### Quality Reporting
-- Every assistant message shows a visible **"Báo cáo sai"** flag button below it.
-- Clicking opens a modal where staff select a problem type (chip, required) and optionally add a note.
-- Problem types: content error, theoretically correct but practically wrong, missing info, outdated, irrelevant, wrong numbers/fees, other.
-- Reports are stored in `reports` with a `session_id` foreign key — join with `conversations` to see the full chat context for any flagged answer.
-
-### Location
-- On first load the app silently calls `ipapi.co/json/` — **no browser permission prompt**.
-- Returns approximate `city`, `region`, `country` and stores alongside the session.
-- Falls back gracefully if the request fails (location stored as null).
-
----
-
-## Workflow
-
-### 1. Local Development
-
-```powershell
+```bash
 pnpm install
-pnpm dev   # uses .env.local → QDRANT_ENV=dev → dev_ collections
+pnpm dev
 ```
 
-### 2. Index Knowledge
-
-Only re-indexes files whose content has changed (SHA-256 manifest at `data/.index-manifest.json`).
-
-```powershell
-pnpm index-knowledge             # development (dev_ collections)
-pnpm index-knowledge:staging     # staging (stg_ collections)
-pnpm index-knowledge:prod        # production (no prefix) ⚠️
-```
-
-Flags:
-```powershell
-pnpm index-knowledge --status    # show state of each domain
-pnpm index-knowledge --dry-run   # preview without writing
-pnpm index-knowledge --force     # re-index everything
-```
-
-### 3. Deploy to Staging
-
-```powershell
-git add -A
-git commit -m "feat: my change"
-git push origin master:staging
-# Vercel auto-deploys to preview URL with QDRANT_ENV=staging
-```
-
-### 4. Promote to Production
-
-```powershell
-git push origin master
-# Vercel auto-deploys to vmg-chatbot.vercel.app with QDRANT_ENV=prod
-```
-
-### 5. Sync Env Files After Vercel Dashboard Changes
-
-```powershell
-vercel env pull .env.local --environment development
-vercel env pull .env.staging.local --environment preview
-vercel env pull .env.production.local --environment production
-```
+Admin Access: `/admin` (Password: `ilovevmg`)
 
 ---
-
-## Ingestion Pipeline (Agentic)
-
-Each knowledge source goes through an automated agentic pipeline:
-
-1. **Hierarchical Chunking**: Splits document into logical "Parent" sections (based on headers) and overlapping "Child" chunks for high-precision search.
-2. **Contextual Augmentation**: LLM rewrites chunks to be self-contained and assigns optimized titles for vector retrieval.
-3. **Deep Storage**: Child vectors are stored in Qdrant with full Parent context in the payload, allowing the Agent to retrieve broad context from narrow search hits.
+&copy; 2025 VMG English Center - Internal Knowledge Base

@@ -5,10 +5,11 @@ export interface DocumentEvidence {
   content: string;
   source: string;
   score: number;
+  collection: string;
   parentContent?: string;
 }
 
-const MIN_SCORE = 0.35; // Lowered for better recall in hybrid search
+const MIN_SCORE = 0.45; // Increased to filter noise in Parallel Retrieval mode
 
 /**
  * Enterprise Vector Search Service
@@ -40,6 +41,7 @@ export class VectorSearchService {
         content: String(r.payload.content ?? ''),
         source: String(r.payload.source ?? ''),
         score: r.score,
+        collection: mode,
         parentContent: String(r.payload.parentContent ?? ''),
       }));
   }

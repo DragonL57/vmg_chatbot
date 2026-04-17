@@ -9,49 +9,18 @@ import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages
  * Node 0: Route to correct collections (The "Auto" brain)
  */
 async function routerNode(state: AgentStateType) {
-  const { mode, allCollections, messages } = state;
-  const lastQuery = messages[messages.length - 1].content as string;
+  const { mode, allCollections } = state;
 
-  // If not auto, just use the selected mode directly
-  if (mode !== 'auto') {
+  // If not auto, use the specific silo selected by the user
+  if (mode !== 'auto' && mode !== 'discovery') {
     return { targetCollections: [mode] };
   }
 
-  // AUTO MODE: Use LLM to pick best collections
-  const { client, model, extraBody } = getFastProvider();
+  // AUTO MODE / DISCOVERY: Query ALL silos to ensure maximum coverage
+  // This removes the "Router LLM" cost and prevents routing errors.
+  const allIds = allCollections.map(c => c.qdrantName);
   
-  if (allCollections.length === 0) {
-    return { targetCollections: [] };
-  }
-
-  const colContext = allCollections.map(c => 
-    `- ID: ${c.qdrantName}\n  Name: ${c.name}\n  Desc: ${c.description || 'Chuyên biệt'}`
-  ).join("\n");
-
-  const res = await client.chat.completions.create({
-    model,
-    messages: [
-      { 
-        role: "system", 
-        content: "Bạn là chuyên gia điều hướng dữ liệu. Dựa trên câu hỏi và danh sách các không gian kiến thức, hãy chọn ra những ID không gian phù hợp nhất để tìm câu trả lời. Trả về danh sách ID phân cách bằng dấu phẩy. Nếu không chắc chắn, hãy chọn ID đầu tiên trong danh sách." 
-      },
-      { 
-        role: "user", 
-        content: `Danh sách không gian:\n${colContext}\n\nCâu hỏi: ${lastQuery}` 
-      }
-    ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
-  });
-
-  const selected = (res.choices[0].message.content || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
-
-  // Fallback to first collection if selection failed
-  const finalSelection = selected.length > 0 ? selected : [allCollections[0].qdrantName];
-
-  return { targetCollections: finalSelection };
+  return { targetCollections: allIds };
 }
 
 /**

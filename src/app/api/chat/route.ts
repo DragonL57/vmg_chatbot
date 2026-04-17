@@ -137,6 +137,7 @@ function buildRetrievedContext(evidence: RetrievalEvidence): string {
     lines.push(`  <document index="${i}">`);
     lines.push(`    <title>${doc.title}</title>`);
     lines.push(`    <source>${doc.source}</source>`);
+    lines.push(`    <silo>${doc.collection}</silo>`);
     lines.push(`    <content>${doc.parentContent || doc.content}</content>`);
     lines.push('  </document>');
   });
