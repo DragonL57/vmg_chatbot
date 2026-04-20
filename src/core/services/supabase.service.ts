@@ -61,6 +61,7 @@ export interface KnowledgeFile {
   mode: string;
   folder: string | null;
   progress: number | null;
+  summary: string | null;
   logs: string[] | null;
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -83,6 +84,7 @@ export async function upsertKnowledgeFile(payload: any) {
       mode: payload.mode,
       folder: payload.folder,
       progress: payload.progress,
+      summary: payload.summary,
       logs: payload.logs,
       updatedAt: new Date(),
     })
@@ -94,6 +96,7 @@ export async function upsertKnowledgeFile(payload: any) {
         mode: payload.mode,
         folder: payload.folder,
         progress: payload.progress,
+        summary: payload.summary,
         logs: payload.logs,
         updatedAt: new Date(),
       }

@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { listKnowledgeFiles, updateKnowledgeFileRecord } from '@core/services/supabase.service';
+import { fetchFullFileContent, generateFileSummary, refreshCollectionDescription } from '@core/services/indexing.service';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { id } = await req.json();
+    
+    if (!id) {
+      return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
+    }
+
+    // 1. Get file metadata
+    const files = await listKnowledgeFiles();
+    const file = files.find(f => f.id === id);
+    if (!file) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+
+    console.log(`[Manual Summary] Starting for: ${file.filename}`);
+
+    // 2. Fetch content from Qdrant (Smart Skeleton base)
+    const content = await fetchFullFileContent(file.filename, file.mode);
+    if (!content) {
+      return NextResponse.json({ error: 'Could not retrieve file content from vector store' }, { status: 400 });
+    }
+
+    // 3. Generate summary
+    const tokens = { prompt: 0, completion: 0, total: 0 };
+    const summary = await generateFileSummary(content, tokens);
+
+    // 4. Update database
+    await updateKnowledgeFileRecord(id, { summary });
+
+    // 5. Trigger collection refresh
+    await refreshCollectionDescription(file.mode, tokens);
+
+    return NextResponse.json({ 
+      success: true, 
+      summary,
+      tokens 
+    });
+  } catch (error: any) {
+    console.error('Manual summary error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

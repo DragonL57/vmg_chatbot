@@ -60,15 +60,6 @@ export async function POST(req: Request) {
 
         const evidence = finalState.evidence as RetrievalEvidence;
         const contextSummary = finalState.context_summary as string;
-        const isAmbiguous = finalState.isRelevant === false && !!finalState.clarification_needed;
-
-        // If ambiguous, we don't need a heavy generation, just the clarification
-        if (isAmbiguous) {
-          emit({ type: 'phase', value: 'clarify' });
-          emit({ type: 'content', value: finalState.clarification_needed });
-          controller.close();
-          return;
-        }
 
         let knowledgeBlock = '';
         if (contextSummary) {
@@ -87,13 +78,16 @@ ${AGENT_ORCHESTRATOR_PROMPT(1, 3)}
 
 # STRICT GROUNDING RULE
 - ONLY answer using the # KNOWLEDGE CONTEXT.
-- If information is missing, say: "Xin lỗi, tài liệu hiện tại không đề cập đến thông tin này."
+- If information is missing or incomplete, do NOT just say you don't know. Instead, politely ask the user to provide more specific details or context (e.g., which program, which year, or which department) so you can help them better.
 
 ${MASTER_OUTPUT_CONSTRAINTS}
 
 # KNOWLEDGE CONTEXT
 ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
         `.trim();
+
+        const inputChars = systemPrompt.length + JSON.stringify(recentMessages).length;
+        console.log(`[PAYLOAD] FinalGen     | In: ${inputChars.toLocaleString().padStart(6)} chars | Pending Out...`);
 
         const response = await client.chat.completions.create({
           model,
@@ -105,12 +99,18 @@ ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
           ...(extraBody ? { extra_body: extraBody } : {}),
         });
 
+        let fullContent = '';
         let usage: any = null;
         for await (const chunk of response) {
           const content = chunk.choices[0]?.delta?.content || '';
-          if (content) emit({ type: 'content', value: content });
+          if (content) {
+            fullContent += content;
+            emit({ type: 'content', value: content });
+          }
           if (chunk.usage) usage = chunk.usage;
         }
+
+        console.log(`[PAYLOAD] FinalGen     | Out: ${fullContent.length.toLocaleString().padStart(5)} chars`);
 
         // Emit final tokens if captured
         if (usage) {

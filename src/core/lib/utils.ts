@@ -16,6 +16,14 @@ export function slugify(str: string): string {
     .replace(/\s+/g, '_');
 }
 
+/**
+ * Rough token estimation (1 token ≈ 4 chars or 0.75 words)
+ */
+export function estimateTokens(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
 export function safeJsonParse<T>(str: string): T | null {
   if (!str) return null;
 

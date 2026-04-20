@@ -34,16 +34,25 @@ export class VectorSearchService {
       return [] as SearchResult[];
     });
 
-    return results
-      .filter(r => r.score >= MIN_SCORE)
-      .map(r => ({
-        title: String(r.payload.title ?? ''),
-        content: String(r.payload.content ?? ''),
-        source: String(r.payload.source ?? ''),
-        score: r.score,
-        collection: mode,
-        parentContent: String(r.payload.parentContent ?? ''),
-      }));
+    console.log(`[VectorSearch] "${mode}" Raw Results Count: ${results.length}`);
+    results.forEach((r, i) => {
+      console.log(`  [Hit ${i + 1}] Score: ${r.score.toFixed(4)} | Title: ${r.payload.title}`);
+      if (r.score < MIN_SCORE) {
+        console.log(`    ⚠️  FILTERED: Score ${r.score.toFixed(4)} < MIN_SCORE ${MIN_SCORE}`);
+      }
+    });
+
+    const filtered = results.filter(r => r.score >= MIN_SCORE);
+    console.log(`[VectorSearch] "${mode}" After Filtering: ${filtered.length} docs`);
+
+    return filtered.map(r => ({
+      title: String(r.payload.title ?? ''),
+      content: String(r.payload.content ?? ''),
+      source: String(r.payload.source ?? ''),
+      score: r.score,
+      collection: mode,
+      parentContent: String(r.payload.parentContent ?? ''),
+    }));
   }
 
   /**

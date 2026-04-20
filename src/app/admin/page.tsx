@@ -24,7 +24,8 @@ import {
   LayoutGrid,
   HardDrive,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -263,6 +264,28 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin/collections/${id}`, { method: 'DELETE' });
       if (res.ok) { fetchCollections(); setView('silos'); setActiveSilo(null); }
     } catch (error) { console.error('Delete collection error:', error); }
+  }
+
+  async function handleGenerateSummary(id: string) {
+    try {
+      const res = await fetch(`/api/admin/files/generate-summary`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Đã tạo tóm tắt mới: ${data.summary.slice(0, 100)}...`);
+        fetchFiles();
+        fetchCollections(); // Refresh collection description too
+      } else {
+        const err = await res.json();
+        alert(`Lỗi: ${err.error}`);
+      }
+    } catch (error) {
+      console.error('Manual summary error:', error);
+      alert('Lỗi khi tạo tóm tắt');
+    }
   }
 
   // Filtered lists
@@ -520,17 +543,22 @@ export default function AdminPage() {
                             {filteredFiles.map((file) => (
                               <tr key={file.id} className="group hover:bg-slate-50/80 transition-colors">
                                 <td className="px-8 py-5">
-                                  <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${file.filename.endsWith('.pdf') ? 'bg-rose-50 text-rose-500 border-rose-100' : 'bg-red-50 text-[#D32F2F] border-red-100'} group-hover:scale-105 transition-all`}>
+                                  <div className="flex items-start gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border mt-1 shrink-0 ${file.filename.endsWith('.pdf') ? 'bg-rose-50 text-rose-500 border-rose-100' : 'bg-red-50 text-[#D32F2F] border-red-100'} group-hover:scale-105 transition-all`}>
                                       <FileText className="w-6 h-6" />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       {editingId === file.id && editType === 'file' ? (
                                         <input value={editName} onChange={(e) => setEditingName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-black outline-none focus:ring-2 focus:ring-red-500/20" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleRename(file.id, 'file')} />
                                       ) : (
-                                        <p className="text-sm font-black text-slate-900 truncate">{file.filename}</p>
+                                        <>
+                                          <p className="text-sm font-black text-slate-900 truncate">{file.filename}</p>
+                                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed font-medium italic">
+                                            {file.summary || 'Đang chờ tạo tóm tắt...'}
+                                          </p>
+                                        </>
                                       )}
-                                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{file.status === 'completed' ? 'Indexed' : 'Processing'}</p>
+                                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-2">{file.status === 'completed' ? 'Indexed' : 'Processing'}</p>
                                     </div>
                                   </div>
                                 </td>
@@ -539,6 +567,11 @@ export default function AdminPage() {
                                 </td>
                                 <td className="px-8 py-5 text-right">
                                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                    {file.status === 'completed' && (
+                                      <button onClick={() => handleGenerateSummary(file.id)} title="Tạo tóm tắt mới" className="p-2.5 bg-amber-50 text-amber-500 rounded-xl hover:bg-amber-100 transition-colors">
+                                        <Sparkles className="w-4 h-4" />
+                                      </button>
+                                    )}
                                     {editingId === file.id && editType === 'file' ? (
                                       <button onClick={() => handleRename(file.id, 'file')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors"><CheckCircle2 className="w-4 h-4" /></button>
                                     ) : (

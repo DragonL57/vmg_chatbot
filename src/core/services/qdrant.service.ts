@@ -105,17 +105,26 @@ export async function hybridDocumentSearch(
   collectionName: string,
   topK = 5
 ): Promise<SearchResult[]> {
-  // Dense search (over-fetch for RRF candidate pool)
-  const denseResults = await denseSearch(query, collectionName, topK * 3);
+  // Increase over-fetch to ensure sparse search has enough candidates
+  const candidateLimit = Math.max(topK * 10, 50);
+  console.log(`[HybridSearch] Query: "${query}" | Collection: ${collectionName} | Candidates: ${candidateLimit}`);
+  
+  // Dense search
+  const denseResults = await denseSearch(query, collectionName, candidateLimit);
 
-  // Fetch full text for BM25 (from dense candidates to avoid loading all)
+  // Fetch full text for BM25 from the larger candidate pool
   const bm25Docs = denseResults.map(r => ({
     id: r.id,
-    text: `${r.payload.title ?? ''} ${r.payload.content ?? ''}`,
+    text: `${r.payload.title ?? ''} ${r.payload.content ?? ''} ${r.payload.parentContent ?? ''}`,
   }));
 
   // BM25 search over candidate pool
-  const bm25Results = bm25Search(query, bm25Docs, topK * 3);
+  const bm25Results = bm25Search(query, bm25Docs, candidateLimit);
+  
+  if (bm25Results.length > 0) {
+    console.log(`[HybridSearch] BM25 found ${bm25Results.length} matches in candidate pool.`);
+    console.log(`[HybridSearch] Top BM25: "${denseResults.find(d => d.id === bm25Results[0].id)?.payload.title}" (Score: ${bm25Results[0].score.toFixed(3)})`);
+  }
 
   // Build ranked lists for RRF
   const denseRanked = denseResults.map(r => r.id);
@@ -129,6 +138,7 @@ export async function hybridDocumentSearch(
   const fused = fusedIds
     .map(id => resultMap.get(id))
     .filter((r): r is SearchResult => r !== undefined);
+    
   console.log(`[DB RETRIEVE] Hybrid RRF "${collectionName}" query="${query.slice(0, 60)}" → ${fused.length} results, top score: ${fused[0]?.score.toFixed(3) ?? 'n/a'}`);
   fused.forEach((r, i) => console.log(`  [${i + 1}] score=${r.score.toFixed(3)} title="${String(r.payload.title ?? '').slice(0, 50)}"`));
   return fused;

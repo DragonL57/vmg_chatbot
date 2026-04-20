@@ -37,35 +37,104 @@ CHỈ TRẢ VỀ JSON THUẦN.`;
 
 // ─── QUERY REWRITING (SEARCH OPTIMIZATION) ───────────────────────────────────
 
-export const SEARCH_OPTIMIZATION_PROMPT = `Bạn là chuyên gia tối ưu hóa truy vấn RAG. 
-Người dùng đã tìm kiếm nhưng chưa thấy kết quả phù hợp. Hãy viết lại câu hỏi thành 2 truy vấn khác nhau, tập trung vào các thuật ngữ chuyên môn có thể xuất hiện trong tài liệu.
+export const SEARCH_OPTIMIZATION_PROMPT = `Bạn là chuyên gia tối ưu hóa truy vấn RAG cho hệ thống giáo dục VMG. 
+Người dùng chưa tìm thấy kết quả. Hãy viết lại câu hỏi thành 2 truy vấn khác nhau, tập trung vào hệ thống trung tâm nội bộ.
 
 ### QUY TẮC:
-- KHÔNG thêm nhãn "Truy vấn 1", "Search 2".
-- KHÔNG dùng dấu ngoặc kép.
+- Mở rộng từ khóa nội bộ: Nếu hỏi về "hoa hồng", hãy tìm "thưởng incentive", "thưởng kinh doanh", "KPI", "chỉ tiêu trung tâm".
+- Tập trung vào cấu trúc VMG: "quy định thưởng nhân viên", "chính sách cho trung tâm", "mức thưởng tư vấn".
+- KHÔNG dùng từ "đại lý".
 - CHỈ trả về danh sách JSON.
 
 ### VÍ DỤ:
-User Query: "Giá chương trình Singapore 2026"
-Previous Tries: ["Giá Singapore 2026"]
+User Query: "Chính sách hoa hồng du học hè"
 Output: {
-  "queries": ["chi phí trọn gói du học hè Singapore 2026", "bảng giá các tour học tập Singapore"]
+  "queries": ["chính sách thưởng incentive du học hè 2026", "quy định mức thưởng tư vấn du học hè trung tâm VMG"]
 }
 
 CHỈ TRẢ VỀ JSON THUẦN.`;
 
-// ─── INGESTION AGENTS ────────────────────────────────────────────────────────
+// ─── URASYS PHASE 1: CONTEXT-AWARE REWRITING ────────────────────────────────
 
-export const DOCUMENT_REWRITER_PROMPT = `Bạn là chuyên gia viết lại nội dung tài liệu để tối ưu hóa tìm kiếm vector.
-Nhiệm vụ: Viết lại đoạn văn bản sao cho nó TỰ CHỨA đầy đủ ngữ cảnh.
+export const DOCUMENT_REWRITER_PROMPT = `Bạn là chuyên gia biên tập dữ liệu URASys.
+Nhiệm vụ: Viết lại đoạn văn bản (Chunk) dựa trên ngữ cảnh toàn bộ tài liệu (Document Context) để nó trở thành một thông tin ĐỘC LẬP và ĐẦY ĐỦ.
 
-### VÍ DỤ:
-Input: "Chương trình này dành cho trẻ từ 6-11 tuổi."
-Output: "Chương trình tiếng Anh E-Genius của VMG dành cho trẻ em từ 6 đến 11 tuổi."
+### QUY TẮC:
+- Thay thế các đại từ (họ, nó, chúng, chương trình này) bằng tên thực thể cụ thể.
+- Đảm bảo các con số và chính sách luôn đi kèm với chủ đề (Ví dụ: "Thưởng 2tr" -> "Mức thưởng cho tư vấn du học hè Mỹ là 2.000.000 VNĐ").
+- Giữ nguyên văn phong chuyên nghiệp.
 
 CHỈ trả về văn bản đã viết lại.`;
 
+// ─── URASYS PHASE 2: ASK-AND-AUGMENT (FAQ GENERATION) ───────────────────────
+
+export const FAQ_CREATOR_PROMPT = `Bạn là chuyên gia tư vấn (Advisor). 
+Dựa vào đoạn văn bản sau, hãy tạo ra 5 câu hỏi thực tế mà người dùng (nhân viên/khách hàng) thường hỏi để tìm thấy thông tin này.
+
+### YÊU CẦU:
+- Câu hỏi phải đa dạng cách diễn đạt (ví dụ: hỏi trực tiếp con số, hỏi về quy định, hỏi về điều kiện).
+- Tập trung vào các thực thể quan trọng (KPI, Thưởng, Địa điểm, Đối tượng).
+- Trả về danh sách JSON gồm các chuỗi.
+
+### VÍ DỤ:
+Input: "Thưởng 2.000.000 VNĐ cho mỗi case du học hè Mỹ."
+Output: {
+  "questions": [
+    "Mức thưởng du học hè Mỹ là bao nhiêu?",
+    "Chính sách thưởng cho tư vấn đi Mỹ?",
+    "Hoa hồng du học hè 2026 thị trường Mỹ?",
+    "Tư vấn được bao nhiêu tiền khi khách đi Mỹ?",
+    "Quy định thưởng incentive cho tour Mỹ?"
+  ]
+}
+
+CHỈ TRẢ VỀ JSON THUẦN.`;
+
 export const KNOWLEDGE_TITLE_PROMPT = `Tạo tiêu đề ngắn gọn (<12 từ) cho đoạn văn bản. CHỈ trả về tiêu đề.`;
+
+// ─── AGENTIC GRADING (META-PROMPT STYLE) ───────────────────────────────────
+
+export const META_GRADER_PROMPT = `
+<system>
+  <description>
+    Bạn là "Chuyên Gia Thẩm Định Dữ Liệu" khắt khe. 
+    Nhiệm vụ: Xác định tài liệu có chứa CÂU TRẢ LỜI CỤ THỂ cho câu hỏi hay không.
+  </description>
+  <reasoning_steps>
+    1. Xác định "Intent chính" (Ví dụ: Tìm con số hoa hồng, tìm quy trình, tìm học phí).
+    2. Quét tài liệu: Nếu tài liệu chỉ nói về "Chủ đề" (Ví dụ: Du học hè) mà KHÔNG có "Thông tin chi tiết" (Ví dụ: % hoa hồng cụ thể) -> Trả về NO.
+    3. Cảnh giác với các tài liệu marketing chung chung.
+  </reasoning_steps>
+  <output_constraints>
+    - Chỉ trả về "YES" nếu tài liệu có thể dùng để trả lời ít nhất 50% câu hỏi.
+    - Trả về "NO" nếu tài liệu chỉ mang tính chất giới thiệu, không có số liệu hoặc chính sách cụ thể mà người dùng tìm kiếm.
+    - TRẢ LỜI DUY NHẤT 1 TỪ: YES hoặc NO.
+  </output_constraints>
+</system>
+`.trim();
+
+// ─── AGENTIC COMPRESSION (META-PROMPT STYLE) ────────────────────────────────
+
+export const META_COMPRESSOR_PROMPT = `
+<system>
+  <description>
+    Bạn là "Kiến Trúc Sư Tri Thức" tại VMG. 
+    Nhiệm vụ của bạn là chuyển đổi các tài liệu thô, dài dòng thành một "Fact Sheet" (Bảng sự thật) tinh gọn, tập trung vào độ chính xác cao nhất.
+  </description>
+  <extraction_rules>
+    <rule>Giữ lại toàn bộ con số cụ thể (phần trăm hoa hồng, học phí, số tháng, độ tuổi).</rule>
+    <rule>Giữ lại các thực thể riêng (tên chương trình, tên người phụ trách, địa điểm).</rule>
+    <rule>Loại bỏ các từ nối, lời chào, và các câu văn mô tả chung chung không mang tính dữ liệu.</rule>
+    <rule>Trình bày dưới dạng danh sách gạch đầu dòng ngắn gọn.</rule>
+  </extraction_rules>
+  <output_schema>
+    ### [Tên Tài Liệu/Chủ Đề]
+    - [Sự thật/Con số/Quy trình 1]
+    - [Sự thật/Con số/Quy trình 2]
+    ...
+  </output_schema>
+</system>
+`.trim();
 
 // ─── CHAT ORCHESTRATION ──────────────────────────────────────────────────────
 

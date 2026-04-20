@@ -1,112 +1,94 @@
-# VMG Knowledge Center — Agentic RAG Platform
+# VMG Knowledge Center - Agentic RAG Platform
 
-> **Version: 2.0.0** — Fully Agentic Architecture with Dynamic Knowledge Silos.
+Version: 2.6.0 - Self-Correcting Agentic Architecture with Iterative Routing.
 
-An enterprise-grade internal knowledge chatbot for VMG staff, powered by an **Agentic RAG State Machine** (LangGraph). This system features a professional Admin UI for real-time knowledge management, folder-based organization, and a "Storage-First" ingestion pipeline to handle massive documentation.
-
----
-
-## Key Features
-
-*   **Agentic Reasoning:** Uses LangGraph to orchestrate a multi-stage workflow: Decompose → Parallel Retrieval → Grading → Self-Correction → Context Compression.
-*   **Dynamic Knowledge Silos:** Create, rename, and manage independent knowledge domains (e.g., ESL, Study Abroad, HR) via the Admin UI.
-*   **High-Integrity Retrieval:** Hybrid search (Dense + BM25) with a strict **0.45 score threshold** and full silo traceability.
-*   **Enterprise Ingestion:** Supports PDF, Markdown, and TXT files. Uses Supabase Storage to bypass Vercel's 4.5MB payload limit.
-*   **Real-Time Monitoring:** Live "Research Log" terminal in the Admin panel showing every step of the indexing process.
-*   **ORM Managed:** 100% type-safe database management using **Drizzle ORM**.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Framework** | Next.js 16 (App Router, Turbopack) |
-| **Orchestration** | LangGraph (State Machine) |
-| **Database (SQL)** | Supabase (PostgreSQL) + Drizzle ORM |
-| **Vector DB** | Qdrant Cloud (Hybrid Search + RRF) |
-| **Storage** | Supabase Storage (Storage-First Pipeline) |
-| **LLM Providers** | POE API (Grok 4.1) or Inception Labs (Mercury-2) |
-| **Embeddings** | Server-side Inference (`intfloat/multilingual-e5-small`) |
+An enterprise-grade internal knowledge platform for VMG staff, powered by a LangGraph state machine and a multi-phase ingestion pipeline. The system focuses on high-precision retrieval, cost transparency, and self-healing search strategies for Vietnamese language advisory contexts.
 
 ---
 
 ## Architecture
 
 ### The Agentic Workflow (LangGraph)
-1.  **Understand:** Analyze user intent and decompose complex questions.
-2.  **Retrieve:** Query **all active silos** in parallel for maximum coverage.
-3.  **Grade:** Automatically filter out low-score noise (Threshold: 0.45).
-4.  **Rewrite:** If context is insufficient, the agent reformulates search queries and tries again.
-5.  **Compress:** Extract key facts and figures into a concise Vietnamese summary.
-6.  **Synthesize:** Generate a grounded answer with full source traceability.
 
-### Ingestion Pipeline
-1.  **Direct Upload:** Frontend uploads file to Supabase Storage (Bypasses Vercel limits).
-2.  **Background Processing:** API downloads file and triggers hierarchical chunking.
-3.  **Semantic Enrichment:** LLM rewrites chunks for better searchability and assigns titles.
-4.  **Vector Sync:** Upserts enriched chunks to Qdrant with parent-child context preservation.
+The system utilizes a state machine that can re-evaluate its own decisions if search results are insufficient.
 
----
-
-## Knowledge Organization
-
-Manage your data hierarchically in the Admin Panel:
-*   **Silos:** Independent knowledge spaces (e.g., `vmg_docs_hr`).
-*   **Folders:** Organize files within a silo (e.g., `/2025/tuition-fees`).
-*   **Files:** Support for `.pdf`, `.md`, and `.txt`.
-
----
-
-## Environment Variables
-
-Required variables for Vercel and local development:
-
-```env
-# ── LLM Configuration ────────────────────────────────────────────────────────
-LLM_PROVIDER=inception                   # 'poe' | 'inception'
-POE_API_KEY=...
-INCEPTION_API_KEY=...
-
-# ── Vector Store (Qdrant) ────────────────────────────────────────────────────
-QDRANT_URL=...
-QDRANT_API_KEY=...
-
-# ── Database & Storage (Supabase) ────────────────────────────────────────────
-DATABASE_URL=...                         # Postgres connection string
-SUPABASE_URL=...
-SUPABASE_KEY=...                         # service_role key for backend
-NEXT_PUBLIC_SUPABASE_URL=...             # public URL for frontend
-NEXT_PUBLIC_SUPABASE_KEY=...             # anon/public key for frontend
+```mermaid
+graph TD
+    START((START)) --> Summarizer[Node 1: Summarize History]
+    Summarizer --> RouterExpand[Node 2: Gateway Agent]
+    RouterExpand --> Retriever[Node 3: Parallel Retriever]
+    Retriever --> Grade[Node 4: Meta-Grader]
+    
+    Grade -->|Is Relevant| Compressor[Node 6: Fact Compressor]
+    Grade -->|Not Relevant| Rewriter[Node 5: Search Specialist]
+    
+    Rewriter -->|Iteration < 3| RouterExpand
+    Rewriter -->|Max Retries| Compressor
+    
+    Compressor --> Final[Final Generation]
+    Final --> END((END))
 ```
 
+1.  **Summarize History:** For conversations longer than 4 turns, the system generates a strict summary (under 100 words) to preserve context while minimizing token costs.
+2.  **Gateway Agent (Router + Expand):** A merged node that performs two tasks in a single LLM call:
+    *   **Semantic Routing:** Analyzes user intent against knowledge silo descriptions to select the correct database.
+    *   **Intent Expansion:** Generates 3-4 professional search variations (e.g., mapping "hoa hồng" to "thưởng incentive" or "KPI").
+3.  **Parallel Retriever:** Searches the selected silos using the expanded queries. It performs cross-query deduplication and sorts results by semantic score, pruning the context to the top 5 highest-quality unique documents.
+4.  **Meta-Grader:** Validates retrieved data using an XML-based reasoning schema. It strictly differentiates between "Related Topic" and "Specific Answer." If documents lack the precise information needed, it triggers a search retry.
+5.  **Search Specialist (Rewriter):** If the Grader signals a failure, this node formulates a new search strategy.
+6.  **Iterative Routing (Self-Correction):** Unlike standard RAG, the loop returns to the Gateway Agent. This allows the system to change its mind and search a different knowledge silo if the first choice was incorrect.
+7.  **Fact Compressor:** Extracts technical facts, policies, and numbers into a concise Vietnamese "Fact Sheet" before final synthesis.
+
 ---
 
-## Deployment
+## Ingestion and Maintenance
 
-### 1. Database Setup
-The build process automatically synchronizes the schema:
-```bash
-# Handled automatically on Vercel via 'pnpm build'
-drizzle-kit push --force
-```
+The system implements a high-precision ingestion pipeline based on the URASys (Unified Retrieval Agent-Based System) framework.
 
-### 2. Storage Setup
-Run the SQL provided in `SUPABASE_STORAGE_SETUP.md` in your Supabase Dashboard to enable large file support.
+### Ingestion Phases
 
-### 3. Vercel Configuration
-Ensure all environment variables are added to the Vercel Dashboard. **Note:** `NEXT_PUBLIC_` variables are required for the browser to communicate with Supabase Storage.
+1.  **Hierarchical Semantic Chunking:** Documents are segmented based on Markdown headers (H1-H3). Section context is automatically prepended to every child chunk to ensure searchability.
+2.  **URASys Phase 1 (Context-Aware Rewriting):** Chunks are rewritten by an LLM to be self-contained, replacing vague pronouns with specific entity names based on the full document context.
+3.  **URASys Phase 2 (Ask-and-Augment):** The system predicts 5 potential user questions for every chunk. These intents are baked into the vector payload for "Intent-to-Intent" matching.
+4.  **Smart Skeleton Summarization:** Large documents (hundreds of pages) are summarized by sampling headers and content at 0, 25, 50, 75, and 100 percent marks, creating an architectural map of the file without exceeding token limits.
+5.  **Manual Summary Refresh:** Users can manually trigger a summary regeneration via the "Sparkles" button in the Admin UI. This fetches existing data from Qdrant and updates the file and collection descriptions without re-processing the raw file.
+
+---
+
+## Technical Specifications
+
+### Cost and Performance Tracking
+The system provides full transparency via console payload logging:
+*   **Payload In:** Character count of prompt plus context sent to the LLM.
+*   **Payload Out:** Character count of the LLM response.
+*   **Token Estimation:** Multiply total characters by 0.25 for a reliable token count.
+
+### Tech Stack
+*   **Framework:** Next.js 15 (Turbopack)
+*   **State Machine:** LangGraph.js
+*   **Vector Database:** Qdrant Cloud (Hybrid Search)
+*   **Storage:** Supabase Storage
+*   **ORM:** Drizzle ORM (PostgreSQL)
 
 ---
 
 ## Development
 
 ```bash
+# 1. Install dependencies
 pnpm install
+
+# 2. Synchronize Database Schema
+npx drizzle-kit push --force
+
+# 3. Pull environment variables
+vercel env pull .env.local
+
+# 4. Start development server
 pnpm dev
 ```
 
-Admin Access: `/admin` (Password: `ilovevmg`)
+Admin Access: `/admin` (Default Password: `ilovevmg`)
 
 ---
-&copy; 2025 VMG English Center - Internal Knowledge Base
+Copyright 2026 VMG English Center - Internal Knowledge Base

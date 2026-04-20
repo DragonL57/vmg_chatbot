@@ -9,6 +9,7 @@ export const knowledgeFiles = pgTable("knowledge_files", {
   mode: text("mode").notNull(),
   folder: text("folder").default("root"),
   progress: integer("progress").default(0),
+  summary: text("summary"),
   logs: jsonb("logs").default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
