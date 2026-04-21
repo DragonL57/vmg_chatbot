@@ -1,6 +1,6 @@
 import { db } from '../db';
-import { conversations, knowledgeFiles, knowledgeCollections } from '../db/schema';
-import { eq, desc, asc } from 'drizzle-orm';
+import { conversations, knowledgeFiles, knowledgeCollections, reports } from '../db/schema';
+import { eq, desc, asc, sql } from 'drizzle-orm';
 
 export interface TokenUsage {
   prompt_tokens: number;
@@ -68,9 +68,12 @@ export interface KnowledgeFile {
 }
 
 export async function listKnowledgeFiles(): Promise<KnowledgeFile[]> {
-  return await db.query.knowledgeFiles.findMany({
-    orderBy: [desc(knowledgeFiles.createdAt)]
-  }) as KnowledgeFile[];
+  try {
+    return await db.select().from(knowledgeFiles).orderBy(desc(knowledgeFiles.createdAt)) as KnowledgeFile[];
+  } catch (error) {
+    console.error('[SupabaseService] listKnowledgeFiles error:', error);
+    throw error;
+  }
 }
 
 export async function upsertKnowledgeFile(payload: any) {
@@ -119,9 +122,14 @@ export interface KnowledgeCollection {
 }
 
 export async function listCollections(): Promise<KnowledgeCollection[]> {
-  return await db.query.knowledgeCollections.findMany({
-    orderBy: [asc(knowledgeCollections.createdAt)]
-  }) as KnowledgeCollection[];
+  try {
+    // Connection test
+    await db.execute(sql`SELECT 1`);
+    return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt)) as KnowledgeCollection[];
+  } catch (error) {
+    console.error('[SupabaseService] listCollections error:', error);
+    throw error;
+  }
 }
 
 export async function createCollectionRecord(payload: any) {
@@ -145,6 +153,19 @@ export async function createCollectionRecord(payload: any) {
 
 export async function deleteCollectionRecord(id: string) {
   return await db.delete(knowledgeCollections).where(eq(knowledgeCollections.id, id));
+}
+
+export interface Report {
+  id: string;
+  reportedMessage: string;
+  conversation: any;
+  note: string | null;
+  sessionId: string | null;
+  createdAt: Date | null;
+}
+
+export async function listReports(): Promise<Report[]> {
+  return await db.select().from(reports).orderBy(desc(reports.createdAt)) as Report[];
 }
 
 export async function updateCollectionRecord(id: string, data: Partial<KnowledgeCollection>) {

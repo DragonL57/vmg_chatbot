@@ -1,36 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Notion Primary Palette */
+  --notion-black: rgba(0, 0, 0, 0.95);
+  --notion-white: #ffffff;
+  --vmg-red: #D32F2F; /* Notion Blue equivalent */
+  --vmg-red-active: #B71C1C;
+  
+  /* Warm Neutral Scale */
+  --warm-white: #f6f5f4;
+  --warm-gray-500: #615d59;
+  --warm-gray-300: #a39e98;
+  
+  /* Semantic */
+  --notion-green: #1aae39;
+  --notion-orange: #dd5b00;
+  --notion-blue: #0075de; /* Used for links specifically */
+
+  /* The "Whisper" Border */
+  --whisper-border: 1px solid rgba(0, 0, 0, 0.1);
+
+  /* Notion Shadow Stack (4-layer cumulative opacity < 0.05) */
+  --shadow-notion: rgba(0, 0, 0, 0.04) 0px 4px 18px, 
+                   rgba(0, 0, 0, 0.027) 0px 2.025px 7.84688px, 
+                   rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px, 
+                   rgba(0, 0, 0, 0.01) 0px 0.175px 1.04062px;
 }
 
-html,
-body {
+html, body {
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  overscroll-behavior: none; /* Prevents bounce scroll */
+  overscroll-behavior: none;
+  background-color: var(--notion-white);
+  color: var(--notion-black);
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: white;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  font-family: "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
 }
 
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%) skewX(-20deg);
-  }
-  100% {
-    transform: translateX(200%) skewX(-20deg);
-  }
+/* Notion Components */
+.notion-card {
+  background: var(--notion-white);
+  border: var(--whisper-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-notion);
+  transition: transform 0.1s ease-in-out;
 }
 
-.animate-shimmer {
-  animation: shimmer 2s infinite;
+.notion-btn-primary {
+  background-color: var(--vmg-red);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px; /* Notion uses 4px for functional UI */
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.1s;
 }
+
+.notion-btn-primary:active {
+  transform: scale(0.96);
+  background-color: var(--vmg-red-active);
+}
+
+.notion-input {
+  border: 1px solid #dddddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 15px;
+  transition: border-color 0.1s;
+}
+
+.notion-input:focus {
+  border-color: var(--vmg-red);
+  outline: none;
+}
+
+/* Typography Scaling */
+.display-hero {
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }

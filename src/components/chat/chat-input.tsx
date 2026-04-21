@@ -1,5 +1,5 @@
 import React, { KeyboardEvent, useRef, useEffect } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { ArrowUp, Plus } from 'lucide-react';
 
 interface ChatInputProps {
   input: string;
@@ -8,17 +8,13 @@ interface ChatInputProps {
   isLoading: boolean;
 }
 
-/**
- * Input component for the chat interface.
- */
 export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, handleSubmit, isLoading }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-expand textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
     }
   }, [input]);
 
@@ -26,40 +22,50 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
     if (e.key === 'Enter' && !e.shiftKey && window.innerWidth >= 768) {
       e.preventDefault();
       const form = e.currentTarget.closest('form');
-      if (form) {
-        form.requestSubmit();
-      }
+      if (form) form.requestSubmit();
     }
   };
 
   return (
-    <div className="p-3 bg-white" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}>
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 max-w-4xl mx-auto">
-        <div className="flex-1 relative bg-slate-100 rounded-2xl border border-slate-200 focus-within:border-[#D32F2F] focus-within:ring-1 focus-within:ring-[#D32F2F] transition-all">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyPress}
-            placeholder="Bạn cần hỗ trợ gì ạ?..."
-            disabled={isLoading}
-            className="w-full max-h-[120px] resize-none bg-transparent py-3 px-4 text-sm focus:outline-none disabled:opacity-50"
-          />
+    <form 
+      onSubmit={handleSubmit} 
+      className="bg-white rounded-[12px] border border-black/[0.1] shadow-notion p-1 flex flex-col gap-1 transition-all focus-within:ring-[3px] focus-within:ring-[#D32F2F]/10 focus-within:border-[#D32F2F]/30"
+    >
+      <div className="flex-1 px-3 py-2">
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyPress}
+          placeholder="Nhập câu hỏi của bạn..."
+          disabled={isLoading}
+          className="w-full max-h-[160px] resize-none bg-transparent py-1 text-[16px] font-normal leading-[1.5] focus:outline-none disabled:opacity-50 placeholder:text-[#a39e98] text-black/90"
+        />
+      </div>
+
+      <div className="flex items-center justify-between px-2 pb-1.5">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="p-1.5 text-black/40 hover:bg-black/5 rounded transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
+
         <button
           type="submit"
           disabled={!input.trim() || isLoading}
-          className="bg-[#D32F2F] text-white rounded-2xl w-11 h-11 flex items-center justify-center shrink-0 hover:bg-[#B71C1C] active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-md shadow-[#D32F2F]/10"
-          title="Gửi"
+          className={`w-7 h-7 flex items-center justify-center rounded-[4px] transition-all ${
+            !input.trim() || isLoading 
+              ? 'text-black/20 bg-black/[0.03]' 
+              : 'text-white bg-[#D32F2F] hover:bg-[#B71C1C] active:scale-95 shadow-sm'
+          }`}
         >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Send className="w-5 h-5" />
-          )}
+          <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
         </button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 };
