@@ -1,4 +1,5 @@
-import { env } from '@/env';
+import { db } from '@/core/db';
+import { reports } from '@/core/db/schema';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
@@ -9,27 +10,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/reports`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': env.SUPABASE_KEY,
-        'Authorization': `Bearer ${env.SUPABASE_KEY}`,
-        'Prefer': 'return=minimal',
-      },
-      body: JSON.stringify({
-        reported_message: reportedMessage,
-        conversation,
-        note: note ?? null,
-        session_id: sessionId ?? null,
-      }),
+    await db.insert(reports).values({
+      reportedMessage,
+      conversation,
+      note: note ?? null,
+      sessionId: sessionId ?? null,
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[Report] Supabase error:', err);
-      return NextResponse.json({ error: 'Failed to save report' }, { status: 500 });
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

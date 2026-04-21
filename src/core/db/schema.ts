@@ -33,3 +33,12 @@ export const conversations = pgTable("conversations", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const reports = pgTable("reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportedMessage: text("reported_message").notNull(),
+  conversation: jsonb("conversation").notNull(),
+  note: text("note"),
+  sessionId: text("session_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});

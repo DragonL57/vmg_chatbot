@@ -14,7 +14,9 @@
     "sync-knowledge": "dotenv -e .env.local --override -- tsx scripts/sync-knowledge.ts",
     "sync-knowledge:staging": "dotenv -e .env.staging.local --override -- tsx scripts/sync-knowledge.ts",
     "sync-knowledge:prod": "dotenv -e .env.production.local --override -- tsx scripts/sync-knowledge.ts",
-    "db:push": "drizzle-kit push --force",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/core/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "seed": "dotenv -e .env.local -- tsx scripts/seed.ts"
   },

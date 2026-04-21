@@ -72,17 +72,39 @@ The system provides full transparency via console payload logging:
 
 ---
 
+## Database & Migrations
+
+The project uses **Drizzle ORM** with **PostgreSQL (Supabase)**. We follow a versioned migration workflow to ensure schema consistency across environments.
+
+### Migration Workflow
+
+1.  **Modify Schema:** Update `src/core/db/schema.ts`.
+2.  **Generate Migration:** Create a new SQL migration file in the `drizzle/` folder.
+    ```bash
+    npm run db:generate
+    ```
+3.  **Apply Migration:** Push the changes to your Supabase database.
+    ```bash
+    npm run db:migrate
+    ```
+
+### Other Commands
+*   `npm run db:push`: Directly push schema changes to the database (use for rapid prototyping/local dev ONLY).
+*   `npm run db:studio`: Open Drizzle Studio to browse and edit your data visually.
+
+---
+
 ## Development
 
 ```bash
 # 1. Install dependencies
 pnpm install
 
-# 2. Synchronize Database Schema
-npx drizzle-kit push --force
-
-# 3. Pull environment variables
+# 2. Pull environment variables
 vercel env pull .env.local
+
+# 3. Synchronize Database (Initial setup)
+npm run db:migrate
 
 # 4. Start development server
 pnpm dev
