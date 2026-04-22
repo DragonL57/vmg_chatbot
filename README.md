@@ -84,7 +84,7 @@ Hệ thống ingestion theo chuẩn **Hierarchical Semantic Chunking**:
 ---
 
 ## 🛠️ Tech Stack
-- **Frontend:** Next.js 15, Tailwind CSS 4, Lucide, Sonner.
+- **Frontend:** Next.js 16.2.4, Tailwind CSS 4, Lucide, Sonner.
 - **Agent Core:** LangGraph, LangChain.
 - **AI Models:** Inception Labs (Mercury Series), Poe (Fallback).
 - **Data:** Qdrant, Supabase, Drizzle.

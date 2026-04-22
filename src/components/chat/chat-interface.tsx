@@ -126,7 +126,7 @@ export const ChatInterface: React.FC = () => {
         {/* ZaUI Native Header (44px + Safe Area) */}
         <header 
           className="bg-white shrink-0 z-30 border-b border-black/[0.06] px-4"
-          style={{ paddingTop: 'env(safe-area-inset-top, 24px)' }}
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}
         >
           <div className="h-[44px] flex items-center justify-between">
             <div className="flex items-center gap-3 overflow-hidden">
@@ -166,7 +166,7 @@ export const ChatInterface: React.FC = () => {
         </div>
 
         {/* Focused Input Bar (Tightened & Floating) */}
-        <div className="shrink-0 bg-transparent px-4 md:px-16 lg:px-32 pb-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
+        <div className="shrink-0 bg-transparent px-4 md:px-16 lg:px-32 pb-4" style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom), 0px) + 8px)' }}>
           <div className="max-w-4xl mx-auto">
             <ChatInput
               input={input}

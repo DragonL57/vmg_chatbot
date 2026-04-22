@@ -5,7 +5,7 @@ This document outlines the planned evolution of the VMG Assistant platform, tran
 ## Phase 1: Stability & UI Polish (Current)
 Focus on resolving technical debt and finalizing the Notion-inspired minimalist UI.
 
-- [ ] **Dependency Fix:** Downgrade Next.js from `16.1.1` (unstable/mock) to `15.1.0` and React to `19.0.0`.
+- [x] **Dependency Fix:** Upgrade to Next.js `16.2.4` and React `19.2.5`. (🟢 Done)
 - [ ] **Clean Build:** Perform `node_modules` purge and fresh `pnpm install`.
 - [ ] **UI Audit:** Ensure all components strictly follow the `DESIGN.md` (no all-caps, whisper borders).
 - [ ] **Mobile Optimization:** Double-check the Admin Table responsiveness on small screens.
