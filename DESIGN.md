@@ -32,6 +32,7 @@
   - **Body (Standard):** 16px, Weight 400, Line-height 1.6
   - **UI/Label:** 14px, Weight 500
   - **Caption:** 12px, Weight 500
+- **Constraint:** Do not place logos or icons next to main headings (Display/Heading levels). Keep titles focused on typography to maintain a clean, high-density dashboard look.
 - **Note:** Avoid using uppercase transform or all-caps text for headings, labels, or badges to maintain a natural, approachable tone.
 
 ### Radius

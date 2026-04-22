@@ -19,9 +19,9 @@ export const FileTable: React.FC<FileTableProps> = ({
       <table className="w-full text-left border-collapse">
         <thead className="bg-[#f6f5f4] border-b border-black/[0.08]">
           <tr>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[60%]">Tên tài liệu</th>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[15%] text-center">Trạng thái</th>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[25%] text-right">Thao tác</th>
+            <th className="px-6 py-3 text-[12px] font-bold text-black/40 w-[60%]">Tên tài liệu</th>
+            <th className="hidden sm:table-cell px-6 py-3 text-[12px] font-bold text-black/40 w-[15%] text-center">Trạng thái</th>
+            <th className="px-6 py-3 text-[12px] font-bold text-black/40 w-[25%] text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-black/[0.04]">
@@ -38,7 +38,7 @@ export const FileTable: React.FC<FileTableProps> = ({
                   </div>
                 </Link>
               </td>
-              <td className="px-6 py-4">
+              <td className="hidden sm:table-cell px-6 py-4">
                 <div className="flex items-center justify-center gap-2">
                   <div className={`w-1.5 h-1.5 rounded-full ${file.status === 'completed' ? 'bg-[#1aae39]' : file.status === 'failed' ? 'bg-red-500' : 'bg-amber-400 animate-pulse'}`}></div>
                   <span className="text-[12px] font-medium capitalize text-black/60">{file.status}</span>
@@ -57,7 +57,7 @@ export const FileTable: React.FC<FileTableProps> = ({
                     href={`/admin/silos/${siloId}/files/${file.id}`}
                     className="p-1.5 text-black/30 hover:text-black/80 hover:bg-black/5 rounded flex items-center gap-1"
                   >
-                    <span className="text-[11px] font-bold uppercase">Sửa</span>
+                    <span className="text-[11px] font-bold">Sửa</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>

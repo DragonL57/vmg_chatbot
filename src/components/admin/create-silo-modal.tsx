@@ -21,7 +21,7 @@ export const CreateSiloModal: React.FC<CreateSiloModalProps> = ({
         <p className="text-[#615d59] text-[14px] mb-8">Xây dựng một cơ sở tri thức độc lập cho AI.</p>
         <form onSubmit={onSubmit} className="space-y-6">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-bold text-black/40 uppercase tracking-widest ml-1">Tên hiển thị</label>
+            <label className="text-[12px] font-bold text-black/40 ml-1">Tên hiển thị</label>
             <input 
               type="text" required placeholder="Ví dụ: Quy trình Du học" 
               value={name} onChange={(e) => onNameChange(e.target.value)} 
@@ -29,7 +29,7 @@ export const CreateSiloModal: React.FC<CreateSiloModalProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-bold text-black/40 uppercase tracking-widest ml-1">Mã định danh (Slug)</label>
+            <label className="text-[12px] font-bold text-black/40 ml-1">Mã định danh (Slug)</label>
             <input 
               type="text" placeholder="vmg_edu_silo" 
               value={qName} onChange={(e) => onQNameChange(e.target.value)} 
@@ -37,7 +37,7 @@ export const CreateSiloModal: React.FC<CreateSiloModalProps> = ({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[12px] font-bold text-black/40 uppercase tracking-widest ml-1">Mô tả</label>
+            <label className="text-[12px] font-bold text-black/40 ml-1">Mô tả</label>
             <textarea 
               placeholder="Mô tả ngắn gọn về nội dung..." 
               value={desc} onChange={(e) => onDescChange(e.target.value)} 

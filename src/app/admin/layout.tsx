@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminLogin } from '@/components/admin/admin-login';
 import { usePathname } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function AdminLayout({
   children,
@@ -25,8 +26,9 @@ export default function AdminLayout({
     if (password === 'ilovevmg') {
       setIsAuthenticated(true);
       localStorage.setItem('vmg_admin_auth', 'true');
+      toast.success('Đăng nhập thành công');
     } else {
-      alert('Sai mật khẩu!');
+      toast.error('Sai mật khẩu!');
     }
   }
 

@@ -39,8 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Profile/Branding Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-6 h-6 flex items-center justify-center shrink-0 grayscale group-hover:grayscale-0 transition-all">
-              <Image src="/apple-icon.svg" alt="VMG" width={18} height={18} />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-all">
+              <Image src="/apple-icon.svg" alt="VMG" width={32} height={32} />
             </div>
             <h2 className="text-[14px] font-bold text-black/80 truncate">Kho tri thức VMG</h2>
           </Link>
@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </nav>
 
           <div>
-             <p className="px-3 text-[11px] font-bold text-black/30 uppercase tracking-widest mb-2">Hệ thống</p>
+             <p className="px-3 text-[11px] font-bold text-black/30 mb-2">Hệ thống</p>
              <Link
                 href="/admin"
                 onClick={() => onClose()}

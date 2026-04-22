@@ -11,6 +11,7 @@ import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Menu, Settings2, Info, LayoutGrid } from 'lucide-react';
 import { LocationData } from './location-modal';
 import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { toast } from 'sonner';
 
 export const ChatInterface: React.FC = () => {
   useViewportHeight();
@@ -106,7 +107,7 @@ export const ChatInterface: React.FC = () => {
         }
       }
     } catch (error) {
-      alert('Lỗi kết nối với máy chủ trợ lý.');
+      toast.error('Lỗi kết nối với máy chủ trợ lý.');
     } finally {
       setIsLoading(false);
       setLoadingPhase('');
@@ -130,8 +131,8 @@ export const ChatInterface: React.FC = () => {
                 <Menu className="w-4 h-4" />
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 grayscale opacity-60">
-                  <Image src="/apple-icon.svg" alt="VMG" width={16} height={16} />
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} />
                 </div>
                 <h1 className="text-[14px] font-semibold text-black/80 truncate">Trợ lý ảo Wiki VMG</h1>
               </div>

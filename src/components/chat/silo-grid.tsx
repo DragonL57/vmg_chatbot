@@ -25,7 +25,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
   return (
     <div className="space-y-6 pt-6 border-t border-black/[0.05]">
       <div className="flex items-center justify-between">
-        <h2 className="text-[14px] font-bold text-black/40 uppercase tracking-widest px-1">Không gian tri thức</h2>
+        <h2 className="text-[14px] font-bold text-black/40 px-1">Không gian tri thức</h2>
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/30" />
           <input 
@@ -56,7 +56,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
             </div>
             {currentMode === 'auto' && (
               <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center">
-                ĐANG HOẠT ĐỘNG <ArrowRight className="ml-1 w-3 h-3" />
+                Đang hoạt động <ArrowRight className="ml-1 w-3 h-3" />
               </div>
             )}
           </button>
@@ -81,7 +81,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
             </div>
             {currentMode === col.qdrantName && (
               <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center">
-                ĐANG HOẠT ĐỘNG <ArrowRight className="ml-1 w-3 h-3" />
+                Đang hoạt động <ArrowRight className="ml-1 w-3 h-3" />
               </div>
             )}
           </button>
