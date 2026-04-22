@@ -1,116 +1,109 @@
-# VMG Knowledge Center - Agentic RAG Platform
+# VMG MATE - Multi-Agent Tooling Ecosystem
 
-Version: 2.6.0 - Self-Correcting Agentic Architecture with Iterative Routing.
+**Version: 3.0.0** — Hệ sinh thái cộng tác thông minh dựa trên Agentic RAG và Multi-Agent Orchestration.
 
-An enterprise-grade internal knowledge platform for VMG staff, powered by a LangGraph state machine and a multi-phase ingestion pipeline. The system focuses on high-precision retrieval, cost transparency, and self-healing search strategies for Vietnamese language advisory contexts.
+## 🌟 Tầm nhìn "Mate Vibe"
+**VMG MATE** (Multi-Agent Tooling Ecosystem) là một "người bạn" (Mate) trí tuệ, được thiết kế để đồng hành và cộng tác trực tiếp với nhân viên VMG trong việc quản lý tri thức và thực thi dự án.
 
 ---
 
-## Architecture
+## 🏗️ Kiến trúc hệ thống (System Architecture)
 
-### The Agentic Workflow (LangGraph)
-
-The system utilizes a state machine that can re-evaluate its own decisions if search results are insufficient.
+### 1. Luồng tư duy Agentic (Thinking Flow)
+MATE sử dụng LangGraph để điều phối một đồ thị trạng thái tuần hoàn, cho phép AI tự sửa lỗi và tối ưu câu trả lời thông qua các bước suy luận chuyên sâu.
 
 ```mermaid
 graph TD
-    START((START)) --> Summarizer[Node 1: Summarize History]
-    Summarizer --> RouterExpand[Node 2: Gateway Agent]
-    RouterExpand --> Retriever[Node 3: Parallel Retriever]
-    Retriever --> Grade[Node 4: Meta-Grader]
+    User([Người dùng đặt câu hỏi]) --> Router{Router Agent}
     
-    Grade -->|Is Relevant| Compressor[Node 6: Fact Compressor]
-    Grade -->|Not Relevant| Rewriter[Node 5: Search Specialist]
+    Router -- Yêu cầu đơn giản --> Generator[Generator Agent]
+    Router -- Cần tri thức nội bộ --> Summarizer[Context Summarizer]
     
-    Rewriter -->|Iteration < 3| RouterExpand
-    Rewriter -->|Max Retries| Compressor
+    Summarizer --> Retriever[Multi-Silo Retriever]
+    Retriever --> Qdrant[(Qdrant Vector DB)]
+    Qdrant --> Retriever
     
-    Compressor --> Final[Final Generation]
-    Final --> END((END))
+    Retriever --> Grader{Quality Grader}
+    
+    Grader -- Tri thức không phù hợp --> Router
+    Grader -- Tri thức chính xác --> Generator
+    
+    Generator --> Safety{Safety Guardrails}
+    Safety -- Vi phạm chính sách --> Warning[Cảnh báo An toàn]
+    Safety -- An toàn --> Final[Câu trả lời cuối cùng]
+    
+    Final --> User
 ```
 
-1.  **Summarize History:** For conversations longer than 4 turns, the system generates a strict summary (under 100 words) to preserve context while minimizing token costs.
-2.  **Gateway Agent (Router + Expand):** A merged node that performs two tasks in a single LLM call:
-    *   **Semantic Routing:** Analyzes user intent against knowledge silo descriptions to select the correct database.
-    *   **Intent Expansion:** Generates 3-4 professional search variations (e.g., mapping "hoa hồng" to "thưởng incentive" or "KPI").
-3.  **Parallel Retriever:** Searches the selected silos using the expanded queries. It performs cross-query deduplication and sorts results by semantic score, pruning the context to the top 5 highest-quality unique documents.
-4.  **Meta-Grader:** Validates retrieved data using an XML-based reasoning schema. It strictly differentiates between "Related Topic" and "Specific Answer." If documents lack the precise information needed, it triggers a search retry.
-5.  **Search Specialist (Rewriter):** If the Grader signals a failure, this node formulates a new search strategy.
-6.  **Iterative Routing (Self-Correction):** Unlike standard RAG, the loop returns to the Gateway Agent. This allows the system to change its mind and search a different knowledge silo if the first choice was incorrect.
-7.  **Fact Compressor:** Extracts technical facts, policies, and numbers into a concise Vietnamese "Fact Sheet" before final synthesis.
+### 2. Sơ đồ thực thi hệ thống (System Stack)
+Mô hình kết nối giữa các lớp ứng dụng và cơ sở dữ liệu.
+
+```mermaid
+flowchart LR
+    subgraph Frontend [Next.js App]
+        UI[Modular React UI]
+        State[Chat State Management]
+    end
+
+    subgraph Backend [Edge Functions / API]
+        LG[LangGraph Engine]
+        IL[Inception Labs AI - Mercury Models]
+    end
+
+    subgraph Storage [Data Layer]
+        Supabase[(PostgreSQL - Supabase)]
+        Qdrant[(Vector DB - Qdrant)]
+    end
+
+    UI <--> Backend
+    LG <--> IL
+    LG <--> Supabase
+    LG <--> Qdrant
+```
 
 ---
 
-## Ingestion and Maintenance
+## 🏗️ Chi tiết kỹ thuật
 
-The system implements a high-precision ingestion pipeline based on the URASys (Unified Retrieval Agent-Based System) framework.
+### 1. Agentic Workflow (LangGraph)
+- **Router:** Phân tích intent và điều hướng kỹ năng.
+- **Inception Labs Engine:** Sử dụng các model **Mercury** tiên tiến cho khả năng suy luận (Reasoning) phức tạp và lập kế hoạch.
+- **Retriever:** Truy xuất đa không gian (Multi-Silo) song song.
+- **Grader:** Ngăn chặn ảo giác (Hallucination) bằng cách kiểm định tài liệu từ Qdrant.
 
-### Ingestion Phases
+### 2. Công nghệ lưu trữ (Storage & RAG)
+- **Vector DB:** Qdrant (Metadata filtering, High-speed search).
+- **ORM:** Drizzle ORM (Type-safe migrations & queries).
+- **Database:** Supabase (Conversation history, Silo Management).
 
-1.  **Hierarchical Semantic Chunking:** Documents are segmented based on Markdown headers (H1-H3). Section context is automatically prepended to every child chunk to ensure searchability.
-2.  **URASys Phase 1 (Context-Aware Rewriting):** Chunks are rewritten by an LLM to be self-contained, replacing vague pronouns with specific entity names based on the full document context.
-3.  **URASys Phase 2 (Ask-and-Augment):** The system predicts 5 potential user questions for every chunk. These intents are baked into the vector payload for "Intent-to-Intent" matching.
-4.  **Smart Skeleton Summarization:** Large documents (hundreds of pages) are summarized by sampling headers and content at 0, 25, 50, 75, and 100 percent marks, creating an architectural map of the file without exceeding token limits.
-5.  **Manual Summary Refresh:** Users can manually trigger a summary regeneration via the "Sparkles" button in the Admin UI. This fetches existing data from Qdrant and updates the file and collection descriptions without re-processing the raw file.
-
----
-
-## Technical Specifications
-
-### Cost and Performance Tracking
-The system provides full transparency via console payload logging:
-*   **Payload In:** Character count of prompt plus context sent to the LLM.
-*   **Payload Out:** Character count of the LLM response.
-*   **Token Estimation:** Multiply total characters by 0.25 for a reliable token count.
-
-### Tech Stack
-*   **Framework:** Next.js 15 (Turbopack)
-*   **State Machine:** LangGraph.js
-*   **Vector Database:** Qdrant Cloud (Hybrid Search)
-*   **Storage:** Supabase Storage
-*   **ORM:** Drizzle ORM (PostgreSQL)
+### 3. Pipeline xử lý dữ liệu (URASys)
+Hệ thống ingestion theo chuẩn **Hierarchical Semantic Chunking**:
+- **Semantic Splitting:** Chia nhỏ tài liệu theo ngữ nghĩa thay vì số ký tự.
+- **Auto-Summarization:** Sử dụng LLM nén tri thức ngay khi upload để tối ưu hóa quá trình định tuyến của Agent.
 
 ---
 
-## Database & Migrations
-
-The project uses **Drizzle ORM** with **PostgreSQL (Supabase)**. We follow a versioned migration workflow to ensure schema consistency across environments.
-
-### Migration Workflow
-
-1.  **Modify Schema:** Update `src/core/db/schema.ts`.
-2.  **Generate Migration:** Create a new SQL migration file in the `drizzle/` folder.
-    ```bash
-    npm run db:generate
-    ```
-3.  **Apply Migration:** Push the changes to your Supabase database.
-    ```bash
-    npm run db:migrate
-    ```
-
-### Other Commands
-*   `npm run db:push`: Directly push schema changes to the database (use for rapid prototyping/local dev ONLY).
-*   `npm run db:studio`: Open Drizzle Studio to browse and edit your data visually.
+## 🛠️ Tech Stack
+- **Frontend:** Next.js 15, Tailwind CSS 4, Lucide, Sonner.
+- **Agent Core:** LangGraph, LangChain.
+- **AI Models:** Inception Labs (Mercury Series), Poe (Fallback).
+- **Data:** Qdrant, Supabase, Drizzle.
 
 ---
 
-## Development
+## 🚀 Quy trình phát triển (Development)
 
+### Cài đặt
 ```bash
-# 1. Install dependencies
 pnpm install
-
-# 2. Pull environment variables
-vercel env pull .env.local
-
-# 3. Synchronize Database (Initial setup)
 npm run db:migrate
-
-# 4. Start development server
 pnpm dev
 ```
 
-Admin Access: `/admin` (Default Password: `ilovevmg`)
+### Quản lý Database
+- `npm run db:generate`: Tạo migration.
+- `npm run db:migrate`: Áp dụng thay đổi.
 
 ---
-Copyright 2026 VMG English Center - Internal Knowledge Base
+**VMG MATE** — *Your Intelligent Partner for a Smarter Workspace.*
+Copyright 2026 VMG English Center.

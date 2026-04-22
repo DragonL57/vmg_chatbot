@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  /* Next.js 16: React Compiler is standard, experimental flag no longer needed */
   // Include data/knowledge files in the serverless function bundle for Vercel
   outputFileTracingIncludes: {
     '/api/chat': ['./data/knowledge/**/*'],

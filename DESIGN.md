@@ -1,76 +1,66 @@
-# VMG Knowledge Base Design System (Notion-Inspired)
+# VMG MATE Design System
+*Multi-Agent Tooling Ecosystem — The Intelligent Workspace Companion.*
 
 ## # Principles
-- **Approachable Minimalism:** The UI should feel like quality paper—tactile and approachable, not sterile or glassy.
-- **Utility Over Marketing:** This is a professional tool. Avoid giant hero sections or excessive whitespace; prioritize information density and task completion.
-- **Whisper-Thin Division:** Structure is created through ultra-thin borders and multi-layered, low-opacity shadows rather than heavy lines or solid color blocks.
-- **Warm Neutrality:** Use warm grays with yellow-brown undertones (#f6f5f4) to soften the experience compared to cold blue-grays.
-- **Singular Brand Accent:** VMG Red (#D32F2F) is the *only* saturated brand color, used surgically for primary actions, active states, and focus indicators.
+- **The "Mate" Vibe:** The UI must feel like a professional partner (Ally/Mate). Approachable, high-integrity, and highly productive.
+- **Approachable Minimalism:** Inspired by Notion, the UI should feel like quality paper—tactile and focused, avoiding sterile "glassy" effects.
+- **Whisper-Thin Division:** Structure is created through ultra-thin borders (`1px solid rgba(0,0,0,0.08)`) and multi-layered, low-opacity shadows.
+- **Utility-First Dashboard:** Prioritize information density. Every screen is a workspace, not a marketing landing page.
+- **8px Grid & Touch-First:** All spacing follows an 8px scale. Minimum touch targets are 44px (ZaUI standard).
 
 ---
 
-## # Tokens
+## # Tokens (Exact Measurements)
 
-### Colors
-- **Text (Primary):** `rgba(0, 0, 0, 0.95)` (Softened near-black for long-form reading)
-- **Text (Secondary):** `#615d59` (Warm gray for descriptions and metadata)
-- **Text (Muted):** `#a39e98` (Placeholders and disabled states)
-- **Background (Canvas):** `#ffffff` (Pure white)
-- **Background (Surface):** `#f6f5f4` (Warm white for alternating sections/sidebars)
-- **Primary Accent:** `#D32F2F` (VMG Red)
-- **Primary Active:** `#B71C1C` (Deep Red)
-- **Border (Whisper):** `1px solid rgba(0, 0, 0, 0.1)`
-- **Success:** `#1aae39`
-- **Warning/Error:** `#EF3E36`
+### Colors (VMG Red x Warm Neutrals)
+- **Primary:** `#D32F2F` (VMG Red) - Used surgically for CTAs, active states, and focus.
+- **Text (Primary):** `rgba(0, 0, 0, 0.95)` - Softened near-black for long-form readability.
+- **Text (Secondary):** `#615d59` - Warm gray for metadata and descriptions.
+- **Background (Canvas):** `#ffffff` - Pure white.
+- **Background (Surface):** `#f6f5f4` - Warm white for Sidebar, Hub sections, and Agent cards.
+- **Whisper Border:** `1px solid rgba(0, 0, 0, 0.08)`.
 
-### Typography
-- **Font Family:** `Inter`, System-UI
-- **Weights:** 400 (Body), 500 (Medium/UI), 600 (Semibold), 700 (Bold/Headings)
-- **Scaling:**
-  - **Display:** 32px-48px, Weight 700, Letter-spacing -0.035em
-  - **Heading:** 20px-24px, Weight 700, Letter-spacing -0.02em
-  - **Body (Standard):** 16px, Weight 400, Line-height 1.6
-  - **UI/Label:** 14px, Weight 500
-  - **Caption:** 12px, Weight 500
-- **Constraint:** Do not place logos or icons next to main headings (Display/Heading levels). Keep titles focused on typography to maintain a clean, high-density dashboard look.
-- **Note:** Avoid using uppercase transform or all-caps text for headings, labels, or badges to maintain a natural, approachable tone.
+### Typography (ZaUI Scales)
+- **Heading XLarge:** 28px, Weight 700.
+- **Heading Medium:** 20px, Weight 600.
+- **Body Large:** 16px, Weight 400 (Standard chat text).
+- **Body Medium:** 14px, Weight 500 (UI Labels, navigation).
+- **Caption:** 12px, Weight 400 (Timestamps, secondary metadata).
+- **Constraint:** NO ALL-CAPS / UPPERCASE headings or labels. Maintain natural sentence case.
 
-### Radius
-- **Micro (4px):** Buttons, inputs, functional corners of chat bubbles.
-- **Standard (8px):** Internal component blocks, thinking process cards.
-- **Comfortable (12px):** Default cards, input containers.
+### Corner Radius
+- **Micro (4px):** Buttons, functional input elements.
+- **Standard (8px):** Main input bar, internal blocks.
+- **Comfortable (12px):** Default cards, user chat bubbles.
 - **Pill (9999px):** Status badges and tags.
 
-### Shadows (The Notion Stack)
-- **Notion Shadow:** `rgba(0, 0, 0, 0.04) 0px 4px 18px, rgba(0, 0, 0, 0.027) 0px 2.025px 7.84688px, rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px, rgba(0, 0, 0, 0.01) 0px 0.175px 1.04062px`
+### Elevation (Notion Shadow Stack)
+- **Level 1 (Rest):** `rgba(0,0,0,0.04) 0px 4px 18px`
+- **Level 4 (Floating):** `0px 8px 16px rgba(0, 0, 0, 0.12)` (Used for Chat Input bar).
 
 ---
 
 ## # Components
 
-### Buttons
-- **Primary:** Background `var(--vmg-red)`, White text, 4px radius. Scale to 0.96 on click.
-- **Secondary/Ghost:** Background `transparent` or `black 3%`, Near-black text. Underline on hover.
-- **Icon Buttons:** No background by default. 4px-8px padding. Subtle `black 5%` background on hover.
+### Header (Native ZaUI)
+- **Height:** 44px container height + `env(safe-area-inset-top)`.
+- **Branding:** Colorful logo (32x32 sidebar / 24x24 header), no grayscale filters.
 
-### Inputs
-- **Container:** Whisper border, 12px radius, Notion Shadow.
-- **Focus State:** `ring-[3px] ring-[#D32F2F]/10`, border color shift to `[#D32F2F]/30`.
-- **Placeholder:** Warm gray `#a39e98`.
+### Chat Input (Floating Workspace)
+- **Style:** Background white, 8px radius, Level 4 Shadow.
+- **Layout:** Centered max-width 4xl, transparent outer container.
+- **Disclaimer:** Shortened text: "Kiểm tra lại thông tin, MATE có thể nhầm lẫn."
 
 ### Chat Bubbles
-- **General:** Asymmetrical rounding. 12px all corners except sender's corner (4px).
-- **Assistant:** White background, Whisper border, Shadow Level 1.
-- **User:** VMG Red background, White text, Shadow Level 1.
-- **Metadata:** 12px font, 30% opacity black (assistant) or 60% opacity white (user).
+- **Assistant:** Full-width plain canvas. NO background, NO border. Sits directly on white background.
+- **User:** VMG Red background, White text, 12px radius (4px at sender's corner).
+- **Alignment:** Text and icons (e.g., Report button) must align to the same left margin as the message content.
 
-### Cards (Silos/Knowledge)
-- Background: White.
-- Border: Whisper border.
-- Hover: Subtle shadow intensification + border color shift to Brand Red 20% opacity.
-- Header icons: Floating (no background), Brand Red or Neutral 40% based on active state.
+### Admin Dashboard (Table-Based)
+- **Navigation:** Nested paths (`/admin/silos/[id]/files/[fileId]`).
+- **Editing:** Inline editable headers for names/descriptions. NO modal popups for simple metadata.
+- **Responsiveness:** Hide secondary columns (`sm:table-cell`) to prevent horizontal scrolling.
 
-### Layout
-- **Sidebar:** Width 240px, Background `#f6f5f4`, Whisper border-right.
-- **Header:** Height 45px, Minimalist, Breadcrumb-style title navigation.
-- **Content:** Pure white canvas, center-aligned max-width 4xl to 5xl for readability.
+### Agentic Thinking (Progressive Disclosure)
+- **Closed State:** Horizontal pill with pulsing red dot and active phase label.
+- **Open State:** Click to expand vertical reasoning chain with thin connector lines.
