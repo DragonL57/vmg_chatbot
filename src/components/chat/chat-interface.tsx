@@ -126,7 +126,7 @@ export const ChatInterface: React.FC = () => {
         {/* ZaUI Native Header (44px + Safe Area) */}
         <header 
           className="bg-white shrink-0 z-30 border-b border-black/[0.06] px-4"
-          style={{ paddingTop: 'max(env(safe-area-inset-top), 24px)' }}
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
           <div className="h-[44px] flex items-center justify-between">
             <div className="flex items-center gap-3 overflow-hidden">
@@ -135,11 +135,12 @@ export const ChatInterface: React.FC = () => {
               </button>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} />
+                  <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} style={{ height: 'auto' }} />
                 </div>
                 <h1 className="text-[17px] font-semibold text-black/80 truncate">VMG MATE</h1>
               </div>
             </div>
+
             <div className="flex items-center gap-1">
               <button className="h-8 px-3 text-[13px] font-medium text-black/50 hover:bg-black/5 rounded transition-all flex items-center gap-1.5">
                 <LayoutGrid className="w-4 h-4" strokeWidth={1.5} /> Không gian
