@@ -19,9 +19,9 @@ export default function MainLayout({
       <main className="flex-1 flex flex-col min-w-0 md:ml-[240px] relative h-full min-h-0">
         <Suspense fallback={<div className="flex-1 bg-white animate-pulse" />}>
           {React.Children.map(children, child => {
-            if (React.isValidElement(child)) {
+            if (React.isValidElement(child) && typeof child.type !== 'string') {
               return React.cloneElement(child as React.ReactElement<any>, { 
-                onToggleSidebar: () => setIsSidebarOpen(!isSidebarOpen) 
+                onToggleSidebar: () => setIsSidebarOpen(prev => !prev) 
               });
             }
             return child;

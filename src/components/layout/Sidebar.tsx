@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, BookOpen, MessageSquareText, Settings, Shield, ChevronRight, LogOut, MessageSquare, MoreVertical, Star, Edit2, Trash2, Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams, useParams } from 'next/navigation';
 import { supabase } from '@/core/lib/supabase';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
@@ -72,7 +72,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentSessionId = searchParams.get('session');
+  const params = useParams();
+  
+  // Clean up currentSessionId logic: Path param first, then query param
+  const currentSessionId = (params?.id as string) || searchParams.get('session');
   
   const [user, setUser] = useState<any>(null);
   const [history, setHistory] = useState<ChatHistory[]>([]);
@@ -117,8 +120,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   const handleStar = async (id: string, currentlyStarred: boolean) => {
-    const originalHistory = [...history];
-    
     // Optimistic Update
     setHistory(prev => {
       const updated = prev.map(item => 
@@ -142,15 +143,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       fetchHistory(true);
     } catch (e) { 
       toast.error('Lỗi khi đánh dấu sao'); 
-      setHistory(originalHistory);
+      // Granular Rollback
+      setHistory(prev => {
+        const reverted = prev.map(item => 
+          item.id === id ? { ...item, isStarred: currentlyStarred ? 1 : 0 } : item
+        );
+        return reverted.sort((a, b) => {
+          if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xóa cuộc hội thoại này?')) return;
     
-    const originalHistory = [...history];
-    
+    const itemToDelete = history.find(h => h.id === id);
+    if (!itemToDelete) return;
+
     // Optimistic Update
     setHistory(prev => prev.filter(item => item.id !== id));
     if (currentSessionId === id) router.push('/');
@@ -161,7 +172,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       toast.success('Đã xóa cuộc hội thoại');
     } catch (e) { 
       toast.error('Lỗi khi xóa'); 
-      setHistory(originalHistory);
+      // Granular Rollback: Re-insert the item
+      setHistory(prev => {
+        const restored = [...prev, itemToDelete];
+        return restored.sort((a, b) => {
+          if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      });
       if (currentSessionId === id) router.push(`/chat/${id}`);
     }
   };
@@ -180,9 +198,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    const originalItem = history.find(h => h.id === idToSave);
+    if (!originalItem) return;
+
     setIsRenaming(true);
-    // Optimistic Update: Update the UI immediately
-    const originalHistory = [...history];
+    // Optimistic Update
     setHistory(prev => prev.map(item => item.id === idToSave ? { ...item, title: titleToSave } : item));
     setEditingId(null);
 
@@ -196,7 +216,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       toast.success('Đã đổi tên');
     } catch (e) { 
       toast.error('Lỗi khi đổi tên'); 
-      setHistory(originalHistory); // Rollback on error
+      // Granular Rollback: Revert only the title of the specific item
+      setHistory(prev => prev.map(item => item.id === idToSave ? { ...item, title: originalItem.title } : item));
     } finally {
       setIsRenaming(false);
     }

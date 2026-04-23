@@ -39,6 +39,8 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
   const [phaseDetail, setPhaseDetail] = useState<string>('');
 
+  const sessionFromPath = params?.id as string | undefined;
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -48,8 +50,6 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-    const sessionFromPath = params?.id as string | undefined;
-    
     // Only act if the session in the URL has actually changed from what we last handled
     if (sessionFromPath !== (prevSessionIdRef.current || undefined)) {
       prevSessionIdRef.current = sessionFromPath || null;
@@ -63,14 +63,28 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           lastSavedCountRef.current = 0;
           setChatTitle(undefined);
           fetch(`/api/conversation/${sessionFromPath}`)
-            .then(res => res.json())
+            .then(async (res) => {
+              if (!res.ok) {
+                throw new Error(`Failed to load: ${res.status}`);
+              }
+              const contentType = res.headers.get('content-type');
+              if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Invalid response format');
+              }
+              return res.json();
+            })
             .then(data => {
               if (data.messages) {
                 setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
                 lastSavedCountRef.current = data.messages.length;
               }
             })
-            .catch(() => toast.error('Lỗi khi tải cuộc hội thoại'))
+            .catch((err) => {
+              setMessages([]);
+              setChatTitle(undefined);
+              lastSavedCountRef.current = 0;
+              toast.error(err.message.includes('404') ? 'Không tìm thấy cuộc hội thoại' : 'Lỗi khi tải cuộc hội thoại');
+            })
             .finally(() => setIsHistoryLoading(false));
         }
       } else {
@@ -83,7 +97,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         }
       }
     }
-  }, [params, sessionId, messages.length]);
+  }, [sessionFromPath, sessionId, messages.length]);
 
   useEffect(() => {
     fetch('/api/admin/collections')
