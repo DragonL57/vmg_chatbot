@@ -22,6 +22,10 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   useViewportHeight();
   const params = useParams();
   const router = useRouter();
+  
+  // Initialize sessionId from URL if available, otherwise generate new
+  const [sessionId, setSessionId] = useState<string>(() => (params?.id as string) || uuidv4());
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,8 +36,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const [selectedCollection, setSelectedCollection] = useState('auto');
   const [user, setUser] = useState<any>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
-
-  const [sessionId, setSessionId] = useState<string>(uuidv4());
+  
   const lastSavedCountRef = useRef<number>(0);
   const prevSessionIdRef = useRef<string | null>(null);
   const isNewSessionLocalRef = useRef<boolean>(false);

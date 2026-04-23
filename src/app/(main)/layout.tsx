@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ChatInterface } from '@/components/chat/chat-interface';
 
 export default function MainLayout({
   children,
@@ -17,16 +18,8 @@ export default function MainLayout({
       </Suspense>
       
       <main className="flex-1 flex flex-col min-w-0 md:ml-[240px] relative h-full min-h-0">
-        <Suspense fallback={<div className="flex-1 bg-white animate-pulse" />}>
-          {React.Children.map(children, child => {
-            if (React.isValidElement(child) && typeof child.type !== 'string') {
-              return React.cloneElement(child as React.ReactElement<any>, { 
-                onToggleSidebar: () => setIsSidebarOpen(prev => !prev) 
-              });
-            }
-            return child;
-          })}
-        </Suspense>
+        <ChatInterface onToggleSidebar={() => setIsSidebarOpen(prev => !prev)} />
+        {children}
       </main>
     </div>
   );
