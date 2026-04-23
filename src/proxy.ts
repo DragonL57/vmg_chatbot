@@ -41,14 +41,6 @@ export async function proxy(request: NextRequest) {
 
   const isAuthPage = request.nextUrl.pathname === '/login';
   const isAuthCallback = request.nextUrl.pathname.startsWith('/api/auth');
-  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
-
-  // For internal API routes, we skip the middleware auth check
-  // because the Route Handlers call getUser() themselves. 
-  // This saves 1 network trip per API call.
-  if (isApiRoute && !isAuthCallback) {
-    return response;
-  }
 
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -60,7 +52,8 @@ export async function proxy(request: NextRequest) {
   // 2. Domain Restriction: Only @vmg.edu.vn emails
   if (user && !user.email?.endsWith('@vmg.edu.vn')) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL('/login?error=Only @vmg.edu.vn emails are allowed', request.url));
+    const errorMsg = 'Only @vmg.edu.vn emails are allowed';
+    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(errorMsg)}`, request.url));
   }
 
   // 3. Redirect logged in users away from login page

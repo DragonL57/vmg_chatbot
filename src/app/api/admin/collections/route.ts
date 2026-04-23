@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listCollections, createCollectionRecord } from '@core/services/supabase.service';
 import { qdrantClient, EMBEDDING_DIM } from '@core/lib/qdrant';
+import { createServerSupabase } from '@/core/lib/supabase-server';
+import { isAdmin } from '@/core/services/auth.service';
 
 export async function GET() {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleIsAdmin = await isAdmin(user.id);
+    if (!roleIsAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const collections = await listCollections();
     return NextResponse.json(collections);
   } catch (error) {
@@ -13,6 +27,18 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const roleIsAdmin = await isAdmin(user.id);
+    if (!roleIsAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { name, qdrant_name, description } = await req.json();
 
     if (!name || !qdrant_name) {

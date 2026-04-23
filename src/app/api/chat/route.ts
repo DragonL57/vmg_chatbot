@@ -5,6 +5,7 @@ import { ragGraph } from '@core/agent/rag-graph';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { RetrievalEvidence } from '@core/services/manager.service';
 import { listCollections } from '@core/services/supabase.service';
+import { createServerSupabase } from '@/core/lib/supabase-server';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; 
@@ -18,6 +19,13 @@ export async function POST(req: Request) {
 
   if (!serviceMode) {
     return new Response(JSON.stringify({ error: 'Missing serviceMode' }), { status: 400 });
+  }
+
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
   // Fetch all collections for the router node in Auto Mode
@@ -60,6 +68,7 @@ export async function POST(req: Request) {
 
         const evidence = finalState.evidence as RetrievalEvidence;
         const contextSummary = finalState.context_summary as string;
+        const isChitChat = !!finalState.isChitChat;
 
         let knowledgeBlock = '';
         if (contextSummary) {
@@ -72,7 +81,16 @@ export async function POST(req: Request) {
         emit({ type: 'phase', value: 'generate' });
         const { client, model, extraBody } = getGenerationProvider();
         
-        const systemPrompt = `
+        let systemPrompt = '';
+        if (isChitChat) {
+          systemPrompt = `
+${MASTER_AGENT_IDENTITY}
+Bạn đang trong chế độ "Tán gẫu" (Chit-chat). 
+Hãy phản hồi người dùng một cách thân thiện, tự nhiên và ngắn gọn. 
+KHÔNG cần sử dụng kho tri thức và KHÔNG cần trích dẫn tài liệu trong chế độ này.
+          `.trim();
+        } else {
+          systemPrompt = `
 ${MASTER_AGENT_IDENTITY}
 ${AGENT_ORCHESTRATOR_PROMPT(1, 3)}
 
@@ -84,7 +102,8 @@ ${MASTER_OUTPUT_CONSTRAINTS}
 
 # KNOWLEDGE CONTEXT
 ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
-        `.trim();
+          `.trim();
+        }
 
         const inputChars = systemPrompt.length + JSON.stringify(recentMessages).length;
         console.log(`[PAYLOAD] FinalGen     | In: ${inputChars.toLocaleString().padStart(6)} chars | Pending Out...`);

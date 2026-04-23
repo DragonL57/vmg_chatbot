@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipProps {
@@ -12,6 +12,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
+  const tooltipId = useId();
 
   const updateCoords = () => {
     if (triggerRef.current) {
@@ -41,11 +42,16 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
       ref={triggerRef}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
+      onFocus={() => setIsVisible(true)}
+      onBlur={() => setIsVisible(false)}
       className="inline-flex"
+      aria-describedby={isVisible ? tooltipId : undefined}
     >
       {children}
       {isVisible && typeof document !== 'undefined' && createPortal(
         <div 
+          id={tooltipId}
+          role="tooltip"
           className="fixed z-[9999] px-2 py-1 text-[10px] font-bold text-white bg-black/80 rounded shadow-lg pointer-events-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-100"
           style={{ 
             top: `${coords.top}px`, 

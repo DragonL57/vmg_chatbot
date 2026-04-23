@@ -15,13 +15,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const conversation = await getConversationById(id);
+    const conversation = await getConversationById(id, user.id);
     if (!conversation) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
-
-    // Optional: Check if conversation belongs to user
-    // if (conversation.userId !== ...) { ... }
 
     return NextResponse.json(conversation);
   } catch (error: any) {

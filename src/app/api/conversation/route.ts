@@ -5,7 +5,7 @@ import { createServerSupabase } from '@/core/lib/supabase-server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { sessionId, id, messages, location, tokenUsage } = body;
+    const { sessionId, id, messages, location, tokenUsage, title } = body;
     const finalSessionId = sessionId || id;
 
     if (!finalSessionId || !messages) {
@@ -15,6 +15,10 @@ export async function POST(req: Request) {
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Use IP-provided city/region if available
     let locationAddress: string | null = null;
     if (location?.city) {
@@ -23,7 +27,8 @@ export async function POST(req: Request) {
 
     const payload = {
       id: finalSessionId,
-      userId: user?.id, // Link to supabase user ID (upsertConversation will handle internal mapping)
+      userId: user.id, // Link to supabase user ID (upsertConversation will handle internal mapping)
+      title,
       messages,
       message_count: messages.filter((m: { role: string }) => m.role !== 'system').length,
       updated_at: new Date().toISOString(),

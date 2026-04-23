@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listKnowledgeFiles, updateKnowledgeFileRecord } from '@core/services/supabase.service';
 import { fetchFullFileContent, generateFileSummary, refreshCollectionDescription } from '@core/services/indexing.service';
+import { createServerSupabase } from '@/core/lib/supabase-server';
+import { isAdmin } from '@/core/services/auth.service';
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const isUserAdmin = await isAdmin(user.id);
+    if (!isUserAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await req.json();
     
     if (!id) {

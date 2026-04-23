@@ -38,11 +38,20 @@ export async function upsertConversation(payload: ConversationPayload) {
      if (user) internalUserId = user.id;
   }
 
+  const firstMessageContent = payload.messages[0]?.content || '';
+  const fallbackTitle = firstMessageContent 
+    ? (firstMessageContent.slice(0, 40) + (firstMessageContent.length > 40 ? '...' : ''))
+    : "Cuộc hội thoại mới";
+
+  const finalTitle = payload.title || fallbackTitle;
+
+  // Use a safer upsert: only update if the conversation belongs to the same user
+  // This prevents hijacking of sessions by UUID guessing.
   return await db.insert(conversations)
     .values({
       id: payload.id,
       userId: internalUserId,
-      title: payload.title || (payload.messages[0]?.content?.slice(0, 40) + (payload.messages[0]?.content?.length > 40 ? '...' : '')),
+      title: finalTitle,
       messages: payload.messages,
       locationCoords: payload.location_coords,
       locationAddress: payload.location_address,
@@ -54,19 +63,34 @@ export async function upsertConversation(payload: ConversationPayload) {
       target: conversations.id,
       set: {
         userId: internalUserId,
-        title: payload.title,
+        // Only update the title if a non-empty payload.title was provided,
+        // otherwise preserve the existing title.
+        title: payload.title || undefined, 
         messages: payload.messages,
         locationCoords: payload.location_coords,
         locationAddress: payload.location_address,
         tokenUsage: payload.token_usage,
         messageCount: payload.message_count,
         updatedAt: new Date(payload.updated_at),
-      }
+      },
+      // Drizzle Postgres supports where clause in onConflictDoUpdate
+      where: internalUserId ? eq(conversations.userId, internalUserId) : undefined,
     });
 }
 
-export async function getConversationById(id: string) {
-  const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
+export async function getConversationById(id: string, supabaseId: string) {
+  const [conversation] = await db
+    .select({
+      id: conversations.id,
+      title: conversations.title,
+      messages: conversations.messages,
+      isStarred: conversations.isStarred,
+      userId: conversations.userId,
+    })
+    .from(conversations)
+    .innerJoin(users, eq(conversations.userId, users.id))
+    .where(sql`${conversations.id} = ${id} AND ${users.supabaseId} = ${supabaseId}`);
+  
   return conversation;
 }
 
@@ -85,23 +109,33 @@ export async function listConversationsByUser(supabaseId: string) {
   .orderBy(desc(conversations.isStarred), desc(conversations.updatedAt));
 }
 
-export async function deleteConversation(id: string) {
-  return await db.delete(conversations).where(eq(conversations.id, id));
+export async function deleteConversation(id: string, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
+  return await db.delete(conversations)
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
 }
 
-export async function starConversation(id: string, isStarred: boolean) {
+export async function starConversation(id: string, isStarred: boolean, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
   return await db.update(conversations)
     .set({ 
       isStarred: isStarred ? 1 : 0,
-      updatedAt: new Date() // Refresh recency on star/unstar
+      updatedAt: new Date() 
     })
-    .where(eq(conversations.id, id));
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
 }
 
-export async function renameConversation(id: string, title: string) {
+export async function renameConversation(id: string, title: string, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
   return await db.update(conversations)
     .set({ title })
-    .where(eq(conversations.id, id));
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
 }
 
 export interface KnowledgeFile {

@@ -1,7 +1,6 @@
 import { db } from '../db';
-import { users, userRoleEnum } from '../db/schema';
+import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { supabase } from '../lib/supabase';
 
 export const ALLOWED_DOMAIN = 'vmg.edu.vn';
 

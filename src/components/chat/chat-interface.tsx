@@ -98,30 +98,26 @@ const ChatContent: React.FC = () => {
       })
       .catch(() => {});
   }, []);
-
-  const saveConversation = useCallback(async (msgs: Message[], customTitle?: string, shouldRefreshSidebar: boolean = false) => {
-    if (!user) return;
-    try {
-      await fetch('/api/conversation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: sessionId,
-          userId: user.id,
-          title: customTitle,
-          messages: msgs.filter(m => !m.isToolCall).map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
-          location_coords: location ? { latitude: location.latitude, longitude: location.longitude, accuracy: location.accuracy } : undefined,
-          token_usage: tokenUsageRef.current,
-          message_count: msgs.length,
-          updated_at: new Date().toISOString(),
-        }),
-      });
-      if (shouldRefreshSidebar) {
-        window.dispatchEvent(new CustomEvent('refresh-chat-history'));
-      }
-    } catch (e) {}
-  }, [sessionId, location, user]);
-
+const saveConversation = useCallback(async (msgs: Message[], customTitle?: string, shouldRefreshSidebar: boolean = false) => {
+  if (!user) return;
+  try {
+    await fetch('/api/conversation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: sessionId,
+        userId: user.id,
+        title: customTitle,
+        messages: msgs.filter(m => !m.isToolCall).map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
+        location,
+        tokenUsage: tokenUsageRef.current,
+      }),
+    });
+    if (shouldRefreshSidebar) {
+      window.dispatchEvent(new CustomEvent('refresh-chat-history'));
+    }
+  } catch (e) {}
+}, [sessionId, location, user]);
   const sendMessage = async (content: string) => {
     const userMessage: Message = { id: uuidv4(), role: 'user', content: content.trim(), timestamp: new Date() };
     const updatedMessages = [...messages, userMessage];

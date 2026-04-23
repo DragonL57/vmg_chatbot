@@ -20,7 +20,7 @@ export async function POST(
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    await renameConversation(id, title);
+    await renameConversation(id, title, user.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

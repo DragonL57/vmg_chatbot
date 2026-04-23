@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('[History API] Fetching history for user:', user.email);
+    console.log('[History API] Fetching conversation history');
     const history = await listConversationsByUser(user.id);
     return NextResponse.json(history);
   } catch (error: any) {
