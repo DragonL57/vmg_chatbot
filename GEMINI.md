@@ -51,7 +51,12 @@ The codebase follows strict layer separation:
   ```
 - Functions do one thing: either compute (pure) or perform I/O (impure), never both
 
-### 3. Prefer Centralized Abstractions
+### 3. Optimistic UI First (Responsive Design)
+- **UI State must register immediately**: For interactions like renaming, starring, or deleting, update the local UI state *before* waiting for the database response.
+- **Fail Gracefully**: Implement rollbacks for local state if the asynchronous database update fails.
+- **Goal**: Minimize perceived latency to ensure the "Mate" companion feels instant and reliable.
+
+### 4. Prefer Centralized Abstractions
 - Favor shared utilities in `/shared/` or `/utils/` over hand-rolled helpers in individual files
 - If you detect a pattern repeated 3+ times, extract to shared domain utility
 - Use repository-embedded concurrency helpers rather than importing generic libraries that bypass observability

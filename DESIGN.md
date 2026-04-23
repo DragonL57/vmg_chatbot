@@ -3,10 +3,11 @@
 
 ## # Principles
 - **The "Mate" Vibe:** The UI must feel like a professional partner (Ally/Mate). Approachable, high-integrity, and highly productive.
-- **Approachable Minimalism:** Inspired by Notion, the UI should feel like quality paper—tactile and focused, avoiding sterile "glassy" effects.
-- **Whisper-Thin Division:** Structure is created through ultra-thin borders (`1px solid rgba(0,0,0,0.08)`) and multi-layered, low-opacity shadows.
-- **Utility-First Dashboard:** Prioritize information density. Every screen is a workspace, not a marketing landing page.
-- **8px Grid & Touch-First:** All spacing follows an 8px scale. Minimum touch targets are 44px (ZaUI standard).
+- **Optimistic UI First:** Every user action (Star, Rename, Delete) must reflect in the UI *instantly*. Perceived performance is as important as actual performance.
+- **Approachable Minimalism:** Inspired by Notion, the UI should feel like quality paper—tactile and focused.
+- **Whisper-Thin Division:** Structure is created through ultra-thin borders and multi-layered, low-opacity shadows.
+- **No ALL CAPS:** Use sentence case or title case for headers. Labels can be tiny but never screaming.
+- **Fluid Layout:** Maximize vertical space for conversation. Hide sidebars on small screens.
 
 ---
 

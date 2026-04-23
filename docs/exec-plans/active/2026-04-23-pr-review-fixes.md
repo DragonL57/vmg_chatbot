@@ -18,6 +18,8 @@ Address Copilot review comments and align the codebase with `GEMINI.md` standard
 - Fixed CSS `env()` syntax and branding.
 - Implemented Portal-based Tooltips and Context Menus for Sidebar history.
 - Added loading skeletons for smooth session transitions.
+- **New Architecture**: Implemented a **Shared Layout** in a route group `(main)` to prevent the Sidebar from unmounting/reloading during navigation.
+- **New Routing**: Switched from query strings to clean path segments (`/chat/[id]`).
 
 ### Layer 2: Adapters (Infrastructure & API)
 - Secured all `/api/admin/**` and `/api/conversation/**` routes with defensive `getUser()` and `isAdmin()` checks.
