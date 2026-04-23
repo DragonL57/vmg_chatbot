@@ -3,6 +3,7 @@ import { QueryDecompositionSchema, type QueryDecomposition } from '@core/types/a
 import { safeJsonParse } from '@core/lib/utils';
 import { ChatCompletion } from 'openai/resources/chat/completions';
 import { QUERY_ANALYSIS_PROMPT } from '@core/prompts/rag-agents';
+import { TITLE_ASSIGNER_PROMPT } from '@core/prompts/title-assigner';
 import { VectorSearchService, type DocumentEvidence } from './vector-search.service';
 import { isIndexed } from './qdrant.service';
 
@@ -20,6 +21,21 @@ export interface QueryAnalysisWithRetrieval {
  * Decomposes queries and coordinates high-precision retrieval agents.
  */
 export class ManagerService {
+  /**
+   * Generates a concise title for a conversation based on the first message.
+   */
+  static async generateTitle(firstMessage: string): Promise<string> {
+    try {
+      const response = await PoeService.chat([
+        { role: 'system', content: TITLE_ASSIGNER_PROMPT },
+        { role: 'user', content: firstMessage },
+      ]);
+      return (response as ChatCompletion).choices[0].message.content || 'Cuộc hội thoại mới';
+    } catch (err) {
+      return firstMessage.slice(0, 40) + (firstMessage.length > 40 ? '...' : '');
+    }
+  }
+
   /**
    * Analyzes user intent and generates optimized search sub-queries.
    */

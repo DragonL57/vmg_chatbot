@@ -1,10 +1,9 @@
-import "dotenv/config";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 export const env = createEnv({
   server: {
-    POE_API_KEY: z.string().min(1),
+    POE_API_KEY: z.string().min(1).optional(),
     POE_BOT_NAME: z.string().min(1).default('grok-4.1-fast-non-reasoning'),
     POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
     LLM_PROVIDER: z.enum(['poe', 'inception']).default('poe'),

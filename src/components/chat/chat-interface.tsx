@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Message } from '@core/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
@@ -12,22 +12,72 @@ import { Menu, Settings2, LayoutGrid } from 'lucide-react';
 import { LocationData } from './location-modal';
 import { type KnowledgeCollection } from '@core/services/supabase.service';
 import { toast } from 'sonner';
+import { supabase } from '@/core/lib/supabase';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export const ChatInterface: React.FC = () => {
+const ChatContent: React.FC = () => {
   useViewportHeight();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [selectedCollection, setSelectedCollection] = useState('auto');
+  const [user, setUser] = useState<any>(null);
+  const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
 
-  const sessionIdRef = useRef<string>(uuidv4());
-  const sessionId = sessionIdRef.current;
+  const [sessionId, setSessionId] = useState<string>(uuidv4());
+  const lastSavedCountRef = useRef<number>(0);
   const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
   const [phaseDetail, setPhaseDetail] = useState<string>('');
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const sessionFromUrl = searchParams.get('session');
+    
+    if (sessionFromUrl) {
+      if (sessionFromUrl !== sessionId) {
+        setMessages([]); // Clear immediately to prevent stale save triggers
+        setSessionId(sessionFromUrl);
+        setIsHistoryLoading(true); // Start loading skeleton
+        lastSavedCountRef.current = 0;
+        setChatTitle(undefined);
+        fetch(`/api/conversation/${sessionFromUrl}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.messages) {
+              setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+              lastSavedCountRef.current = data.messages.length;
+            }
+          })
+          .catch(() => toast.error('Lỗi khi tải cuộc hội thoại'))
+          .finally(() => setIsHistoryLoading(false));
+      }
+    } else {
+      // On root path: Reset ONLY if the previous sessionId was a loaded one (detectable via lastSavedCount)
+      // or if we have messages but the URL says we should be at root.
+      // This prevents the "first message clear" bug.
+      const hasSessionInUrl = !!searchParams.get('session');
+      if (!hasSessionInUrl && lastSavedCountRef.current > 0) {
+        setSessionId(uuidv4());
+        setMessages([]);
+        setChatTitle(undefined);
+        lastSavedCountRef.current = 0;
+      }
+    }
+  }, [searchParams, sessionId, messages.length]);
 
   useEffect(() => {
     fetch('/api/admin/collections')
@@ -49,38 +99,71 @@ export const ChatInterface: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const saveConversation = useCallback(async (msgs: Message[]) => {
+  const saveConversation = useCallback(async (msgs: Message[], customTitle?: string, shouldRefreshSidebar: boolean = false) => {
+    if (!user) return;
     try {
       await fetch('/api/conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId,
+          id: sessionId,
+          userId: user.id,
+          title: customTitle,
           messages: msgs.filter(m => !m.isToolCall).map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
-          location, tokenUsage: tokenUsageRef.current,
+          location_coords: location ? { latitude: location.latitude, longitude: location.longitude, accuracy: location.accuracy } : undefined,
+          token_usage: tokenUsageRef.current,
+          message_count: msgs.length,
+          updated_at: new Date().toISOString(),
         }),
       });
+      if (shouldRefreshSidebar) {
+        window.dispatchEvent(new CustomEvent('refresh-chat-history'));
+      }
     } catch (e) {}
-  }, [sessionId, location]);
+  }, [sessionId, location, user]);
 
   const sendMessage = async (content: string) => {
     const userMessage: Message = { id: uuidv4(), role: 'user', content: content.trim(), timestamp: new Date() };
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
     setLoadingPhase('decompose');
+
+    // If first message at root, update URL to lock in session
+    if (messages.length === 0 && !searchParams.get('session')) {
+      router.replace(`/?session=${sessionId}`, { scroll: false });
+    }
+
+    // Generate title if it's the first message
+    if (messages.length === 0) {
+      try {
+        const titleRes = await fetch('/api/conversation/generate-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firstMessage: content.trim() }),
+        });
+        const titleData = await titleRes.json();
+        if (titleData.title) setChatTitle(titleData.title);
+      } catch (e) {}
+    }
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), serviceMode: selectedCollection }),
+        body: JSON.stringify({ 
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })), 
+          serviceMode: selectedCollection 
+        }),
       });
       if (!response.ok) throw new Error('Chat failed');
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantId = '';
       let streamBuffer = ''; 
+      let fullContent = '';
+
       while (true) {
         const { value, done } = await reader!.read();
         if (done) break;
@@ -95,6 +178,7 @@ export const ChatInterface: React.FC = () => {
             else if (data.type === 'tokens') { tokenUsageRef.current = data.value; }
             else if (data.type === 'content') {
               const text = data.value;
+              fullContent += text;
               if (!assistantId) {
                 setLoadingPhase('');
                 assistantId = uuidv4();
@@ -115,8 +199,12 @@ export const ChatInterface: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isLoading && messages.some(m => m.role === 'assistant')) saveConversation(messages);
-  }, [isLoading, messages, saveConversation]);
+    if (!isLoading && messages.length > lastSavedCountRef.current && messages.some(m => m.role === 'assistant')) {
+       // Always signal refresh on save to re-order history (push to top)
+       saveConversation(messages, chatTitle, true);
+       lastSavedCountRef.current = messages.length;
+    }
+  }, [isLoading, messages, saveConversation, chatTitle]);
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -133,12 +221,6 @@ export const ChatInterface: React.FC = () => {
               <button onClick={() => setIsSidebarOpen(true)} className="p-1 -ml-1 text-black/40 md:hidden hover:bg-black/5 rounded">
                 <Menu className="w-5 h-5" strokeWidth={1.5} />
               </button>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                  <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} style={{ height: 'auto' }} />
-                </div>
-                <h1 className="text-[17px] font-semibold text-black/80 truncate">VMG MATE</h1>
-              </div>
             </div>
 
             <div className="flex items-center gap-1">
@@ -156,6 +238,7 @@ export const ChatInterface: React.FC = () => {
           <MessageList 
             messages={messages} 
             isLoading={isLoading}
+            isHistoryLoading={isHistoryLoading}
             loadingPhase={loadingPhase}
             phaseDetail={phaseDetail}
             currentMode={selectedCollection}
@@ -186,3 +269,9 @@ export const ChatInterface: React.FC = () => {
     </div>
   );
 };
+
+export const ChatInterface: React.FC = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <ChatContent />
+  </Suspense>
+);

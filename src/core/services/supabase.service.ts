@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { conversations, knowledgeFiles, knowledgeCollections, reports } from '../db/schema';
+import { conversations, knowledgeFiles, knowledgeCollections, reports, users } from '../db/schema';
 import { eq, desc, asc, sql } from 'drizzle-orm';
 
 export interface TokenUsage {
@@ -16,6 +16,8 @@ export interface ConversationMessage {
 
 export interface ConversationPayload {
   id: string;
+  userId?: string;
+  title?: string;
   messages: ConversationMessage[];
   location_coords?: {
     latitude: number;
@@ -29,9 +31,18 @@ export interface ConversationPayload {
 }
 
 export async function upsertConversation(payload: ConversationPayload) {
+  // Try to find our internal userId from supabaseId if userId is a supabaseId
+  let internalUserId = payload.userId;
+  if (payload.userId && payload.userId.length > 30) { // likely a UUID from supabase
+     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, payload.userId));
+     if (user) internalUserId = user.id;
+  }
+
   return await db.insert(conversations)
     .values({
       id: payload.id,
+      userId: internalUserId,
+      title: payload.title || (payload.messages[0]?.content?.slice(0, 40) + (payload.messages[0]?.content?.length > 40 ? '...' : '')),
       messages: payload.messages,
       locationCoords: payload.location_coords,
       locationAddress: payload.location_address,
@@ -42,6 +53,8 @@ export async function upsertConversation(payload: ConversationPayload) {
     .onConflictDoUpdate({
       target: conversations.id,
       set: {
+        userId: internalUserId,
+        title: payload.title,
         messages: payload.messages,
         locationCoords: payload.location_coords,
         locationAddress: payload.location_address,
@@ -50,6 +63,45 @@ export async function upsertConversation(payload: ConversationPayload) {
         updatedAt: new Date(payload.updated_at),
       }
     });
+}
+
+export async function getConversationById(id: string) {
+  const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
+  return conversation;
+}
+
+export async function listConversationsByUser(supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) return [];
+
+  return await db.select({
+    id: conversations.id,
+    title: conversations.title,
+    isStarred: conversations.isStarred,
+    updatedAt: conversations.updatedAt,
+  })
+  .from(conversations)
+  .where(eq(conversations.userId, user.id))
+  .orderBy(desc(conversations.isStarred), desc(conversations.updatedAt));
+}
+
+export async function deleteConversation(id: string) {
+  return await db.delete(conversations).where(eq(conversations.id, id));
+}
+
+export async function starConversation(id: string, isStarred: boolean) {
+  return await db.update(conversations)
+    .set({ 
+      isStarred: isStarred ? 1 : 0,
+      updatedAt: new Date() // Refresh recency on star/unstar
+    })
+    .where(eq(conversations.id, id));
+}
+
+export async function renameConversation(id: string, title: string) {
+  return await db.update(conversations)
+    .set({ title })
+    .where(eq(conversations.id, id));
 }
 
 export interface KnowledgeFile {
@@ -118,14 +170,13 @@ export interface KnowledgeCollection {
   name: string;
   qdrantName: string;
   description: string | null;
+  allowedRoles: string[] | null;
   createdAt: Date | null;
 }
 
 export async function listCollections(): Promise<KnowledgeCollection[]> {
   try {
-    // Connection test
-    await db.execute(sql`SELECT 1`);
-    return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt)) as KnowledgeCollection[];
+    return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt)) as unknown as KnowledgeCollection[];
   } catch (error) {
     console.error('[SupabaseService] listCollections error:', error);
     throw error;
@@ -138,17 +189,19 @@ export async function createCollectionRecord(payload: any) {
       name: payload.name,
       qdrantName: payload.qdrant_name ?? payload.qdrantName,
       description: payload.description,
+      allowedRoles: payload.allowedRoles ?? payload.allowed_roles ?? ["admin", "staff", "user"],
     })
     .onConflictDoUpdate({
       target: knowledgeCollections.name,
       set: {
         qdrantName: payload.qdrant_name ?? payload.qdrantName,
         description: payload.description,
+        allowedRoles: payload.allowedRoles ?? payload.allowed_roles ?? ["admin", "staff", "user"],
       }
     })
     .returning();
   
-  return result[0] as KnowledgeCollection;
+  return result[0] as unknown as KnowledgeCollection;
 }
 
 export async function deleteCollectionRecord(id: string) {
