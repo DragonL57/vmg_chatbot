@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, LayoutGrid } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
 import { slugify } from '@/core/lib/utils';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { SiloTable } from '@/components/admin/silo-table';
 import { CreateSiloModal } from '@/components/admin/create-silo-modal';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function SilosPage() {
   const router = useRouter();
@@ -52,38 +53,64 @@ export default function SilosPage() {
         setNewColName(''); setNewColQName(''); setNewColDesc('');
         setShowColModal(false);
         fetchData();
+        toast.success('Đã tạo không gian tri thức');
+      } else {
+        toast.error('Lỗi khi tạo không gian tri thức');
       }
-    } catch (err) {}
+    } catch (err) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   async function handleRenameCollection(id: string, name: string) {
     try {
-      await fetch(`/api/admin/collections/${id}`, {
+      const res = await fetch(`/api/admin/collections/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
-      fetchData();
-    } catch (err) {}
+      if (res.ok) {
+        fetchData();
+        toast.success('Đã đổi tên không gian');
+      } else {
+        toast.error('Lỗi khi đổi tên');
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   async function handleUpdateDescription(id: string, description: string) {
     try {
-      await fetch(`/api/admin/collections/${id}`, {
+      const res = await fetch(`/api/admin/collections/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description }),
       });
-      fetchData();
-    } catch (err) {}
+      if (res.ok) {
+        fetchData();
+        toast.success('Đã cập nhật mô tả');
+      } else {
+        toast.error('Lỗi khi cập nhật mô tả');
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   async function handleDeleteCollection(id: string) {
     if (!confirm('Xóa không gian tri thức này?')) return;
     try {
       const res = await fetch(`/api/admin/collections/${id}`, { method: 'DELETE' });
-      if (res.ok) fetchData();
-    } catch (error) {}
+      if (res.ok) {
+        fetchData();
+        toast.success('Đã xóa không gian');
+      } else {
+        toast.error('Lỗi khi xóa không gian');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   return (
@@ -101,9 +128,7 @@ export default function SilosPage() {
           <div className="space-y-10 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-[32px] font-bold tracking-tight mb-1.5 flex items-center gap-3">
-                  <LayoutGrid className="w-8 h-8 text-[#D32F2F]" /> Quản lý kho tri thức
-                </h1>
+                <h1 className="text-[32px] font-bold tracking-tight mb-1.5">Quản lý kho tri thức</h1>
                 <p className="text-[16px] text-[#615d59]">Tổ chức và quản lý các không gian dữ liệu riêng biệt cho AI.</p>
               </div>
               <button onClick={() => setShowColModal(true)} className="notion-btn-primary flex items-center gap-2">

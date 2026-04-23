@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminLogin } from '@/components/admin/admin-login';
 import { usePathname } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function AdminLayout({
   children,
@@ -20,13 +21,24 @@ export default function AdminLayout({
     if (auth === 'true') setIsAuthenticated(true);
   }, []);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (password === 'ilovevmg') {
-      setIsAuthenticated(true);
-      localStorage.setItem('vmg_admin_auth', 'true');
-    } else {
-      alert('Sai mật khẩu!');
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsAuthenticated(true);
+        localStorage.setItem('vmg_admin_auth', 'true');
+        toast.success('Đăng nhập thành công');
+      } else {
+        toast.error('Sai mật khẩu!');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối máy chủ');
     }
   }
 

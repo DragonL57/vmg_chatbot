@@ -16,8 +16,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const isAdmin = pathname.startsWith('/admin');
 
   const navItems = [
-    { name: 'Trợ lý Wiki VMG', href: '/', icon: BookOpen },
-    { name: 'Hướng dẫn sử dụng', href: '/guide', icon: MessageSquareText, disabled: true },
+    { name: 'Trò chuyện', href: '/', icon: MessageSquareText },
+    { name: 'Hướng dẫn sử dụng', href: '/guide', icon: BookOpen, disabled: true },
   ];
 
   return (
@@ -39,10 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Profile/Branding Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-6 h-6 flex items-center justify-center shrink-0 grayscale group-hover:grayscale-0 transition-all">
-              <Image src="/apple-icon.svg" alt="VMG" width={18} height={18} />
+            <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-all">
+              <Image src="/apple-icon.svg" alt="VMG" width={32} height={32} />
             </div>
-            <h2 className="text-[14px] font-bold text-black/80 truncate">Kho tri thức VMG</h2>
+            <h2 className="text-[14px] font-bold text-black/80 truncate">VMG MATE</h2>
           </Link>
           <button onClick={onClose} className="p-1.5 text-black/40 hover:text-black/60 md:hidden hover:bg-black/5 rounded">
             <X className="w-4 h-4" />
@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </nav>
 
           <div>
-             <p className="px-3 text-[11px] font-bold text-black/30 uppercase tracking-widest mb-2">Hệ thống</p>
+             <p className="px-3 text-[11px] font-bold text-black/30 mb-2">Hệ thống</p>
              <Link
                 href="/admin"
                 onClick={() => onClose()}
@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-bold text-black/80 truncate">VMG {isAdmin ? 'Quản trị' : 'Khách'}</p>
-              <p className="text-[10px] text-black/40 font-medium">Gói miễn phí</p>
+              <p className="text-[10px] text-black/40 font-medium">MATE Free</p>
             </div>
             <Settings className="w-3.5 h-3.5 text-black/30 opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>

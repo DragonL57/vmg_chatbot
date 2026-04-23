@@ -1,30 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  /* Notion Primary Palette */
-  --notion-black: rgba(0, 0, 0, 0.95);
-  --notion-white: #ffffff;
-  --vmg-red: #D32F2F; /* Notion Blue equivalent */
-  --vmg-red-active: #B71C1C;
-  
-  /* Warm Neutral Scale */
-  --warm-white: #f6f5f4;
-  --warm-gray-500: #615d59;
-  --warm-gray-300: #a39e98;
-  
-  /* Semantic */
-  --notion-green: #1aae39;
-  --notion-orange: #dd5b00;
-  --notion-blue: #0075de; /* Used for links specifically */
+  /* ZaUI Technical Palette */
+  --zaui-primary: #D32F2F;
+  --zaui-bg-canvas: #ffffff;
+  --zaui-bg-neutral: #f6f5f4;
+  --zaui-text-primary: rgba(0, 0, 0, 0.95);
+  --zaui-text-secondary: #615d59;
+  --zaui-text-tertiary: #a39e98;
+  --zaui-border-whisper: 1px solid rgba(0, 0, 0, 0.08);
 
-  /* The "Whisper" Border */
-  --whisper-border: 1px solid rgba(0, 0, 0, 0.1);
-
-  /* Notion Shadow Stack (4-layer cumulative opacity < 0.05) */
-  --shadow-notion: rgba(0, 0, 0, 0.04) 0px 4px 18px, 
-                   rgba(0, 0, 0, 0.027) 0px 2.025px 7.84688px, 
-                   rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px, 
-                   rgba(0, 0, 0, 0.01) 0px 0.175px 1.04062px;
+  /* ZaUI Foundation Tokens */
+  --space-8: 8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  
+  /* Safe Areas */
+  --safe-top: env(safe-area-inset-top, 24px);
+  --safe-bottom: env(safe-area-inset-bottom, 16px);
 }
 
 html, body {
@@ -33,31 +31,41 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  overscroll-behavior: none;
-  background-color: var(--notion-white);
-  color: var(--notion-black);
+  background-color: var(--zaui-bg-canvas);
+  color: var(--zaui-text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
 body {
-  font-family: "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
 }
 
-/* Notion Components */
+/* ZaUI Component Classes */
+.btn-large {
+  height: 48px;
+  padding: 0 24px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Legacy Notion Mappings (Fixes PR Regressions) */
 .notion-card {
-  background: var(--notion-white);
-  border: var(--whisper-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-notion);
-  transition: transform 0.1s ease-in-out;
+  background: var(--zaui-bg-canvas);
+  border: var(--zaui-border-whisper);
+  border-radius: var(--radius-lg);
+  box-shadow: 0px 4px 18px rgba(0, 0, 0, 0.04);
 }
 
 .notion-btn-primary {
-  background-color: var(--vmg-red);
+  background-color: var(--zaui-primary);
   color: white;
   padding: 8px 16px;
-  border-radius: 4px; /* Notion uses 4px for functional UI */
+  border-radius: 4px;
   font-weight: 500;
   font-size: 14px;
   transition: all 0.1s;
@@ -65,31 +73,40 @@ body {
 
 .notion-btn-primary:active {
   transform: scale(0.96);
-  background-color: var(--vmg-red-active);
+  background-color: #B71C1C;
 }
 
 .notion-input {
-  border: 1px solid #dddddd;
+  border: 1px solid #e5e5e5;
   border-radius: 4px;
   padding: 8px 12px;
   font-size: 15px;
-  transition: border-color 0.1s;
 }
 
 .notion-input:focus {
-  border-color: var(--vmg-red);
+  border-color: var(--zaui-primary);
   outline: none;
 }
 
-/* Typography Scaling */
-.display-hero {
-  letter-spacing: -1.5px;
-  line-height: 1.1;
-  font-weight: 700;
+.shadow-notion {
+  box-shadow: rgba(0, 0, 0, 0.04) 0px 4px 18px, 
+              rgba(0, 0, 0, 0.027) 0px 2.025px 7.84688px, 
+              rgba(0, 0, 0, 0.02) 0px 0.8px 2.925px, 
+              rgba(0, 0, 0, 0.01) 0px 0.175px 1.04062px;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+.input-medium {
+  height: 48px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid #e5e5e5;
+  font-size: 16px;
+}
+
+.shadow-zalo-l1 {
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.shadow-zalo-l4 {
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.12);
+}

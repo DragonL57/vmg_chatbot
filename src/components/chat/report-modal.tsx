@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Flag, X, Send } from 'lucide-react';
 import { Message } from '@core/types/chat';
+import { toast } from 'sonner';
 
 interface ReportModalProps {
   message: Message;
@@ -50,6 +51,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       });
 
       if (res.ok) {
+        toast.success('Cảm ơn bạn đã báo cáo nội dung này');
         onSuccess();
       } else {
         setReportState('error');

@@ -8,9 +8,10 @@ import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Menu, Settings2, Info, LayoutGrid } from 'lucide-react';
+import { Menu, Settings2, LayoutGrid } from 'lucide-react';
 import { LocationData } from './location-modal';
 import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { toast } from 'sonner';
 
 export const ChatInterface: React.FC = () => {
   useViewportHeight();
@@ -106,7 +107,7 @@ export const ChatInterface: React.FC = () => {
         }
       }
     } catch (error) {
-      alert('Lỗi kết nối với máy chủ trợ lý.');
+      toast.error('Lỗi kết nối với máy chủ trợ lý.');
     } finally {
       setIsLoading(false);
       setLoadingPhase('');
@@ -122,33 +123,36 @@ export const ChatInterface: React.FC = () => {
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col relative transition-all duration-300 md:ml-[240px]">
-        {/* Compact Utility Header */}
-        <header className="h-[45px] flex items-center shrink-0 z-30 border-b border-black/[0.06] px-4">
-          <div className="w-full flex items-center justify-between">
+        {/* ZaUI Native Header (44px + Safe Area) */}
+        <header 
+          className="bg-white shrink-0 z-30 border-b border-black/[0.06] px-4"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          <div className="h-[44px] flex items-center justify-between">
             <div className="flex items-center gap-3 overflow-hidden">
               <button onClick={() => setIsSidebarOpen(true)} className="p-1 -ml-1 text-black/40 md:hidden hover:bg-black/5 rounded">
-                <Menu className="w-4 h-4" />
+                <Menu className="w-5 h-5" strokeWidth={1.5} />
               </button>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 grayscale opacity-60">
-                  <Image src="/apple-icon.svg" alt="VMG" width={16} height={16} />
+                <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                  <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} style={{ height: 'auto' }} />
                 </div>
-                <h1 className="text-[14px] font-semibold text-black/80 truncate">Trợ lý ảo Wiki VMG</h1>
+                <h1 className="text-[17px] font-semibold text-black/80 truncate">VMG MATE</h1>
               </div>
             </div>
+
             <div className="flex items-center gap-1">
-              <button className="h-7 px-3 text-[13px] font-medium text-black/50 hover:bg-black/5 rounded transition-all flex items-center gap-1.5">
-                <LayoutGrid className="w-3.5 h-3.5" /> Không gian
+              <button className="h-8 px-3 text-[13px] font-medium text-black/50 hover:bg-black/5 rounded transition-all flex items-center gap-1.5">
+                <LayoutGrid className="w-4 h-4" strokeWidth={1.5} /> Không gian
               </button>
-              <div className="w-px h-3.5 bg-black/[0.08] mx-1"></div>
-              <button className="p-1.5 text-black/40 hover:bg-black/5 rounded transition-colors"><Settings2 className="w-4 h-4" /></button>
-              <button className="p-1.5 text-black/40 hover:bg-black/5 rounded transition-colors"><Info className="w-4 h-4" /></button>
+              <div className="w-px h-4 bg-black/[0.08] mx-1"></div>
+              <button className="p-2 text-black/40 hover:bg-black/5 rounded transition-colors"><Settings2 className="w-5 h-5" strokeWidth={1.5} /></button>
             </div>
           </div>
         </header>
 
         {/* Dynamic App Content */}
-        <div className="flex-1 overflow-hidden relative flex flex-col">
+        <div className="flex-1 overflow-hidden relative flex flex-col bg-[#f6f5f4]">
           <MessageList 
             messages={messages} 
             isLoading={isLoading}
@@ -162,8 +166,8 @@ export const ChatInterface: React.FC = () => {
           />
         </div>
 
-        {/* Focused Input Bar (Tightened) */}
-        <div className="shrink-0 bg-white border-t border-black/[0.06] px-4 md:px-8 py-4">
+        {/* Focused Input Bar (Tightened & Floating) */}
+        <div className="shrink-0 bg-transparent px-4 md:px-16 lg:px-32 pb-4" style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom), 0px) + 8px)' }}>
           <div className="max-w-4xl mx-auto">
             <ChatInput
               input={input}
@@ -171,6 +175,11 @@ export const ChatInterface: React.FC = () => {
               handleSubmit={(e) => { e.preventDefault(); if(input.trim()) sendMessage(input); }}
               isLoading={isLoading}
             />
+            <div className="mt-2 flex justify-center px-4">
+              <p className="text-[11px] text-[#a39e98] text-center leading-none">
+                Kiểm tra lại thông tin, MATE có thể nhầm lẫn.
+              </p>
+            </div>
           </div>
         </div>
       </div>

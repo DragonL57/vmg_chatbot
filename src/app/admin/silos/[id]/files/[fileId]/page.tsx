@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ChevronLeft, FileText, Trash2, Check, Loader2, Sparkles, Database } from 'lucide-react';
+import { ChevronLeft, Trash2, Check, Loader2, Sparkles, Database } from 'lucide-react';
 import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface FileDetailPageProps {
   params: Promise<{ id: string; fileId: string }>;
@@ -53,14 +54,19 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
   async function handleSave() {
     setSaving(true);
     try {
-      await fetch(`/api/admin/files/${fileId}`, {
+      const res = await fetch(`/api/admin/files/${fileId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, summary }),
       });
-      fetchData();
+      if (res.ok) {
+        fetchData();
+        toast.success('Đã lưu thay đổi tài liệu');
+      } else {
+        toast.error('Lỗi khi lưu thay đổi');
+      }
     } catch (err) {
-      alert('Lỗi khi lưu thay đổi');
+      toast.error('Lỗi khi lưu thay đổi');
     } finally {
       setSaving(false);
     }
@@ -70,8 +76,15 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
     if (!confirm('Xác nhận xóa tài liệu này?')) return;
     try {
       const res = await fetch(`/api/admin/files/${fileId}`, { method: 'DELETE' });
-      if (res.ok) router.push(`/admin/silos/${siloId}`);
-    } catch (error) {}
+      if (res.ok) {
+        toast.success('Đã xóa tài liệu');
+        router.push(`/admin/silos/${siloId}`);
+      } else {
+        toast.error('Lỗi khi xóa tài liệu');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   async function handleRegenerateSummary() {
@@ -82,9 +95,14 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: fileId })
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        fetchData();
+        toast.success('Đã cập nhật tóm tắt bằng AI');
+      } else {
+        toast.error('Lỗi khi tạo tóm tắt');
+      }
     } catch (error) {
-      alert('Lỗi khi tạo tóm tắt');
+      toast.error('Lỗi khi tạo tóm tắt');
     } finally {
       setSaving(false);
     }
@@ -115,9 +133,6 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
             </button>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-[12px] flex items-center justify-center ${file?.filename.endsWith('.pdf') ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                  <FileText className="w-6 h-6" />
-                </div>
                 <h1 className="text-[32px] font-bold tracking-tight text-black/90">Chi tiết tài liệu</h1>
               </div>
               <div className="flex items-center gap-3">
@@ -133,7 +148,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
             {/* Form Fields */}
             <div className="lg:col-span-2 space-y-8">
               <div className="space-y-2">
-                <label className="text-[12px] font-bold text-black/40 uppercase tracking-widest ml-1">Tên tài liệu</label>
+                <label className="text-[12px] font-bold text-black/40 ml-1">Tên tài liệu</label>
                 <input 
                   type="text" value={filename} onChange={(e) => setFilename(e.target.value)}
                   className="w-full text-[20px] font-semibold bg-transparent border-b border-black/[0.06] focus:border-[#D32F2F] outline-none pb-2 transition-all"
@@ -142,7 +157,7 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-bold text-black/40 uppercase tracking-widest ml-1">Tóm tắt tri thức (AI)</label>
+                  <label className="text-[12px] font-bold text-black/40 ml-1">Tóm tắt tri thức (AI)</label>
                   <button onClick={handleRegenerateSummary} className="text-[12px] font-bold text-[#D32F2F] hover:underline flex items-center gap-1.5">
                     <Sparkles className="w-3 h-3" /> Tạo lại tóm tắt
                   </button>
@@ -159,24 +174,24 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
             {/* Side Info */}
             <div className="space-y-6">
               <div className="notion-card p-5 space-y-4">
-                <h4 className="text-[13px] font-bold text-black/40 uppercase tracking-wider">Thông tin hệ thống</h4>
+                <h4 className="text-[13px] font-bold text-black/40">Thông tin hệ thống</h4>
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-black/30">TRẠNG THÁI INDEX</p>
+                    <p className="text-[11px] font-bold text-black/30">Trạng thái index</p>
                     <div className="flex items-center gap-2">
                        <div className={`w-2 h-2 rounded-full ${file?.status === 'completed' ? 'bg-[#1aae39]' : 'bg-red-500'}`}></div>
                        <span className="text-[14px] font-semibold capitalize">{file?.status}</span>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-black/30">KHÔNG GIAN (MODE)</p>
+                    <p className="text-[11px] font-bold text-black/30">Không gian (Mode)</p>
                     <div className="flex items-center gap-2 text-black/60">
                        <Database className="w-3.5 h-3.5" />
-                       <span className="text-[13px] font-mono uppercase">{file?.mode}</span>
+                       <span className="text-[13px] font-mono">{file?.mode}</span>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-black/30">ID TÀI LIỆU</p>
+                    <p className="text-[11px] font-bold text-black/30">ID tài liệu</p>
                     <p className="text-[12px] font-mono text-black/40 break-all">{file?.id}</p>
                   </div>
                 </div>

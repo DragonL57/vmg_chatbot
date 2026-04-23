@@ -23,6 +23,7 @@ export const env = createEnv({
     SUPABASE_URL: z.string().url(),
     SUPABASE_KEY: z.string().min(1),
     DATABASE_URL: z.string().min(1),
+    ADMIN_PASSWORD: z.string().min(1).default('ilovevmg'),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),

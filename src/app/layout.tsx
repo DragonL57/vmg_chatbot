@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,18 +14,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VMG Wiki",
-  description: "Trợ lý nội bộ thông minh của VMG",
+  title: "VMG MATE",
+  description: "Multi-Agent Tooling Ecosystem — Hệ sinh thái cộng tác thông minh VMG",
   openGraph: {
-    title: "VMG Wiki",
-    description: "Trợ lý nội bộ thông minh của VMG",
+    title: "VMG MATE",
+    description: "Multi-Agent Tooling Ecosystem — Hệ sinh thái cộng tác thông minh VMG",
     type: "website",
     locale: "vi_VN",
   },
   twitter: {
     card: "summary",
-    title: "VMG Wiki",
-    description: "Trợ lý nội bộ thông minh của VMG",
+    title: "VMG MATE",
+    description: "Multi-Agent Tooling Ecosystem — Hệ sinh thái cộng tác thông minh VMG",
   },
 };
 
@@ -45,6 +46,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
   );

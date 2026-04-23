@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
 import { slugify } from '@/core/lib/utils';
+import { toast } from 'sonner';
 
 interface SiloDetailPageProps {
   params: Promise<{ id: string }>;
@@ -69,14 +70,19 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
   async function handleSaveSiloMetadata() {
     setSaving(true);
     try {
-      await fetch(`/api/admin/collections/${id}`, {
+      const res = await fetch(`/api/admin/collections/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: siloName, description: siloDesc }),
       });
-      fetchSiloData();
+      if (res.ok) {
+        fetchSiloData();
+        toast.success('Đã lưu thông tin không gian tri thức');
+      } else {
+        toast.error('Lỗi khi lưu thông tin');
+      }
     } catch (err) {
-      alert('Lỗi khi lưu thông tin');
+      toast.error('Lỗi khi lưu thông tin');
     } finally {
       setSaving(false);
     }
@@ -91,13 +97,15 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qdrantName: activeSilo.qdrantName })
       });
-      if (res.ok) fetchSiloData();
-      else {
+      if (res.ok) {
+        fetchSiloData();
+        toast.success('Đã cập nhật mô tả bằng AI');
+      } else {
         const err = await res.json();
-        alert(err.error || 'Lỗi khi tạo mô tả');
+        toast.error(err.error || 'Lỗi khi tạo mô tả');
       }
     } catch (error) {
-      alert('Lỗi khi kết nối với AI');
+      toast.error('Lỗi khi kết nối với AI');
     } finally {
       setSaving(false);
     }
@@ -107,8 +115,15 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
     if (!confirm('Xóa toàn bộ không gian tri thức này và tất cả tài liệu bên trong?')) return;
     try {
       const res = await fetch(`/api/admin/collections/${id}`, { method: 'DELETE' });
-      if (res.ok) router.push('/admin/silos');
-    } catch (error) {}
+      if (res.ok) {
+        toast.success('Đã xóa không gian tri thức');
+        router.push('/admin/silos');
+      } else {
+        toast.error('Lỗi khi xóa không gian tri thức');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   async function handleUpload() {
@@ -128,10 +143,13 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
       });
       
       if (res.status === 202) {
+        toast.success('Đã tải lên tài liệu, hệ thống đang bắt đầu xử lý');
         setSelectedFile(null);
         fetchSiloData();
+      } else {
+        toast.error('Lỗi khi bắt đầu xử lý tài liệu');
       }
-    } catch (error: any) { alert(error.message); }
+    } catch (error: any) { toast.error(error.message); }
     finally { setUploading(false); }
   }
 
@@ -139,8 +157,15 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
     if (!confirm('Xác nhận xóa tài liệu này?')) return;
     try {
       const res = await fetch(`/api/admin/files/${fileId}`, { method: 'DELETE' });
-      if (res.ok) fetchSiloData();
-    } catch (error) {}
+      if (res.ok) {
+        fetchSiloData();
+        toast.success('Đã xóa tài liệu');
+      } else {
+        toast.error('Lỗi khi xóa tài liệu');
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối');
+    }
   }
 
   const filteredFiles = useMemo(() => {
@@ -188,7 +213,7 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
               />
               <div className="space-y-2 group relative">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-black/20 uppercase tracking-widest">Mô tả không gian</label>
+                  <label className="text-[11px] font-bold text-black/20">Mô tả không gian</label>
                   <button 
                     onClick={handleRegenerateSiloDescription} 
                     className="text-[12px] font-bold text-[#D32F2F] hover:underline flex items-center gap-1.5"
@@ -205,7 +230,7 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
                 />
               </div>
               <div className="flex items-center gap-2 pt-2">
-                <span className="text-[11px] font-bold text-black/30 uppercase tracking-widest bg-black/[0.03] px-2 py-0.5 rounded">Identifier: {activeSilo?.qdrantName}</span>
+                <span className="text-[11px] font-bold text-black/30 bg-black/[0.03] px-2 py-0.5 rounded">Identifier: {activeSilo?.qdrantName}</span>
               </div>
             </div>
           </div>
@@ -223,7 +248,7 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
             {/* File Management */}
             <div className="lg:col-span-8 space-y-6">
               <div className="flex items-center justify-between px-1">
-                 <h3 className="text-[12px] font-bold text-black/40 uppercase tracking-widest">Danh sách tài liệu ({files.length})</h3>
+                 <h3 className="text-[12px] font-bold text-black/40">Danh sách tài liệu ({files.length})</h3>
                  <div className="relative w-64">
                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30" />
                    <input 

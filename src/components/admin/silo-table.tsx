@@ -25,9 +25,9 @@ export const SiloTable: React.FC<SiloTableProps> = ({
       <table className="w-full text-left border-collapse">
         <thead className="bg-[#f6f5f4] border-b border-black/[0.08]">
           <tr>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[50%]">Không gian dữ liệu</th>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[20%] text-center">Tài liệu</th>
-            <th className="px-6 py-3 text-[12px] font-bold text-black/40 uppercase tracking-widest w-[30%] text-right">Thao tác</th>
+            <th className="px-6 py-3 text-[12px] font-bold text-black/40 w-[50%]">Không gian dữ liệu</th>
+            <th className="hidden sm:table-cell px-6 py-3 text-[12px] font-bold text-black/40 w-[20%] text-center">Tài liệu</th>
+            <th className="px-6 py-3 text-[12px] font-bold text-black/40 w-[30%] text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-black/[0.04]">
@@ -42,7 +42,7 @@ export const SiloTable: React.FC<SiloTableProps> = ({
                   <p className="text-[12px] text-black/40 line-clamp-1 mt-0.5">{col.description || 'Chưa có mô tả.'}</p>
                 </Link>
               </td>
-              <td className="px-6 py-4 text-center text-[13px] font-medium text-black/60">
+              <td className="hidden sm:table-cell px-6 py-4 text-center text-[13px] font-medium text-black/60">
                 {files.filter(f => f.mode === col.qdrantName).length}
               </td>
               <td className="px-6 py-4 text-right">
@@ -58,7 +58,7 @@ export const SiloTable: React.FC<SiloTableProps> = ({
                     onClick={() => onSelectSilo(col)}
                     className="p-1.5 text-black/30 hover:text-black/80 hover:bg-black/5 rounded flex items-center gap-1"
                   >
-                    <span className="text-[11px] font-bold uppercase">Quản lý</span>
+                    <span className="text-[11px] font-bold">Quản lý</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

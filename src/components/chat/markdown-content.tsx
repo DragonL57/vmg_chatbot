@@ -46,7 +46,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUse
           ),
           thead: ({ children }) => <thead className="bg-black/[0.02]">{children}</thead>,
           th: ({ children }) => (
-            <th className="px-3 py-2 text-left text-[11px] font-bold text-black/40 uppercase tracking-widest border-b border-black/[0.05]">
+            <th className="px-3 py-2 text-left text-[11px] font-bold text-black/40 border-b border-black/[0.05]">
               {children}
             </th>
           ),

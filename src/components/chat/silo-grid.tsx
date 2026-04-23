@@ -25,7 +25,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
   return (
     <div className="space-y-6 pt-6 border-t border-black/[0.05]">
       <div className="flex items-center justify-between">
-        <h2 className="text-[14px] font-bold text-black/40 uppercase tracking-widest px-1">Không gian tri thức</h2>
+        <h2 className="text-[14px] font-bold text-black/40 px-1">Không gian tri thức</h2>
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-black/30" />
           <input 
@@ -43,7 +43,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
         {collections.length > 0 && ('tự động auto discovery'.includes(colSearch.toLowerCase())) && (
           <button
             onClick={() => onCollectionSelect('auto')}
-            className={`notion-card group text-left p-5 flex flex-col gap-4 ${
+            className={`notion-card group text-left p-5 flex flex-col gap-4 rounded-[12px] ${
               currentMode === 'auto' ? 'ring-2 ring-[#D32F2F] border-transparent shadow-md' : 'hover:bg-[#f6f5f4]'
             }`}
           >
@@ -55,7 +55,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
               <p className="text-[13px] text-[#615d59] mt-1 leading-relaxed">Tự động điều hướng yêu cầu đến nguồn dữ liệu phù hợp nhất.</p>
             </div>
             {currentMode === 'auto' && (
-              <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center">
+              <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center uppercase tracking-wider">
                 ĐANG HOẠT ĐỘNG <ArrowRight className="ml-1 w-3 h-3" />
               </div>
             )}
@@ -66,7 +66,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
           <button
             key={col.id}
             onClick={() => onCollectionSelect(col.qdrantName)}
-            className={`notion-card group text-left p-5 flex flex-col gap-4 ${
+            className={`notion-card group text-left p-5 flex flex-col gap-4 rounded-[12px] ${
               currentMode === col.qdrantName ? 'ring-2 ring-[#D32F2F] border-transparent shadow-md' : 'hover:bg-[#f6f5f4]'
             }`}
           >
@@ -80,7 +80,7 @@ export const SiloGrid: React.FC<SiloGridProps> = ({
               </p>
             </div>
             {currentMode === col.qdrantName && (
-              <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center">
+              <div className="mt-auto pt-2 text-[11px] font-bold text-[#D32F2F] flex items-center uppercase tracking-wider">
                 ĐANG HOẠT ĐỘNG <ArrowRight className="ml-1 w-3 h-3" />
               </div>
             )}
