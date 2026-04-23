@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listKnowledgeFiles, updateCollectionRecord } from '@core/services/supabase.service';
 import { PoeService } from '@core/services/poe.service';
 import { ChatCompletion } from 'openai/resources/chat/completions';
+import { createServerSupabase } from '@/core/lib/supabase-server';
+import { isAdmin } from '@/core/services/auth.service';
 
 /**
  * Generates a collection description by summarizing all its files' summaries.
@@ -11,6 +13,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const isUserAdmin = await isAdmin(user.id);
+    if (!isUserAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await params;
     const { qdrantName } = await req.json();
 

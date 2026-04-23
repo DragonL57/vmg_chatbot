@@ -1,9 +1,21 @@
 import { db } from '@/core/db';
-import { reports } from '@/core/db/schema';
+import { reports, users } from '@/core/db/schema';
 import { NextResponse } from 'next/server';
+import { createServerSupabase } from '@/core/lib/supabase-server';
+import { eq } from 'drizzle-orm';
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Map supabase ID to internal user ID
+    const [dbUser] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, user.id));
+
     const { reportedMessage, conversation, note, sessionId } = await req.json();
 
     if (!reportedMessage || !conversation) {
@@ -11,6 +23,7 @@ export async function POST(req: Request) {
     }
 
     await db.insert(reports).values({
+      userId: dbUser?.id,
       reportedMessage,
       conversation,
       note: note ?? null,

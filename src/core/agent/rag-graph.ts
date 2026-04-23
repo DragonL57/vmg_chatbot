@@ -32,16 +32,20 @@ async function routerExpandNode(state: AgentStateType) {
 
   const { client, model, extraBody } = getFastProvider();
   
-  const systemContent = `Bạn là "Gateway Agent" cho hệ thống VMG. Nhiệm vụ của bạn là định tuyến và mở rộng ý định.
+  const systemContent = `Bạn là "Gateway Agent" cho hệ thống VMG MATE. Nhiệm vụ của bạn là:
+  1. Phân loại câu hỏi là "chit-chat" (chào hỏi, cảm ơn, tán gẫu) hay "factual" (cần tra cứu kiến thức).
+  2. Nếu factual và mode là "auto", chọn các kho tri thức ("selected") phù hợp.
+  3. Luôn mở rộng câu hỏi thành 3-4 "queries" chuyên môn để tối ưu tìm kiếm.
   
   DANH SÁCH KHO TRI THỨC:
   ${siloList}
   
-  YÊU CẦU:
-  1. Nếu mode là "auto", chọn "selected" qdrantName phù hợp.
-  2. Luôn mở rộng câu hỏi thành 3-4 "queries" chuyên môn (Ví dụ: "hoa hồng" -> "thưởng", "incentive", "KPI").
-  
-  CHỈ trả về JSON: { "selected": ["name"], "queries": ["q1", "q2"] }`;
+  CHỈ trả về JSON: 
+  { 
+    "is_chit_chat": true/false, 
+    "selected": ["qdrant_name"], 
+    "queries": ["q1", "q2"] 
+  }`;
 
   const res = await client.chat.completions.create({
     model,
@@ -56,16 +60,17 @@ async function routerExpandNode(state: AgentStateType) {
   const output = res.choices[0].message.content || "{}";
   logPayload("RouterExpand", { systemContent, lastQuery }, output);
 
-  let parsed = { selected: [] as string[], queries: [lastQuery] };
+  let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery] };
   try {
     parsed = JSON.parse(output);
   } catch (e) {}
 
   // Resolve target collections
   let finalSilos = isAuto ? parsed.selected : [mode];
-  if (finalSilos.length === 0) finalSilos = allCollections.map(c => c.qdrantName);
+  if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
 
   return { 
+    isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
     subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery]
   };
@@ -227,7 +232,18 @@ const workflow = new StateGraph(AgentState)
 
 workflow.addEdge(START, "summarize");
 workflow.addEdge("summarize", "router_expand");
-workflow.addEdge("router_expand", "retrieve");
+
+workflow.addConditionalEdges(
+  "router_expand",
+  (state) => {
+    if (state.isChitChat) return "compress";
+    return "retrieve";
+  },
+  {
+    compress: "compress",
+    retrieve: "retrieve"
+  }
+);
 
 workflow.addConditionalEdges(
   "retrieve",

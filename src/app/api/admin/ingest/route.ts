@@ -4,15 +4,29 @@ import { upsertKnowledgeFile } from '@core/services/supabase.service';
 import { createRequire } from 'module';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
+import { createServerSupabase } from '@/core/lib/supabase-server';
+import { isAdmin } from '@/core/services/auth.service';
 
 // Initialize backend Supabase client
-const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
+const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; 
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const isUserAdmin = await isAdmin(user.id);
+    if (!isUserAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { storagePath, filename, mode, folder } = await req.json();
 
     if (!storagePath || !filename || !mode) {
@@ -20,7 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Download file from Supabase Storage
-    const { data: fileData, error: downloadError } = await supabase.storage
+    const { data: fileData, error: downloadError } = await supabaseBackend.storage
       .from('knowledge-sources')
       .download(storagePath);
 

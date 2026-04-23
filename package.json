@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "drizzle-kit push --force && next build",
+    "build": "next build",
+    "build:push": "drizzle-kit push --force && next build",
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
@@ -26,6 +27,7 @@
     "@langchain/openai": "^1.4.4",
     "@mistralai/mistralai": "^1.14.1",
     "@qdrant/js-client-rest": "^1.17.0",
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "@t3-oss/env-nextjs": "^0.13.10",
     "ai": "^6.0.1",
