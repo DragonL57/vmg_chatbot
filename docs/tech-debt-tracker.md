@@ -15,7 +15,9 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 - [x] **Hardcoded Auth**: Moved admin password from client-side code to server-side `env`.
 - [x] **Enterprise Security**: Implemented Google OAuth, RBAC, and domain restriction.
 - [x] **User Profiles**: Linked Google metadata to internal database.
-- [x] **Chat Persistence**: Implemented user-linked conversation history and re-ordering.
+- [x] **Chat Persistence**: Implemented user-linked conversation history.
+- [x] **UI Stability**: Resolved "Full Reload" bug by moving Sidebar to a Shared Layout in the `(main)` route group.
+- [x] **Clean URLs**: Switched from query parameters to `/chat/[id]` path segments for better resource representation.
 - [x] **Database Stability**: Fixed connection pool leaks with Singleton pattern and `globalThis`.
 - [x] **Build Reliability**: Decoupled schema pushing from the build process to avoid `drizzle-kit` failures.
 - [x] **Performance**: Added indexing to `conversations(userId)` and optimized Middleware by skipping redundant auth checks.

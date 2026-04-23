@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, BookOpen, MessageSquareText, Settings, Shield, ChevronRight, LogOut, MessageSquare, MoreVertical, Star, Edit2, Trash2, Check } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams, useParams } from 'next/navigation';
 import { supabase } from '@/core/lib/supabase';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
@@ -72,11 +72,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentSessionId = searchParams.get('session');
+  const params = useParams();
+  
+  // Clean up currentSessionId logic: Path param first, then query param
+  const currentSessionId = (params?.id as string) || searchParams.get('session');
   
   const [user, setUser] = useState<any>(null);
   const [history, setHistory] = useState<ChatHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -116,29 +120,68 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   const handleStar = async (id: string, currentlyStarred: boolean) => {
+    // Optimistic Update
+    setHistory(prev => {
+      const updated = prev.map(item => 
+        item.id === id ? { ...item, isStarred: currentlyStarred ? 0 : 1 } : item
+      );
+      // Re-sort locally: Stars first, then by date
+      return updated.sort((a, b) => {
+        if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+    });
+
     try {
       const res = await fetch(`/api/conversation/${id}/star`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isStarred: !currentlyStarred }),
       });
-      if (res.ok) {
-        // Re-fetch history silently to apply sorting rules (stars first, then date)
-        fetchHistory(true);
-      }
-    } catch (e) { toast.error('Lỗi khi đánh dấu sao'); }
+      if (!res.ok) throw new Error();
+      // Silently refresh to ensure server timestamp sync
+      fetchHistory(true);
+    } catch (e) { 
+      toast.error('Lỗi khi đánh dấu sao'); 
+      // Granular Rollback
+      setHistory(prev => {
+        const reverted = prev.map(item => 
+          item.id === id ? { ...item, isStarred: currentlyStarred ? 1 : 0 } : item
+        );
+        return reverted.sort((a, b) => {
+          if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc muốn xóa cuộc hội thoại này?')) return;
+    
+    const itemToDelete = history.find(h => h.id === id);
+    if (!itemToDelete) return;
+
+    // Optimistic Update
+    setHistory(prev => prev.filter(item => item.id !== id));
+    if (currentSessionId === id) router.push('/');
+
     try {
       const res = await fetch(`/api/conversation/${id}/delete`, { method: 'DELETE' });
-      if (res.ok) {
-        setHistory(prev => prev.filter(item => item.id !== id));
-        if (currentSessionId === id) router.push('/');
-        toast.success('Đã xóa cuộc hội thoại');
-      }
-    } catch (e) { toast.error('Lỗi khi xóa'); }
+      if (!res.ok) throw new Error();
+      toast.success('Đã xóa cuộc hội thoại');
+    } catch (e) { 
+      toast.error('Lỗi khi xóa'); 
+      // Granular Rollback: Re-insert the item
+      setHistory(prev => {
+        const restored = [...prev, itemToDelete];
+        return restored.sort((a, b) => {
+          if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      });
+      if (currentSessionId === id) router.push(`/chat/${id}`);
+    }
   };
 
   const startRename = (chat: ChatHistory) => {
@@ -148,19 +191,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   const submitRename = async () => {
-    if (!editingId || !editTitle.trim()) return;
+    const idToSave = editingId;
+    const titleToSave = editTitle.trim();
+    if (!idToSave || !titleToSave || isRenaming) {
+      setEditingId(null);
+      return;
+    }
+
+    const originalItem = history.find(h => h.id === idToSave);
+    if (!originalItem) return;
+
+    setIsRenaming(true);
+    // Optimistic Update
+    setHistory(prev => prev.map(item => item.id === idToSave ? { ...item, title: titleToSave } : item));
+    setEditingId(null);
+
     try {
-      const res = await fetch(`/api/conversation/${editingId}/rename`, {
+      const res = await fetch(`/api/conversation/${idToSave}/rename`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editTitle.trim() }),
+        body: JSON.stringify({ title: titleToSave }),
       });
-      if (res.ok) {
-        setHistory(prev => prev.map(item => item.id === editingId ? { ...item, title: editTitle.trim() } : item));
-        setEditingId(null);
-        toast.success('Đã đổi tên');
-      }
-    } catch (e) { toast.error('Lỗi khi đổi tên'); }
+      if (!res.ok) throw new Error();
+      toast.success('Đã đổi tên');
+    } catch (e) { 
+      toast.error('Lỗi khi đổi tên'); 
+      // Granular Rollback: Revert only the title of the specific item
+      setHistory(prev => prev.map(item => item.id === idToSave ? { ...item, title: originalItem.title } : item));
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitRename();
+    } else if (e.key === 'Escape') {
+      setEditingId(null);
+    }
   };
 
   const handleMenuClick = (e: React.MouseEvent, id: string) => {
@@ -262,19 +331,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       <div className="flex items-center gap-2 px-3 h-8 bg-black/[0.04] rounded-[4px]">
                         <input
                           autoFocus
-                          className="bg-transparent text-[13px] w-full outline-none"
+                          disabled={isRenaming}
+                          className="bg-transparent text-[13px] w-full outline-none disabled:opacity-50"
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && submitRename()}
-                          onBlur={() => setEditingId(null)}
+                          onKeyDown={handleKeyDown}
                         />
-                        <button onClick={submitRename}><Check className="w-3.5 h-3.5 text-green-600" /></button>
+                        <button 
+                          disabled={isRenaming}
+                          onMouseDown={(e) => { e.preventDefault(); submitRename(); }}
+                          className="disabled:opacity-30"
+                        >
+                          <Check className="w-3.5 h-3.5 text-green-600" />
+                        </button>
                       </div>
                     ) : (
                       <>
                         <button
                           onClick={() => {
-                             router.push(`/?session=${chat.id}`);
+                             router.push(`/chat/${chat.id}`);
                              onClose();
                           }}
                           className={`w-full flex items-center gap-2.5 px-3 h-8 rounded-[4px] text-[13px] transition-all text-left ${
