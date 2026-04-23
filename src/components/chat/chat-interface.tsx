@@ -53,6 +53,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   useEffect(() => {
     // Only act if the session in the URL has actually changed from what we last handled
     if (sessionFromPath !== (prevSessionIdRef.current || undefined)) {
+      const isNavigatingFromRoot = prevSessionIdRef.current === null;
       prevSessionIdRef.current = sessionFromPath || null;
 
       if (sessionFromPath) {
@@ -87,9 +88,9 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
               }
             })
             .catch((err) => {
-              // If we JUST transitioned to this session locally, it might not be in DB yet
-              // This is a safety check in case the ref was reset or router.replace triggered late
+              // Safety fallback: if we somehow missed the ref check
               if (err.message.includes('404') && isNewSessionLocalRef.current) {
+                isNewSessionLocalRef.current = false;
                 return;
               }
               setMessages([]);
@@ -100,8 +101,8 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
             .finally(() => setIsHistoryLoading(false));
         }
       } else {
-        // Navigated to root (Trò chuyện mới)
-        if (lastSavedCountRef.current > 0 || messages.length > 0) {
+        // Navigated to root (Trò chuyện mới) from an existing session
+        if (!isNavigatingFromRoot) {
           setSessionId(uuidv4());
           setMessages([]);
           setChatTitle(undefined);
@@ -110,7 +111,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         }
       }
     }
-  }, [sessionFromPath, sessionId, messages.length]);
+  }, [sessionFromPath, sessionId]);
 
   useEffect(() => {
     fetch('/api/admin/collections')
