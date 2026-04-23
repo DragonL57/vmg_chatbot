@@ -25,7 +25,7 @@ export const HubView: React.FC<HubViewProps> = ({
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10 md:py-16 space-y-12">
+    <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-10 md:py-16 space-y-12">
       <HubHeader />
       <SiloGrid 
         collections={collections} 

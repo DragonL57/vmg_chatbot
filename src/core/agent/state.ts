@@ -49,6 +49,11 @@ export const AgentState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
+  /** Flag to indicate casual conversation (skips RAG) */
+  isChitChat: Annotation<boolean>({
+    reducer: (x, y) => y,
+    default: () => false,
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;

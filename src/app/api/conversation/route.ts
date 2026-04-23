@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
 import { upsertConversation } from '@core/services/supabase.service';
+import { createServerSupabase } from '@/core/lib/supabase-server';
 
 export async function POST(req: Request) {
   try {
-    const { sessionId, messages, location, tokenUsage } = await req.json();
+    const body = await req.json();
+    const { sessionId, id, messages, location, tokenUsage, title } = body;
+    const finalSessionId = sessionId || id;
 
-    if (!sessionId || !messages) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!finalSessionId || !messages) {
+      return NextResponse.json({ error: 'Missing required fields', received: Object.keys(body) }, { status: 400 });
+    }
+
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Use IP-provided city/region if available
@@ -16,7 +26,9 @@ export async function POST(req: Request) {
     }
 
     const payload = {
-      id: sessionId,
+      id: finalSessionId,
+      userId: user.id, // Link to supabase user ID (upsertConversation will handle internal mapping)
+      title,
       messages,
       message_count: messages.filter((m: { role: string }) => m.role !== 'system').length,
       updated_at: new Date().toISOString(),

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { conversations, knowledgeFiles, knowledgeCollections, reports } from '../db/schema';
+import { conversations, knowledgeFiles, knowledgeCollections, reports, users } from '../db/schema';
 import { eq, desc, asc, sql } from 'drizzle-orm';
 
 export interface TokenUsage {
@@ -16,6 +16,8 @@ export interface ConversationMessage {
 
 export interface ConversationPayload {
   id: string;
+  userId?: string;
+  title?: string;
   messages: ConversationMessage[];
   location_coords?: {
     latitude: number;
@@ -29,9 +31,27 @@ export interface ConversationPayload {
 }
 
 export async function upsertConversation(payload: ConversationPayload) {
+  // Try to find our internal userId from supabaseId if userId is a supabaseId
+  let internalUserId = payload.userId;
+  if (payload.userId && payload.userId.length > 30) { // likely a UUID from supabase
+     const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, payload.userId));
+     if (user) internalUserId = user.id;
+  }
+
+  const firstMessageContent = payload.messages[0]?.content || '';
+  const fallbackTitle = firstMessageContent 
+    ? (firstMessageContent.slice(0, 40) + (firstMessageContent.length > 40 ? '...' : ''))
+    : "Cuộc hội thoại mới";
+
+  const finalTitle = payload.title || fallbackTitle;
+
+  // Use a safer upsert: only update if the conversation belongs to the same user
+  // This prevents hijacking of sessions by UUID guessing.
   return await db.insert(conversations)
     .values({
       id: payload.id,
+      userId: internalUserId,
+      title: finalTitle,
       messages: payload.messages,
       locationCoords: payload.location_coords,
       locationAddress: payload.location_address,
@@ -42,14 +62,80 @@ export async function upsertConversation(payload: ConversationPayload) {
     .onConflictDoUpdate({
       target: conversations.id,
       set: {
+        userId: internalUserId,
+        // Only update the title if a non-empty payload.title was provided,
+        // otherwise preserve the existing title.
+        title: payload.title || undefined, 
         messages: payload.messages,
         locationCoords: payload.location_coords,
         locationAddress: payload.location_address,
         tokenUsage: payload.token_usage,
         messageCount: payload.message_count,
         updatedAt: new Date(payload.updated_at),
-      }
+      },
+      // Drizzle Postgres supports where clause in onConflictDoUpdate
+      where: internalUserId ? eq(conversations.userId, internalUserId) : undefined,
     });
+}
+
+export async function getConversationById(id: string, supabaseId: string) {
+  const [conversation] = await db
+    .select({
+      id: conversations.id,
+      title: conversations.title,
+      messages: conversations.messages,
+      isStarred: conversations.isStarred,
+      userId: conversations.userId,
+    })
+    .from(conversations)
+    .innerJoin(users, eq(conversations.userId, users.id))
+    .where(sql`${conversations.id} = ${id} AND ${users.supabaseId} = ${supabaseId}`);
+  
+  return conversation;
+}
+
+export async function listConversationsByUser(supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) return [];
+
+  return await db.select({
+    id: conversations.id,
+    title: conversations.title,
+    isStarred: conversations.isStarred,
+    updatedAt: conversations.updatedAt,
+  })
+  .from(conversations)
+  .where(eq(conversations.userId, user.id))
+  .orderBy(desc(conversations.isStarred), desc(conversations.updatedAt));
+}
+
+export async function deleteConversation(id: string, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
+  return await db.delete(conversations)
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
+}
+
+export async function starConversation(id: string, isStarred: boolean, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
+  return await db.update(conversations)
+    .set({ 
+      isStarred: isStarred ? 1 : 0,
+      updatedAt: new Date() 
+    })
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
+}
+
+export async function renameConversation(id: string, title: string, supabaseId: string) {
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) throw new Error('User not found');
+
+  return await db.update(conversations)
+    .set({ title })
+    .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${user.id}`);
 }
 
 export interface KnowledgeFile {
@@ -118,14 +204,13 @@ export interface KnowledgeCollection {
   name: string;
   qdrantName: string;
   description: string | null;
+  allowedRoles: string[] | null;
   createdAt: Date | null;
 }
 
 export async function listCollections(): Promise<KnowledgeCollection[]> {
   try {
-    // Connection test
-    await db.execute(sql`SELECT 1`);
-    return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt)) as KnowledgeCollection[];
+    return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt)) as unknown as KnowledgeCollection[];
   } catch (error) {
     console.error('[SupabaseService] listCollections error:', error);
     throw error;
@@ -138,17 +223,19 @@ export async function createCollectionRecord(payload: any) {
       name: payload.name,
       qdrantName: payload.qdrant_name ?? payload.qdrantName,
       description: payload.description,
+      allowedRoles: payload.allowedRoles ?? payload.allowed_roles ?? ["admin", "staff", "user"],
     })
     .onConflictDoUpdate({
       target: knowledgeCollections.name,
       set: {
         qdrantName: payload.qdrant_name ?? payload.qdrantName,
         description: payload.description,
+        allowedRoles: payload.allowedRoles ?? payload.allowed_roles ?? ["admin", "staff", "user"],
       }
     })
     .returning();
   
-  return result[0] as KnowledgeCollection;
+  return result[0] as unknown as KnowledgeCollection;
 }
 
 export async function deleteCollectionRecord(id: string) {

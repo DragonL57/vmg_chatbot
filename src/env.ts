@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
@@ -23,11 +22,10 @@ export const env = createEnv({
     SUPABASE_URL: z.string().url(),
     SUPABASE_KEY: z.string().min(1),
     DATABASE_URL: z.string().min(1),
-    ADMIN_PASSWORD: z.string().min(1).default('ilovevmg'),
   },
   client: {
-    NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-    NEXT_PUBLIC_SUPABASE_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+    NEXT_PUBLIC_SUPABASE_KEY: z.string().min(1),
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,

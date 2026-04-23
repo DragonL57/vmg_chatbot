@@ -71,9 +71,13 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           setChatTitle(undefined);
           fetch(`/api/conversation/${sessionFromPath}`)
             .then(async (res) => {
-              if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
+              if (!res.ok) {
+                throw new Error(`Failed to load: ${res.status}`);
+              }
               const contentType = res.headers.get('content-type');
-              if (!contentType || !contentType.includes('application/json')) throw new Error('Invalid format');
+              if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Invalid response format');
+              }
               return res.json();
             })
             .then(data => {
@@ -235,6 +239,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
 
   useEffect(() => {
     if (!isLoading && messages.length > lastSavedCountRef.current && messages.some(m => m.role === 'assistant')) {
+       // Always signal refresh on save to re-order history (push to top)
        saveConversation(messages, chatTitle, true);
        lastSavedCountRef.current = messages.length;
     }
