@@ -87,6 +87,11 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
               }
             })
             .catch((err) => {
+              // If we JUST transitioned to this session locally, it might not be in DB yet
+              // This is a safety check in case the ref was reset or router.replace triggered late
+              if (err.message.includes('404') && isNewSessionLocalRef.current) {
+                return;
+              }
               setMessages([]);
               setChatTitle(undefined);
               lastSavedCountRef.current = 0;
@@ -125,13 +130,14 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
       }
     }
 
-    fetch('https://ipapi.co/json/')
+    fetch('https://ip-api.com/json/')
       .then(r => r.json())
       .then((data) => {
+        if (data.status !== 'success') return;
         const loc = {
-          latitude: data.latitude, longitude: data.longitude,
+          latitude: data.lat, longitude: data.lon,
           accuracy: null, city: data.city ?? null,
-          region: data.region ?? null, country: data.country_name ?? null,
+          region: data.regionName ?? null, country: data.country ?? null,
         };
         setLocation(loc);
         localStorage.setItem('vmg-mate-location', JSON.stringify(loc));
