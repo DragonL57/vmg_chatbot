@@ -8,7 +8,7 @@ import { Sidebar } from '../layout/Sidebar';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
-import { Menu, Settings2, Info, LayoutGrid } from 'lucide-react';
+import { Menu, Settings2, LayoutGrid } from 'lucide-react';
 import { LocationData } from './location-modal';
 import { type KnowledgeCollection } from '@core/services/supabase.service';
 import { toast } from 'sonner';

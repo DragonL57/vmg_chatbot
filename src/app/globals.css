@@ -21,10 +21,8 @@
   --radius-xl: 16px;
   
   /* Safe Areas */
-  --safe-top: 24px;
-  --safe-top: env(safe-area-inset-top);
-  --safe-bottom: 16px;
-  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-top: env(safe-area-inset-top, 24px);
+  --safe-bottom: env(safe-area-inset-bottom, 16px);
 }
 
 html, body {

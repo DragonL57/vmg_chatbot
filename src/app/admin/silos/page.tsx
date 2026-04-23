@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, LayoutGrid } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
 import { slugify } from '@/core/lib/utils';
 import { AdminHeader } from '@/components/admin/admin-header';

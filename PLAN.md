@@ -1,6 +1,6 @@
-# VMG Knowledge Center - Feature Roadmap & Plan
+# VMG MATE - Feature Roadmap & Plan
 
-This document outlines the planned evolution of the VMG Assistant platform, transitioning from a prototype into a production-grade enterprise internal tool.
+This document outlines the planned evolution of the VMG MATE platform, transitioning from a prototype into a production-grade enterprise internal tool.
 
 ## Phase 1: Stability & UI Polish (Current)
 Focus on resolving technical debt and finalizing the Notion-inspired minimalist UI.

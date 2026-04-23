@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { ChevronLeft, FileText, Trash2, Check, Loader2, Sparkles, Database } from 'lucide-react';
+import { ChevronLeft, Trash2, Check, Loader2, Sparkles, Database } from 'lucide-react';
 import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { useRouter } from 'next/navigation';
