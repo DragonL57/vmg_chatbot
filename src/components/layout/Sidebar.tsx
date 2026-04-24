@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, BookOpen, MessageSquareText, Settings, Shield, ChevronRight, LogOut, MessageSquare, MoreVertical, Star, Edit2, Trash2, Check } from 'lucide-react';
+import { X, BookOpen, MessageSquareText, Settings, Shield, ChevronRight, LogOut, MessageSquare, MoreVertical, Star, Edit2, Trash2, Check, UserCircle } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams, useParams } from 'next/navigation';
@@ -241,6 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems = [
     { name: 'Trò chuyện mới', href: '/', icon: MessageSquareText },
+    { name: 'Hồ sơ cá nhân', href: '/profile', icon: UserCircle },
   ];
 
   const userInitial = user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U';
@@ -269,15 +270,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-all">
               <Image src="/apple-icon.svg" alt="VMG" width={32} height={32} />
             </div>
-            <h2 className="text-[14px] font-bold text-black/80 truncate">VMG MATE</h2>
+            <h2 className="text-[14px] font-bold text-black/80 truncate">MATE</h2>
           </Link>
           <button onClick={onClose} className="p-1.5 text-black/40 hover:text-black/60 md:hidden hover:bg-black/5 rounded">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto px-2 py-4 space-y-6 custom-scrollbar">
+        {/* Navigation - Fixed Top */}
+        <div className="px-2 py-4 space-y-4 shrink-0">
           <nav className="space-y-0.5">
             {navItems.map((item) => {
               const isActive = pathname === item.href && !currentSessionId;
@@ -299,24 +300,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               );
             })}
           </nav>
+        </div>
 
-          {/* System Section at the Top */}
-          <div>
-             <p className="px-3 text-[11px] font-bold text-black/30 mb-2 uppercase tracking-wider">Hệ thống</p>
-             <Link
-                href="/admin"
-                onClick={() => onClose()}
-                className={`flex items-center gap-2.5 px-3 h-8 rounded-[4px] text-[14px] font-medium transition-all ${
-                  pathname.startsWith('/admin') ? 'bg-black/[0.06] text-black' : 'text-black/60 hover:bg-black/5'
-                }`}
-              >
-                <Shield className={`w-4 h-4 ${pathname.startsWith('/admin') ? 'text-[#D32F2F]' : 'text-black/40'}`} strokeWidth={1.5} />
-                <span>Bảng điều khiển</span>
-              </Link>
-          </div>
-
-          {/* History Section - Takes up the remaining space */}
-          <div className="space-y-1">
+        {/* History Section - Scrollable Bottom */}
+        <div className="flex-1 overflow-y-auto px-2 pb-10 min-h-0 custom-scrollbar">
+          <div className="space-y-1 mt-2">
             <p className="px-3 text-[11px] font-bold text-black/30 mb-2 uppercase tracking-wider">Gần đây</p>
             {isLoadingHistory ? (
               <div className="px-3 py-2 space-y-2">
@@ -324,7 +312,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <div className="h-4 bg-black/5 rounded animate-pulse w-1/2"></div>
               </div>
             ) : history.length > 0 ? (
-              <div className="space-y-0.5 max-h-[50vh] overflow-y-auto custom-scrollbar-hidden pb-10">
+              <div className="space-y-0.5 pb-4">
                 {history.map((chat) => (
                   <div key={chat.id} className="relative group/item">
                     {editingId === chat.id ? (
@@ -398,7 +386,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* User Workspace */}
         <div className="p-2 mt-auto border-t border-black/[0.05] space-y-1 bg-[#f6f5f4] z-10">
-          <div className="flex items-center gap-3 p-2 rounded-[4px] hover:bg-black/5 transition-colors cursor-pointer group">
+          <div 
+            onClick={() => { router.push('/profile'); onClose(); }}
+            className={`flex items-center gap-3 p-2 rounded-[4px] hover:bg-black/5 transition-colors cursor-pointer group ${pathname === '/profile' ? 'bg-black/[0.04]' : ''}`}
+          >
             <div className="w-7 h-7 rounded-[6px] bg-[#D32F2F] flex items-center justify-center text-white text-[11px] font-bold shadow-sm overflow-hidden shrink-0">
               {userAvatar ? (
                 <Image src={userAvatar} alt={userName} width={28} height={28} className="object-cover" />

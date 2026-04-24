@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Message } from '@core/types/chat';
-import { Database, ChevronDown, ChevronUp, Search, Flag } from 'lucide-react';
+import { Database, ChevronDown, ChevronUp, Search, Flag, BrainCircuit } from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
 import { ReportModal } from './report-modal';
+import { AgentSteps } from './agent-steps';
 
 interface MessageItemProps {
   message: Message;
   conversation?: Message[];
   sessionId?: string;
+  isChatLoading?: boolean;
 }
 
 const SystemMessage: React.FC<{ message: Message }> = ({ message }) => {
@@ -37,12 +39,15 @@ const SystemMessage: React.FC<{ message: Message }> = ({ message }) => {
   );
 };
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [], sessionId }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [], sessionId, isChatLoading }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isSafetyWarning = message.content?.includes('⚠️ Cảnh báo vi phạm chính sách an toàn');
   const [showModal, setShowModal] = useState(false);
   const [reportState, setReportState] = useState<'idle' | 'done'>('idle');
+
+  // Logic to determine if this message is currently being "typed" by the AI
+  const isGenerating = isChatLoading && !isUser && !isSystem && conversation[conversation.length - 1]?.id === message.id;
 
   if (isSystem) return <SystemMessage message={message} />;
 
@@ -60,6 +65,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
 
       <div className={`flex w-full animate-in fade-in duration-400 group ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} ${isUser ? 'max-w-[85%] md:max-w-[75%]' : 'w-full'}`}>
+          
+          {/* Timestamp on Top */}
+          <div className={`text-[10px] mb-1 font-medium text-black/20 flex items-center gap-1.5 ${isUser ? 'mr-1' : 'ml-1'}`}>
+            {message.timestamp ? new Date(message.timestamp).toLocaleString('vi-VN', { 
+              day: '2-digit', 
+              month: '2-digit', 
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) : ''}
+          </div>
+
           <div
             className={`w-full px-4 py-3 text-[15px] leading-[1.6] relative transition-all ${
               isUser
@@ -71,11 +88,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
                     }`
             }`}
           >
-            <MarkdownContent content={message.content} isUser={isUser} />
+            {!isUser && message.reasoningTrace && message.reasoningTrace.length > 0 && (
+              <AgentSteps 
+                phase={isGenerating ? 'generate' : 'complete'} 
+                reflections={message.reasoningTrace} 
+                defaultCollapsed={true} 
+              />
+            )}
+            <MarkdownContent content={message.content} isUser={isUser} citations={message.citations} />
             
-            <div className={`text-[11px] mt-2 font-medium flex items-center gap-1.5 ${isUser ? 'text-white/50' : 'text-black/25'}`}>
-              {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-            </div>
+            {!isUser && message.memoryUpdated && (
+              <div className="mt-3 flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.02] border border-black/[0.04] rounded-md w-fit animate-in fade-in duration-700">
+                <span className="text-[11px] font-medium text-black/40 italic">MATE đã ghi nhớ thêm thông tin</span>
+              </div>
+            )}
           </div>
 
           {!isUser && !isSystem && (

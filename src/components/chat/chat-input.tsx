@@ -1,5 +1,5 @@
 import React, { KeyboardEvent, useRef, useEffect } from 'react';
-import { ArrowUp, Plus } from 'lucide-react';
+import { ArrowUp, Paperclip } from 'lucide-react';
 
 interface ChatInputProps {
   input: string;
@@ -55,8 +55,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
           <button
             type="button"
             className="p-1.5 text-black/40 hover:bg-black/5 rounded transition-colors"
+            title="Thêm tài liệu"
           >
-            <Plus className="w-4 h-4" />
+            <Paperclip className="w-4 h-4" />
           </button>
         </div>
 

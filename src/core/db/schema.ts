@@ -63,3 +63,13 @@ export const reports = pgTable("reports", {
   sessionId: text("session_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const userMemories = pgTable("user_memories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  fact: text("fact").notNull(),
+  category: text("category").notNull().default("general"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdIdx: index("user_memories_user_id_idx").on(table.userId),
+}));

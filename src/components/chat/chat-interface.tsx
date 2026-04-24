@@ -30,9 +30,11 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [agentReflections, setAgentReflections] = useState<string[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(() => !!params?.id);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
+  const [isCollectionsLoading, setIsCollectionsLoading] = useState(true);
   const [selectedCollection, setSelectedCollection] = useState('auto');
   const [user, setUser] = useState<any>(null);
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
@@ -40,6 +42,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const lastSavedCountRef = useRef<number>(0);
   const prevSessionIdRef = useRef<string | null>(null);
   const isNewSessionLocalRef = useRef<boolean>(false);
+  const reflectionsRef = useRef<string[]>([]);
   const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
   const [phaseDetail, setPhaseDetail] = useState<string>('');
 
@@ -55,54 +58,40 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
 
   useEffect(() => {
     // Only act if the session in the URL has actually changed from what we last handled
-    if (sessionFromPath !== (prevSessionIdRef.current || undefined)) {
-      const isNavigatingFromRoot = prevSessionIdRef.current === null;
+    const currentPrevSessionId = prevSessionIdRef.current;
+    if (sessionFromPath !== (currentPrevSessionId || undefined)) {
+      const isNavigatingFromRoot = currentPrevSessionId === null;
       prevSessionIdRef.current = sessionFromPath || null;
 
       if (sessionFromPath) {
         // Navigated to or Refreshed on a specific session
-        if (sessionFromPath !== sessionId) {
-          // IMPORTANT: If this was a locally started session, don't try to fetch it from server yet
-          if (isNewSessionLocalRef.current) {
-            isNewSessionLocalRef.current = false;
-            return;
-          }
-
-          setMessages([]); // Clear immediately to prevent stale save triggers
-          setSessionId(sessionFromPath);
-          setIsHistoryLoading(true); // Start loading skeleton
-          lastSavedCountRef.current = 0;
-          setChatTitle(undefined);
-          fetch(`/api/conversation/${sessionFromPath}`)
-            .then(async (res) => {
-              if (!res.ok) {
-                throw new Error(`Failed to load: ${res.status}`);
-              }
-              const contentType = res.headers.get('content-type');
-              if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Invalid response format');
-              }
-              return res.json();
-            })
-            .then(data => {
-              if (data.messages) {
-                setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-                lastSavedCountRef.current = data.messages.length;
-              }
-            })
-            .catch((err) => {
-              // Safety fallback: if we somehow missed the ref check
-              if (err.message.includes('404') && isNewSessionLocalRef.current) {
-                isNewSessionLocalRef.current = false;
-                return;
-              }
-              setMessages([]);
-              setChatTitle(undefined);
-              lastSavedCountRef.current = 0;
-              toast.error(err.message.includes('404') ? 'Không tìm thấy cuộc hội thoại' : 'Lỗi khi tải cuộc hội thoại');
-            })
-            .finally(() => setIsHistoryLoading(false));
+        // Note: we fetch even if sessionFromPath === sessionId (e.g. on mount/refresh)
+        // unless it's a locally started session that hasn't reached DB yet
+        if (isNewSessionLocalRef.current) {
+          isNewSessionLocalRef.current = false;
+          return;
         }
+
+        setMessages([]); // Clear immediately
+        setSessionId(sessionFromPath);
+        setIsHistoryLoading(true);
+        lastSavedCountRef.current = 0;
+        setChatTitle(undefined);
+        fetch(`/api/conversation/${sessionFromPath}`)
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
+            return res.json();
+          })
+          .then(data => {
+            if (data.messages) {
+              setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+              lastSavedCountRef.current = data.messages.length;
+            }
+          })
+          .catch((err) => {
+            toast.error('Lỗi khi tải cuộc hội thoại');
+          })
+          .finally(() => setIsHistoryLoading(false));
       } else {
         // Navigated to root (Trò chuyện mới) from an existing session
         if (!isNavigatingFromRoot) {
@@ -120,7 +109,8 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     fetch('/api/admin/collections')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setCollections(data); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setIsCollectionsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -159,7 +149,13 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           id: sessionId,
           userId: user.id,
           title: customTitle,
-          messages: msgs.filter(m => !m.isToolCall).map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
+          messages: msgs.filter(m => !m.isToolCall).map(m => ({ 
+            role: m.role, 
+            content: m.content, 
+            timestamp: m.timestamp,
+            citations: m.citations,
+            reasoningTrace: m.reasoningTrace
+          })),
           location,
           tokenUsage: tokenUsageRef.current,
         }),
@@ -177,6 +173,8 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     setInput('');
     setIsLoading(true);
     setLoadingPhase('decompose');
+    setAgentReflections([]);
+    reflectionsRef.current = [];
 
     // If first message at root, update URL to lock in session
     if (messages.length === 0 && !params?.id) {
@@ -207,6 +205,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         }),
       });
       if (!response.ok) throw new Error('Chat failed');
+      
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantId = '';
@@ -216,22 +215,57 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
       while (true) {
         const { value, done } = await reader!.read();
         if (done) break;
+        
         streamBuffer += decoder.decode(value, { stream: true });
         const lines = streamBuffer.split('\n');
         streamBuffer = lines.pop() || '';
+        
         for (const line of lines) {
           if (!line.trim()) continue;
           try {
             const data = JSON.parse(line);
-            if (data.type === 'phase') { setLoadingPhase(data.value); setPhaseDetail(data.detail || ''); }
+            if (data.type === 'phase') { 
+              setLoadingPhase(data.value); 
+              if (data.detail) setPhaseDetail(data.detail); 
+              if (data.reflection) {
+                const thought = data.reflection;
+                // Update Ref for immediate consumption in content handler
+                if (reflectionsRef.current[reflectionsRef.current.length - 1] !== thought) {
+                   reflectionsRef.current = [...reflectionsRef.current, thought];
+                }
+                setAgentReflections(reflectionsRef.current);
+                
+                // Update active assistant message if it exists
+                if (assistantId) {
+                  setMessages((prev) => prev.map((msg) => {
+                    if (msg.id === assistantId) {
+                      return { ...msg, reasoningTrace: reflectionsRef.current };
+                    }
+                    return msg;
+                  }));
+                }
+              }
+            }
             else if (data.type === 'tokens') { tokenUsageRef.current = data.value; }
+            else if (data.type === 'citations') {
+              setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, citations: data.value } : msg));
+            }
+            else if (data.type === 'memory_update') {
+              setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, memoryUpdated: true } : msg));
+            }
             else if (data.type === 'content') {
               const text = data.value;
               fullContent += text;
               if (!assistantId) {
-                setLoadingPhase('');
+                setLoadingPhase('generate');
                 assistantId = uuidv4();
-                setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: text, timestamp: new Date() }]);
+                setMessages((prev) => [...prev, { 
+                  id: assistantId, 
+                  role: 'assistant', 
+                  content: text, 
+                  timestamp: new Date(),
+                  reasoningTrace: reflectionsRef.current
+                }]);
               } else {
                 setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: msg.content + text } : msg));
               }
@@ -267,12 +301,6 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
             <button onClick={onToggleSidebar} className="p-1 -ml-1 text-black/40 md:hidden hover:bg-black/5 rounded">
               <Menu className="w-5 h-5" strokeWidth={1.5} />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                <Image src="/apple-icon.svg" alt="VMG" width={24} height={24} style={{ height: 'auto' }} />
-              </div>
-              <h1 className="text-[17px] font-semibold text-black/80 truncate">VMG MATE</h1>
-            </div>
           </div>
 
           <div className="flex items-center gap-1">
@@ -293,6 +321,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           isHistoryLoading={isHistoryLoading}
           loadingPhase={loadingPhase}
           phaseDetail={phaseDetail}
+          agentReflections={agentReflections}
           currentMode={selectedCollection}
           sessionId={sessionId}
           collections={collections}
@@ -312,7 +341,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           />
           <div className="mt-2 flex justify-center px-4">
             <p className="text-[11px] text-[#a39e98] text-center leading-none">
-              Kiểm tra lại thông tin, MATE có thể nhầm lẫn.
+              VMG MATE là Trợ lý AI. Vui lòng kiểm tra lại thông tin. <a href="mailto:support@vmg.edu.vn" className="underline hover:text-[#D32F2F]">Góp ý lỗi</a>
             </p>
           </div>
         </div>

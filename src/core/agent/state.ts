@@ -54,6 +54,16 @@ export const AgentState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => false,
   }),
+  /** Metacognitive reasoning/reflection for the current phase */
+  reflection: Annotation<string>({
+    reducer: (x, y) => y,
+    default: () => "",
+  }),
+  /** Long-term user memories/facts retrieved for this user */
+  userMemories: Annotation<string[]>({
+    reducer: (x, y) => y,
+    default: () => [],
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;

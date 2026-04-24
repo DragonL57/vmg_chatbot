@@ -45,3 +45,11 @@ export async function isAdmin(supabaseId: string) {
   const role = await getUserRole(supabaseId);
   return role === 'admin';
 }
+
+export async function getInternalUserId(supabaseId: string): Promise<string | null> {
+  const user = await db.query.users.findFirst({
+    where: eq(users.supabaseId, supabaseId),
+    columns: { id: true }
+  });
+  return user?.id || null;
+}

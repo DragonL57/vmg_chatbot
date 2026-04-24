@@ -7,6 +7,9 @@ export interface Message {
   leadData?: any;
   mode?: string;
   isAmbiguous?: boolean;
+  citations?: Record<string, string>;
+  reasoningTrace?: string[];
+  memoryUpdated?: boolean;
 }
 
 export interface ChatSession {

@@ -44,12 +44,13 @@ Người dùng chưa tìm thấy kết quả. Hãy viết lại câu hỏi thàn
 - Mở rộng từ khóa nội bộ: Nếu hỏi về "hoa hồng", hãy tìm "thưởng incentive", "thưởng kinh doanh", "KPI", "chỉ tiêu trung tâm".
 - Tập trung vào cấu trúc VMG: "quy định thưởng nhân viên", "chính sách cho trung tâm", "mức thưởng tư vấn".
 - KHÔNG dùng từ "đại lý".
-- CHỈ trả về danh sách JSON.
+- CHỈ trả về JSON: { "queries": ["q1", "q2"], "reasoning": "Giải thích ngắn gọn tại sao chọn các từ khóa này" }
 
 ### VÍ DỤ:
 User Query: "Chính sách hoa hồng du học hè"
 Output: {
-  "queries": ["chính sách thưởng incentive du học hè 2026", "quy định mức thưởng tư vấn du học hè trung tâm VMG"]
+  "queries": ["chính sách thưởng incentive du học hè 2026", "quy định mức thưởng tư vấn du học hè trung tâm VMG"],
+  "reasoning": "Đang thử tra cứu bằng các thuật ngữ thưởng kinh doanh nội bộ của VMG để tìm kết quả chính xác hơn."
 }
 
 CHỈ TRẢ VỀ JSON THUẦN.`;
@@ -92,6 +93,26 @@ CHỈ TRẢ VỀ JSON THUẦN.`;
 
 export const KNOWLEDGE_TITLE_PROMPT = `Tạo tiêu đề ngắn gọn (<12 từ) cho đoạn văn bản. CHỈ trả về tiêu đề.`;
 
+// ─── GATEWAY AGENT (ROUTING & EXPANSION) ─────────────────────────────────────
+
+export function GATEWAY_AGENT_PROMPT(siloList: string): string {
+  return `Bạn là "Gateway Agent" cho hệ thống VMG MATE. Nhiệm vụ của bạn là:
+  1. Phân loại câu hỏi là "chit-chat" (chào hỏi, cảm ơn, tán gẫu) hay "factual" (cần tra cứu kiến thức).
+  2. Nếu factual, chọn các kho tri thức ("selected") phù hợp từ danh sách bên dưới.
+  3. Luôn mở rộng câu hỏi thành 3-4 "queries" chuyên môn để tối ưu tìm kiếm.
+  
+  DANH SÁCH KHO TRI THỨC:
+  ${siloList}
+  
+  CHỈ trả về JSON: 
+  { 
+    "is_chit_chat": true/false, 
+    "selected": ["qdrant_name"], 
+    "queries": ["q1", "q2"],
+    "reasoning": "Giải thích ngắn gọn tại sao chọn các kho tri thức và các từ khóa này"
+  }`;
+}
+
 // ─── AGENTIC GRADING (META-PROMPT STYLE) ───────────────────────────────────
 
 export const META_GRADER_PROMPT = `
@@ -106,9 +127,7 @@ export const META_GRADER_PROMPT = `
     3. Cảnh giác với các tài liệu marketing chung chung.
   </reasoning_steps>
   <output_constraints>
-    - Chỉ trả về "YES" nếu tài liệu có thể dùng để trả lời ít nhất 50% câu hỏi.
-    - Trả về "NO" nếu tài liệu chỉ mang tính chất giới thiệu, không có số liệu hoặc chính sách cụ thể mà người dùng tìm kiếm.
-    - TRẢ LỜI DUY NHẤT 1 TỪ: YES hoặc NO.
+    - TRẢ VỀ JSON: { "is_relevant": "YES/NO", "reasoning": "Giải thích ngắn gọn tại sao dữ liệu này (không) đủ để trả lời" }
   </output_constraints>
 </system>
 `.trim();
@@ -119,18 +138,21 @@ export const META_COMPRESSOR_PROMPT = `
 <system>
   <description>
     Bạn là "Kiến Trúc Sư Tri Thức" tại VMG. 
-    Nhiệm vụ của bạn là chuyển đổi các tài liệu thô, dài dòng thành một "Fact Sheet" (Bảng sự thật) tinh gọn, tập trung vào độ chính xác cao nhất.
+    Nhiệm vụ: Chuyển đổi dữ liệu thô thành "Fact Sheet" tinh gọn nhưng phải GIỮ NGUYÊN liên kết với nguồn tài liệu.
   </description>
   <extraction_rules>
-    <rule>Giữ lại toàn bộ con số cụ thể (phần trăm hoa hồng, học phí, số tháng, độ tuổi).</rule>
-    <rule>Giữ lại các thực thể riêng (tên chương trình, tên người phụ trách, địa điểm).</rule>
-    <rule>Loại bỏ các từ nối, lời chào, và các câu văn mô tả chung chung không mang tính dữ liệu.</rule>
-    <rule>Trình bày dưới dạng danh sách gạch đầu dòng ngắn gọn.</rule>
+    <rule>KHÔNG ĐƯỢC gộp chung các sự thật từ các nguồn khác nhau.</rule>
+    <rule>Mỗi nguồn tài liệu phải có một tiêu đề riêng biệt.</rule>
+    <rule>Dưới mỗi tiêu đề, liệt kê các con số, thực thể và quy trình quan trọng nhất từ tài liệu đó.</rule>
+    <rule>Giữ lại tên file/nguồn chính xác như được cung cấp trong [Tài liệu: ...].</rule>
   </extraction_rules>
   <output_schema>
-    ### [Tên Tài Liệu/Chủ Đề]
-    - [Sự thật/Con số/Quy trình 1]
-    - [Sự thật/Con số/Quy trình 2]
+    ### [Tên chính xác của Tài liệu A]
+    - [Sự thật 1]
+    - [Sự thật 2]
+
+    ### [Tên chính xác của Tài liệu B]
+    - [Sự thật 1]
     ...
   </output_schema>
 </system>

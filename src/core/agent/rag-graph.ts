@@ -2,11 +2,15 @@ import { StateGraph, END, START } from "@langchain/langgraph";
 import { AgentState, type AgentStateType } from "./state";
 import { ManagerService, type RetrievalEvidence } from "@core/services/manager.service";
 import { VectorSearchService } from "@core/services/vector-search.service";
-import { getFastProvider } from "@core/lib/providers";
+import { getFastProvider, getGenerationProvider } from "@core/lib/providers";
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { estimateTokens } from "@core/lib/utils";
-import { SEARCH_OPTIMIZATION_PROMPT, META_GRADER_PROMPT, META_COMPRESSOR_PROMPT } from "@core/prompts/rag-agents";
-
+import { 
+  SEARCH_OPTIMIZATION_PROMPT, 
+  META_GRADER_PROMPT, 
+  META_COMPRESSOR_PROMPT,
+  GATEWAY_AGENT_PROMPT
+} from "@core/prompts/rag-agents";
 const TOKEN_COMPRESSION_THRESHOLD = 3000;
 
 /**
@@ -32,20 +36,7 @@ async function routerExpandNode(state: AgentStateType) {
 
   const { client, model, extraBody } = getFastProvider();
   
-  const systemContent = `Bạn là "Gateway Agent" cho hệ thống VMG MATE. Nhiệm vụ của bạn là:
-  1. Phân loại câu hỏi là "chit-chat" (chào hỏi, cảm ơn, tán gẫu) hay "factual" (cần tra cứu kiến thức).
-  2. Nếu factual và mode là "auto", chọn các kho tri thức ("selected") phù hợp.
-  3. Luôn mở rộng câu hỏi thành 3-4 "queries" chuyên môn để tối ưu tìm kiếm.
-  
-  DANH SÁCH KHO TRI THỨC:
-  ${siloList}
-  
-  CHỈ trả về JSON: 
-  { 
-    "is_chit_chat": true/false, 
-    "selected": ["qdrant_name"], 
-    "queries": ["q1", "q2"] 
-  }`;
+  const systemContent = GATEWAY_AGENT_PROMPT(siloList);
 
   const res = await client.chat.completions.create({
     model,
@@ -60,7 +51,7 @@ async function routerExpandNode(state: AgentStateType) {
   const output = res.choices[0].message.content || "{}";
   logPayload("RouterExpand", { systemContent, lastQuery }, output);
 
-  let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery] };
+  let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery], reasoning: "" };
   try {
     parsed = JSON.parse(output);
   } catch (e) {}
@@ -72,7 +63,8 @@ async function routerExpandNode(state: AgentStateType) {
   return { 
     isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
-    subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery]
+    subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery],
+    reflection: parsed.reasoning || "Đang xác định chiến lược tra cứu..."
   };
 }
 
@@ -80,7 +72,7 @@ async function routerExpandNode(state: AgentStateType) {
  * Node 1: Summarize History
  */
 async function summarizeHistoryNode(state: AgentStateType) {
-  if (state.messages.length < 4) return {};
+  if (state.messages.length < 4) return { reflection: "Khởi tạo bối cảnh mới." };
   const { client, model, extraBody } = getFastProvider();
   
   const history = state.messages.map(m => ({ 
@@ -91,7 +83,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
   const res = await client.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: "Tóm tắt hội thoại cực kỳ ngắn gọn (dưới 100 từ), chỉ giữ lại các thực thể và ý chính quan trọng nhất. Tuyệt đối không được giải thích hay lặp lại lịch sự." },
+      { role: "system", content: "Tóm tắt hội thoại cực kỳ ngắn gọn (dưới 100 từ), chỉ giữ lại các thực thể và ý chính quan trọng nhất." },
       ...history
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
@@ -99,7 +91,10 @@ async function summarizeHistoryNode(state: AgentStateType) {
 
   const summary = res.choices[0].message.content || "";
   logPayload("Summarize", history, summary);
-  return { context_summary: summary };
+  return { 
+    context_summary: summary,
+    reflection: "Đã nén bối cảnh hội thoại để tối ưu bộ nhớ truy xuất." 
+  };
 }
 
 /**
@@ -130,7 +125,10 @@ async function retrieveNode(state: AgentStateType) {
     .slice(0, 5);
 
   console.log(`[RetrieveNode] Total raw: ${rawDocs.length} | Unique: ${deduplicated.length} | Final: ${rankedDocs.length}`);
-  return { evidence: { docs: rankedDocs } };
+  return { 
+    evidence: { docs: rankedDocs },
+    reflection: `Đang quét ${targetCollections.length} kho dữ liệu với ${queries.length} hướng truy vấn...` 
+  };
 }
 
 /**
@@ -139,13 +137,14 @@ async function retrieveNode(state: AgentStateType) {
 async function gradeNode(state: AgentStateType) {
   const { evidence, messages } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  if (!evidence.docs.length) return { isRelevant: false };
+  if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu nào liên quan." };
 
   const { client, model, extraBody } = getFastProvider();
   const context = evidence.docs.slice(0, 8).map(d => d.parentContent || d.content).join("\n\n");
   
   const res = await client.chat.completions.create({
     model,
+    response_format: { type: "json_object" },
     messages: [
       { role: "system", content: META_GRADER_PROMPT },
       { role: "user", content: `Câu hỏi: ${lastQuery}\n\nTài liệu:\n${context.slice(0, 4000)}` }
@@ -153,13 +152,21 @@ async function gradeNode(state: AgentStateType) {
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
 
-  const rawOut = res.choices[0].message.content || "";
-  const grade = rawOut.toUpperCase().includes("YES");
-  
+  const rawOut = res.choices[0].message.content || "{}";
   logPayload("Grader", { lastQuery, context: context.slice(0, 500) }, rawOut);
+
+  let parsed = { is_relevant: "NO", reasoning: "" };
+  try {
+    parsed = JSON.parse(rawOut);
+  } catch (e) {}
+
+  const grade = parsed.is_relevant.toUpperCase() === "YES";
   console.log(`[GradeNode] Verdict: ${grade ? "✅ YES" : "❌ NO"}`);
   
-  return { isRelevant: grade };
+  return { 
+    isRelevant: grade,
+    reflection: parsed.reasoning || (grade ? "Tài liệu rất phù hợp." : "Tài liệu chưa đủ thông tin.")
+  };
 }
 
 /**
@@ -183,15 +190,15 @@ async function rewriteNode(state: AgentStateType) {
   const output = res.choices[0].message.content || "{}";
   logPayload("Rewriter", input, output);
 
-  let newQueries: string[] = [];
+  let parsed = { queries: [] as string[], reasoning: "" };
   try {
-    const parsed = JSON.parse(output);
-    if (Array.isArray(parsed.queries)) newQueries = parsed.queries;
+    parsed = JSON.parse(output);
   } catch (e) {}
 
   return { 
-    subQueries: newQueries.length > 0 ? newQueries : [lastQuery],
-    iterations: (state.iterations || 0) + 1 
+    subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],
+    iterations: (state.iterations || 0) + 1,
+    reflection: parsed.reasoning || "Đang tối ưu hóa lại câu lệnh tìm kiếm..."
   };
 }
 
@@ -200,24 +207,27 @@ async function rewriteNode(state: AgentStateType) {
  */
 async function compressNode(state: AgentStateType) {
   const { evidence } = state;
-  if (!evidence.docs.length) return {};
+  if (!evidence.docs.length) return { reflection: "Không có dữ liệu để nén, chuẩn bị phản hồi trực tiếp." };
   
-  const { client, model, extraBody } = getFastProvider();
-  const rawText = evidence.docs.map(d => d.parentContent || d.content).join("\n\n");
+  const { client, model, extraBody } = getGenerationProvider();
+  const rawTextWithSources = evidence.docs.map(d => `[Tài liệu: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
   
   const res = await client.chat.completions.create({
     model,
     messages: [
       { role: "system", content: META_COMPRESSOR_PROMPT },
-      { role: "user", content: `Tài liệu:\n${rawText.slice(0, 5000)}` }
+      { role: "user", content: `Dữ liệu thô kèm nguồn:\n${rawTextWithSources.slice(0, 6000)}` }
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
   
   const summary = res.choices[0].message.content || "";
-  logPayload("Compressor", rawText.slice(0, 1000), summary);
+  logPayload("Compressor", rawTextWithSources.slice(0, 1000), summary);
   
-  return { context_summary: summary };
+  return { 
+    context_summary: summary,
+    reflection: "Đã trích xuất các sự thật cốt lõi và ánh xạ nguồn tài liệu."
+  };
 }
 
 // ─── GRAPH CONSTRUCTION ──────────────────────────────────────────────────────

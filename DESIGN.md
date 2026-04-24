@@ -62,6 +62,19 @@
 - **Editing:** Inline editable headers for names/descriptions. NO modal popups for simple metadata.
 - **Responsiveness:** Hide secondary columns (`sm:table-cell`) to prevent horizontal scrolling.
 
-### Agentic Thinking (Progressive Disclosure)
-- **Closed State:** Horizontal pill with pulsing red dot and active phase label.
-- **Open State:** Click to expand vertical reasoning chain with thin connector lines.
+### Agentic Thinking (Metacognitive Trace)
+- **Visual Style:** Minimalist white box with a thin `1px` border (`border-black/[0.08]`). No backgrounds, no gradients, no decorative scan lines.
+- **Typography:** 13px bold text for the header, 14px italicized medium text for the reasoning trace.
+- **Behavior:** 
+    - **Live Phase:** Remains expanded to show real-time thought accumulation (bullet points).
+    - **Transition:** Uses a smooth `grid-rows` slide animation (300ms) for expanding/collapsing.
+    - **Generation Phase:** Automatically collapses into a summary header inside the message bubble to prioritize the final answer.
+    - **History:** Collapsed by default. Clicking the header toggles visibility.
+- **Constraint:** NO all-caps headings. Header text must be natural sentence case (e.g., "MATE đang suy nghĩ...", "Tiến trình suy luận").
+
+### Long-term Memory (Context Engineering)
+- **Extraction:** Background "Knowledge Agent" rewrites facts in the **third person** ("User is...", "The user prefers...").
+- **Deduplication:** Perform semantic and exact checks to prevent redundant facts.
+- **Notification:** A subtle, typographical badge below the message: *"mate đã ghi nhớ thêm thông tin"* (lowercase, italic, neutral gray, no icon).
+- **Profile Interface:** Uses the **Admin Table Aesthetic**: clean rows, fixed-width columns, strictly natural case headers. No bright "SaaS colors"; use only neutral tones or subtle VMG Red accents.
+- **Control:** Inline editing of memory snippets with `Enter`-to-save and `Esc`-to-cancel shortcuts.
