@@ -8,6 +8,7 @@ import { listCollections } from '@core/services/supabase.service';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { MemoryService } from '@core/services/memory.service';
 import { getInternalUserId } from '@core/services/auth.service';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; 
@@ -30,13 +31,13 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // ── Phase 0: Long-term Memory Retrieval ─────────────────────────────
+  // Phase 0: Long-term Memory Retrieval (Bounded)
   const internalUserId = await getInternalUserId(user.id);
   if (!internalUserId) {
     return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
   }
 
-  const memories = await MemoryService.getUserMemories(internalUserId);
+  const memories = await MemoryService.getUserMemories(internalUserId, 20);
   const userMemories = memories.map(m => `- ${m.fact}`).join('\n');
 
   const allCollections = await listCollections().catch(() => []);
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
           knowledgeBlock = buildRetrievedContext(evidence);
         }
 
-        // ── Phase 2: Final Generation (with Retry) ──────────────────────────
+        // Phase 2: Final Generation (with Retry)
         emit({ type: 'phase', value: 'generate' });
         const { client, model, extraBody } = getGenerationProvider();
         
@@ -160,7 +161,7 @@ ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
 
         console.log(`[PAYLOAD] FinalGen     | Out: ${fullContent.length.toLocaleString().padStart(5)} chars`);
 
-        // ── Phase 3: Metadata & Citations ───────────────────────────────────
+        // Phase 3: Metadata & Citations
         if (evidence && evidence.docs.length > 0) {
           const citationMetadata = evidence.docs.reduce((acc: Record<string, string>, doc) => {
             const sourceKey = doc.source || doc.title;
@@ -179,22 +180,19 @@ ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
 
         if (usage) emit({ type: 'tokens', value: usage });
 
-        // ── Phase 4: Memory Extraction (Knowledge Agent) ─────────
+        // IMPORTANT: Close stream immediately to stop client loading state
+        controller.close();
+
+        // Phase 4: Non-blocking Memory Extraction (Out-of-band)
         if (internalUserId) {
-          try {
-            const count = await MemoryService.extractAndSaveMemories(internalUserId, messages);
-            if (count > 0) {
-              emit({ type: 'memory_update', count });
-            }
-          } catch (err) {
-            console.error('[Memory Extraction] Failed:', err);
-          }
+          MemoryService.extractAndSaveMemories(internalUserId, messages).catch(err => {
+             console.error('[Background Memory] Extraction failed:', err);
+          });
         }
 
       } catch (error) {
         console.error('[Chat API] Error:', error);
         emit({ type: 'error', value: 'Đã có lỗi xảy ra trong quá trình xử lý.' });
-      } finally {
         controller.close();
       }
     },

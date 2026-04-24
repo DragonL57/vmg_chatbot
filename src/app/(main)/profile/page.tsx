@@ -165,10 +165,18 @@ export default function ProfilePage() {
                             if (e.key === 'Escape') setEditingId(null);
                           }}
                         />
-                        <button onClick={() => handleUpdateMemory(m.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
+                        <button 
+                          onClick={() => handleUpdateMemory(m.id)} 
+                          className="p-1 text-green-600 hover:bg-green-50 rounded"
+                          aria-label="Lưu thay đổi"
+                        >
                           <Check className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => setEditingId(null)} className="p-1 text-black/20 hover:bg-black/5 rounded">
+                        <button 
+                          onClick={() => setEditingId(null)} 
+                          className="p-1 text-black/20 hover:bg-black/5 rounded"
+                          aria-label="Hủy bỏ"
+                        >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -183,6 +191,7 @@ export default function ProfilePage() {
                             onClick={() => { setEditingId(m.id); setEditTitle(m.fact); }}
                             className="p-1.5 text-black/10 hover:text-black/40 transition-colors"
                             title="Chỉnh sửa"
+                            aria-label="Chỉnh sửa tri thức"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -190,6 +199,7 @@ export default function ProfilePage() {
                             onClick={() => handleDeleteMemory(m.id)}
                             className="p-1.5 text-black/10 hover:text-[#D32F2F] transition-colors"
                             title="Xóa"
+                            aria-label="Xóa tri thức"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

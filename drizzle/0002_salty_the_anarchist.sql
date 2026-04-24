@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "user_memories_user_fact_unique" ON "user_memories" USING btree ("user_id","fact");

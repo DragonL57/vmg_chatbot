@@ -96,17 +96,10 @@ export async function getConversationById(id: string, supabaseId: string) {
 
   if (!conversation) return null;
 
-  // Security & Migration Check
-  // 1. If conversation has no owner, lazy-backfill it to the current user (Migration)
-  if (!conversation.userId) {
-    console.log(`[SupabaseService] Lazy-backfilling conversation ${id} to user ${user.id}`);
-    await db.update(conversations).set({ userId: user.id }).where(eq(conversations.id, id));
-    return { ...conversation, userId: user.id };
-  }
-
-  // 2. If it has an owner, ensure it's the right one (Security)
+  // Security Check: Deny access if ownership is missing or incorrect.
+  // Legacy NULL-owned rows require an explicit batch migration to ensure correctness.
   if (conversation.userId !== user.id) {
-    return null; // Unauthorized
+    return null; // Unauthorized or Unowned
   }
   
   return conversation;

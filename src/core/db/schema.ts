@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, integer, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, jsonb, integer, pgEnum, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "staff", "user"]);
 export const fileStatusEnum = pgEnum("file_status", ["pending", "indexing", "completed", "failed"]);
@@ -72,4 +72,5 @@ export const userMemories = pgTable("user_memories", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userIdIdx: index("user_memories_user_id_idx").on(table.userId),
+  userFactUnique: uniqueIndex("user_memories_user_fact_unique").on(table.userId, table.fact),
 }));

@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 interface AgentStepsProps {
   phase: string;
   detail?: string;
-  reflections?: string[];
+  reflections?: ReadonlyArray<string>;
   defaultCollapsed?: boolean;
 }
 

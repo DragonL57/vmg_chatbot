@@ -131,6 +131,13 @@ async function retrieveNode(state: AgentStateType) {
   };
 }
 
+import { z } from "zod";
+
+const graderSchema = z.object({
+  is_relevant: z.string().default("NO"),
+  reasoning: z.string().optional().default("")
+});
+
 /**
  * Node 4: Grade evidence
  */
@@ -155,17 +162,27 @@ async function gradeNode(state: AgentStateType) {
   const rawOut = res.choices[0].message.content || "{}";
   logPayload("Grader", { lastQuery, context: context.slice(0, 500) }, rawOut);
 
-  let parsed = { is_relevant: "NO", reasoning: "" };
+  // Safe parsing and validation
+  let grade = false;
+  let reason = "Tài liệu chưa đủ thông tin.";
+  
   try {
-    parsed = JSON.parse(rawOut);
-  } catch (e) {}
+    const parsed = JSON.parse(rawOut);
+    const result = graderSchema.safeParse(parsed);
+    
+    if (result.success) {
+      grade = result.data.is_relevant.toUpperCase() === "YES";
+      reason = result.data.reasoning || (grade ? "Tài liệu rất phù hợp." : "Tài liệu chưa đủ thông tin.");
+    }
+  } catch (e) {
+    console.error('[rag-graph] Grader parse failed:', e);
+  }
 
-  const grade = parsed.is_relevant.toUpperCase() === "YES";
   console.log(`[GradeNode] Verdict: ${grade ? "✅ YES" : "❌ NO"}`);
   
   return { 
     isRelevant: grade,
-    reflection: parsed.reasoning || (grade ? "Tài liệu rất phù hợp." : "Tài liệu chưa đủ thông tin.")
+    reflection: reason
   };
 }
 

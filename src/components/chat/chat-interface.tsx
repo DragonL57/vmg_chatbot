@@ -109,7 +109,10 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     fetch('/api/admin/collections')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setCollections(data); })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[ChatInterface] Failed to fetch collections:', err);
+        toast.error('Không thể tải danh sách kho tri thức.');
+      })
       .finally(() => setIsCollectionsLoading(false));
   }, []);
 
@@ -136,7 +139,9 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         setLocation(loc);
         localStorage.setItem('vmg-mate-location', JSON.stringify(loc));
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('[ChatInterface] Geolocation fetch failed:', err);
+      });
   }, []);
 
   const saveConversation = useCallback(async (msgs: Message[], customTitle?: string, shouldRefreshSidebar: boolean = false) => {

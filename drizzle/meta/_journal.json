@@ -15,6 +15,13 @@
       "when": 1777035731748,
       "tag": "0001_typical_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777045668947,
+      "tag": "0002_salty_the_anarchist",
+      "breakpoints": true
     }
   ]
 }
