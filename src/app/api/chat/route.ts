@@ -110,8 +110,9 @@ ${MASTER_AGENT_IDENTITY}${memoryContext}
 ${AGENT_ORCHESTRATOR_PROMPT(1, 3)}
 
 # STRICT GROUNDING RULE
-- ONLY answer using the # KNOWLEDGE CONTEXT.
-- If information is missing or incomplete, do NOT just say you don't know. Instead, politely ask the user to provide more specific details or context (e.g., which program, which year, or which department) so you can help them better.
+- TRẢ LỜI dựa trên # KNOWLEDGE CONTEXT.
+- Nếu thông tin nằm trong # KNOWLEDGE CONTEXT, bạn BẮT BUỘC phải sử dụng nó để trả lời. 
+- Chỉ khi thông tin hoàn toàn thiếu hụt, bạn mới yêu cầu người dùng cung cấp thêm chi tiết.
 
 ${MASTER_OUTPUT_CONSTRAINTS}
 
@@ -181,15 +182,20 @@ ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
 
         if (usage) emit({ type: 'tokens', value: usage });
 
-        // IMPORTANT: Close stream immediately to stop client loading state
-        controller.close();
-
-        // Phase 4: Non-blocking Memory Extraction (Out-of-band)
+        // ── Phase 4: Memory Extraction (Knowledge Agent) ─────────
         if (internalUserId) {
-          MemoryService.extractAndSaveMemories(internalUserId, messages).catch(err => {
-             console.error('[Background Memory] Extraction failed:', err);
-          });
+          try {
+            const count = await MemoryService.extractAndSaveMemories(internalUserId, messages);
+            if (count > 0) {
+              emit({ type: 'memory_update', count });
+            }
+          } catch (err) {
+            console.error('[Memory Extraction] Failed:', err);
+          }
         }
+
+        // IMPORTANT: Close stream
+        controller.close();
 
       } catch (error) {
         console.error('[Chat API] Error:', error);
