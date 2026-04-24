@@ -39,6 +39,7 @@ export async function DELETE(request: Request) {
   const internalUserId = await getInternalUserId(user.id);
   if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
 
+  let memoryId = 'unknown';
   try {
     const body = await request.json();
     const result = deleteSchema.safeParse(body);
@@ -47,7 +48,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
 
-    const { memoryId } = result.data;
+    memoryId = result.data.memoryId;
 
     await db.delete(userMemories).where(
       and(
