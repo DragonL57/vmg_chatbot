@@ -201,18 +201,67 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     }
 
     try {
+      // --- STAGE 1: AGENTIC REASONING ---
+      setLoadingPhase('initializing');
+      const reasoningResponse = await fetch('/api/chat/reasoning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })), 
+          serviceMode: selectedCollection,
+          conversationId: sessionId
+        }),
+      });
+      if (!reasoningResponse.ok) throw new Error('Reasoning failed');
+
+      const reasoningReader = reasoningResponse.body?.getReader();
+      const decoder = new TextDecoder();
+      let reasoningResult: any = null;
+      let rTraceId = '';
+      let rBuffer = '';
+
+      while (true) {
+        const { value, done } = await reasoningReader!.read();
+        if (done) break;
+        rBuffer += decoder.decode(value, { stream: true });
+        const lines = rBuffer.split('\n');
+        rBuffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            if (data.type === 'phase') {
+              setLoadingPhase(data.value);
+              if (data.detail) setPhaseDetail(data.detail);
+              if (data.reflection) {
+                reflectionsRef.current = [...reflectionsRef.current, data.reflection];
+                setAgentReflections(reflectionsRef.current);
+              }
+            }
+            if (data.type === 'trace_id') rTraceId = data.value;
+            if (data.type === 'reasoning_complete') reasoningResult = data;
+          } catch (e) {}
+        }
+      }
+
+      if (!reasoningResult) throw new Error('Incomplete reasoning chain');
+
+      // --- STAGE 2: FINAL GENERATION ---
+      setLoadingPhase('generate');
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })), 
-          serviceMode: selectedCollection 
+          finalState: reasoningResult.finalState,
+          traceId: rTraceId,
+          internalUserId: reasoningResult.internalUserId,
+          userMemoriesStr: reasoningResult.userMemoriesStr
         }),
       });
-      if (!response.ok) throw new Error('Chat failed');
+      if (!response.ok) throw new Error('Generation failed');
       
       const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
       let assistantId = '';
       let streamBuffer = ''; 
       let fullContent = '';
@@ -232,24 +281,6 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
             if (data.type === 'phase') { 
               setLoadingPhase(data.value); 
               if (data.detail) setPhaseDetail(data.detail); 
-              if (data.reflection) {
-                const thought = data.reflection;
-                // Update Ref for immediate consumption in content handler
-                if (reflectionsRef.current[reflectionsRef.current.length - 1] !== thought) {
-                   reflectionsRef.current = [...reflectionsRef.current, thought];
-                }
-                setAgentReflections(reflectionsRef.current);
-                
-                // Update active assistant message if it exists
-                if (assistantId) {
-                  setMessages((prev) => prev.map((msg) => {
-                    if (msg.id === assistantId) {
-                      return { ...msg, reasoningTrace: reflectionsRef.current };
-                    }
-                    return msg;
-                  }));
-                }
-              }
             }
             else if (data.type === 'tokens') { tokenUsageRef.current = data.value; }
             else if (data.type === 'citations') {
@@ -262,14 +293,14 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
               const text = data.value;
               fullContent += text;
               if (!assistantId) {
-                setLoadingPhase('generate');
                 assistantId = uuidv4();
                 setMessages((prev) => [...prev, { 
                   id: assistantId, 
                   role: 'assistant', 
                   content: text, 
                   timestamp: new Date(),
-                  reasoningTrace: reflectionsRef.current
+                  reasoningTrace: reflectionsRef.current,
+                  traceId: rTraceId
                 }]);
               } else {
                 setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: msg.content + text } : msg));
@@ -279,6 +310,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         }
       }
     } catch (error) {
+      console.error(error);
       toast.error('Lỗi kết nối với máy chủ trợ lý.');
     } finally {
       setIsLoading(false);
