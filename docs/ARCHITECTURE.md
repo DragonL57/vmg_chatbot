@@ -1,30 +1,24 @@
-# Project Architecture: VMG MATE
+# VMG MATE: Agentic Architecture
 
-This document provides a comprehensive technical overview of the VMG MATE system, mapping its components to Clean Architecture layers and detailing the sophisticated Multi-Agent orchestration.
+VMG MATE is a high-integrity Agentic AI system built on Clean Architecture and the "Glass Box" observability principle.
 
-## 1. Core Principles
-- **Dependency Rule**: Dependencies point inward: `Adapters → Application → Domain`.
-- **Pure Domain**: The Domain layer contains zero side effects or external dependencies.
-- **Agentic Orchestration**: Uses LangGraph to manage complex, stateful reasoning loops.
-- **Sleep-time Compute**: Background agents reconcile and maintain long-term state asynchronously.
-
-## 2. System Layering
+## 1. System Layering
 
 ```mermaid
 graph TD
     subgraph "Adapters Layer (Impure Shell)"
         UI[React / Next.js UI]
-        API[Next.js Route Handlers]
+        API[Next.js Modular Routes]
         Proxy[Middleware Proxy @vmg.edu.vn]
         DB_Adapter[Drizzle + Postgres.js]
-        LLM_Adapter[OpenAI / Poe Client]
+        LLM_Adapter[Alibaba DashScope / Poe]
     end
 
     subgraph "Application Layer"
-        Graph[LangGraph RAG Workflow]
-        AuthService[Auth / Role Service]
-        MemoryCurator[Memory Curator Agent]
-        VectorSearch[Vector Search Service]
+        Graph[LangGraph Reasoning Loop]
+        AuthService[Auth / Internal Sync]
+        MemoryCurator[Sleep-time Memory Curator]
+        ObsService[Observability & Cost Engine]
     end
 
     subgraph "Domain Layer (Pure Core)"
@@ -38,28 +32,16 @@ graph TD
     API --> MemoryCurator
     Graph --> LLM_Adapter
     Graph --> DB_Adapter
-    Graph --> AuthService
-    AuthService --> DB_Adapter
+    MemoryCurator --> LLM_Adapter
     MemoryCurator --> DB_Adapter
+    API --> ObsService
+    ObsService --> DB_Adapter
 ```
 
-## 3. Multi-Agent Ecosystem
-
-VMG MATE operates as a group of specialized agents sharing a common state.
-
-| Agent | Role | Persistence |
-| :--- | :--- | :--- |
-| **Primary Assistant** | Final response generation and user interaction. | Short-term (Session) |
-| **Gateway Agent** | Intent classification and Knowledge Silo routing. | Volatile |
-| **Search Specialist** | Multi-query expansion and vector retrieval. | Volatile |
-| **Grader Agent** | Evaluates document relevance to prevent hallucinations. | Volatile |
-| **Knowledge Architect** | Compresses raw data into structured "Fact Sheets". | Volatile |
-| **Memory Curator** | Background reconciliation of user facts (Add/Update/Delete). | Long-term (DB) |
-
-## 4. Agent Interaction & Communication
+## 2. Hybrid Execution Model
 
 ### A. Synchronous Reasoning Loop (The "Thinking" Phase)
-This loop occurs in real-time during a chat request. The agents communicate by updating a shared `AgentState` object.
+This occurs in real-time while the user waits.
 
 ```mermaid
 sequenceDiagram
@@ -73,37 +55,50 @@ sequenceDiagram
     U->>G: User Question
     G->>G: Analyze & Route
     G->>S: Sub-queries & Silos
-    S->>S: Retrieve Context
+    S->>S: Hybrid Retrieve
     S->>GR: Raw Evidence
     GR->>GR: Relevance Check
     alt Irrelevant
-        GR->>S: Refine & Retry Loop
+        GR->>S: Refine & Rewrite Loop
     else Relevant
-        GR->>A: Evidence
+        GR->>A: Evidence Snippets
     end
     A->>A: Structure into Fact Sheet
-    A->>P: Facts + Evidence
+    A->>P: Facts + Context
     P->>U: Final Answer (with Citations)
 ```
 
-### B. Asynchronous Sleep-time Loop (The "Memory" Phase)
-Inspired by the **Letta/MemGPT** architecture, this agent runs after the user response is delivered to manage the agent's long-term "Persona Block".
+### B. Asynchronous Background Loop (The "Observability" Phase)
+Uses Vercel `waitUntil` to process data without slowing down the user.
 
 ```mermaid
 graph LR
-    subgraph "Live Request"
+    subgraph "Live Response (0-60s)"
         API[Chat API] --> Stream[JSON Stream]
+        API --> Gen[Final Gen]
     end
 
-    subgraph "Sleep-time Compute"
-        API -- Async Call --> Curator[Memory Curator Agent]
-        DB[(User Memories)] -- Read State --> Curator
-        Curator -- Reflect & Reconcile --> Curator
-        Curator -- ADD/UPDATE/DELETE --> DB
+    subgraph "Background Task (waitUntil)"
+        Gen --> Obs[Observability Service]
+        Obs --> DB[(agent_traces / agent_spans)]
+        Gen --> Curator[Memory Curator]
+        Curator --> Batch[Alibaba Batch API]
+        Batch --> DB[(user_memories)]
     end
 ```
 
-## 5. Metadata & Grounding
-- **Citations**: Sources are carried as metadata through the entire pipeline (Retrieval -> Compression -> Generation).
-- **Passive Data Injection**: Long-term memories are injected into the System Prompt as READ-ONLY XML blocks to prevent prompt injection.
-- **Stateful Layout**: The chat state is preserved in the layout to ensure the streaming reasoning trace isn't lost during internal navigation.
+## 3. Multi-Agent Ecosystem
+
+| Agent | Task | Optimization |
+| :--- | :--- | :--- |
+| **Gateway** | Routing & Intent | Tiered Pricing (Flash) |
+| **Search/Grader** | Retrieval Integrity | Tiered Pricing (Flash) |
+| **Architect** | Fact Sheet Compression | Context Caching (90% Off) |
+| **Curator** | Memory Reconciliation | Batch API (50% Off) |
+
+## 4. Cost Engineering
+The system implements **Tiered Pricing Logic** for `qwen3.6-flash`:
+- **Tier 1 (<= 256K tokens)**: $0.25/1M Input | $1.5/1M Output.
+- **Tier 2 (> 256K tokens)**: $1.00/1M Input | $4.00/1M Output.
+- **Cache Hit**: 10% of input base price ($0.025 in Tier 1).
+- **Batch**: 50% of input/output base price.
