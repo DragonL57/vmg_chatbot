@@ -11,7 +11,7 @@ interface TooltipProps {
 export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
 
   const updateCoords = () => {
@@ -38,7 +38,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   }, [isVisible]);
 
   return (
-    <div 
+    <span 
       ref={triggerRef}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
@@ -63,6 +63,6 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
         </div>,
         document.body
       )}
-    </div>
+    </span>
   );
 };

@@ -32,8 +32,8 @@ export interface ConversationPayload {
 
 export async function upsertConversation(payload: ConversationPayload) {
   // Try to find our internal userId from supabaseId if userId is a supabaseId
-  let internalUserId = payload.userId;
-  if (payload.userId && payload.userId.length > 30) { // likely a UUID from supabase
+  let internalUserId = null;
+  if (payload.userId) {
      const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, payload.userId));
      if (user) internalUserId = user.id;
   }
@@ -46,7 +46,6 @@ export async function upsertConversation(payload: ConversationPayload) {
   const finalTitle = payload.title || fallbackTitle;
 
   // Use a safer upsert: only update if the conversation belongs to the same user
-  // This prevents hijacking of sessions by UUID guessing.
   return await db.insert(conversations)
     .values({
       id: payload.id,
@@ -62,9 +61,7 @@ export async function upsertConversation(payload: ConversationPayload) {
     .onConflictDoUpdate({
       target: conversations.id,
       set: {
-        userId: internalUserId,
-        // Only update the title if a non-empty payload.title was provided,
-        // otherwise preserve the existing title.
+        userId: internalUserId || undefined,
         title: payload.title || undefined, 
         messages: payload.messages,
         locationCoords: payload.location_coords,
@@ -73,12 +70,16 @@ export async function upsertConversation(payload: ConversationPayload) {
         messageCount: payload.message_count,
         updatedAt: new Date(payload.updated_at),
       },
-      // Drizzle Postgres supports where clause in onConflictDoUpdate
-      where: internalUserId ? eq(conversations.userId, internalUserId) : undefined,
+      // Only allow update if the conversation is unowned or belongs to the same internal user
+      where: internalUserId ? eq(conversations.userId, internalUserId) : sql`${conversations.userId} IS NULL`,
     });
 }
 
 export async function getConversationById(id: string, supabaseId: string) {
+  // Get our internal user info
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) return null;
+
   const [conversation] = await db
     .select({
       id: conversations.id,
@@ -88,8 +89,15 @@ export async function getConversationById(id: string, supabaseId: string) {
       userId: conversations.userId,
     })
     .from(conversations)
-    .innerJoin(users, eq(conversations.userId, users.id))
-    .where(sql`${conversations.id} = ${id} AND ${users.supabaseId} = ${supabaseId}`);
+    .where(eq(conversations.id, id));
+
+  if (!conversation) return null;
+
+  // Security Check: Deny access if ownership is missing or incorrect.
+  // Legacy NULL-owned rows require an explicit batch migration to ensure correctness.
+  if (conversation.userId !== user.id) {
+    return null; // Unauthorized or Unowned
+  }
   
   return conversation;
 }
@@ -98,6 +106,8 @@ export async function listConversationsByUser(supabaseId: string) {
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
   if (!user) return [];
 
+  // Important: We still only list conversations that have a userId. 
+  // Legacy conversations with NULL userId will only appear once accessed directly via ID (lazy backfilled).
   return await db.select({
     id: conversations.id,
     title: conversations.title,

@@ -11,6 +11,7 @@ interface MessageListProps {
   isHistoryLoading?: boolean;
   loadingPhase?: string;
   phaseDetail?: string;
+  agentReflections?: string[];
   currentMode?: string;
   sessionId?: string;
   collections?: KnowledgeCollection[];
@@ -19,7 +20,7 @@ interface MessageListProps {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ 
-  messages, isLoading, isHistoryLoading, loadingPhase, phaseDetail, currentMode, sessionId, 
+  messages, isLoading, isHistoryLoading, loadingPhase, phaseDetail, agentReflections, currentMode, sessionId, 
   collections = [], onCollectionSelect, onSuggestionClick 
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -63,9 +64,23 @@ export const MessageList: React.FC<MessageListProps> = ({
     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-24 lg:px-48 py-6 space-y-10 scroll-smooth bg-white custom-scrollbar">
       <div className="w-full space-y-10 max-w-4xl mx-auto">
         {messages.map((msg, idx) => (
-          msg.content ? <MessageItem key={msg.id || `msg-${idx}`} message={msg} conversation={messages} sessionId={sessionId} /> : null
+          msg.content ? (
+            <MessageItem 
+              key={msg.id || `msg-${idx}`} 
+              message={msg} 
+              conversation={messages} 
+              sessionId={sessionId}
+              isChatLoading={isLoading} // Pass the global loading state
+            />
+          ) : null
         ))}
-        {isLoading && loadingPhase && <AgentSteps phase={loadingPhase} detail={phaseDetail} />}
+        {isLoading && loadingPhase && loadingPhase !== 'generate' && (
+          <AgentSteps 
+            phase={loadingPhase} 
+            detail={phaseDetail} 
+            reflections={agentReflections} 
+          />
+        )}
       </div>
     </div>
   );
