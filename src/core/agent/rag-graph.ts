@@ -11,6 +11,7 @@ import {
   GATEWAY_AGENT_PROMPT
 } from "@core/prompts/rag-agents";
 import { z } from "zod";
+import { ObservabilityService } from "@core/services/observability.service";
 
 const TOKEN_COMPRESSION_THRESHOLD = 3000;
 
@@ -32,7 +33,8 @@ const graderSchema = z.object({
  * Node 0+2: Semantic Router & Intent Expansion (Merged)
  */
 async function routerExpandNode(state: AgentStateType) {
-  const { mode, allCollections, messages } = state;
+  const startTime = Date.now();
+  const { mode, allCollections, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
   const isAuto = mode === 'auto' || mode === 'discovery';
   const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
@@ -51,6 +53,20 @@ async function routerExpandNode(state: AgentStateType) {
 
   const output = res.choices[0].message.content || "{}";
   logPayload("RouterExpand", { systemContent, lastQuery }, output);
+
+  if (traceId) {
+    ObservabilityService.emitSpan(traceId, {
+      nodeName: 'router_expand',
+      model,
+      input: { mode, query: lastQuery },
+      output: output,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      latencyMs: Date.now() - startTime
+    }).catch(console.error);
+  }
 
   let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery], reasoning: "" };
   try {
@@ -73,8 +89,10 @@ async function routerExpandNode(state: AgentStateType) {
  * Node 1: Summarize History
  */
 async function summarizeHistoryNode(state: AgentStateType) {
+  const startTime = Date.now();
   if (state.messages.length < 4) return { reflection: "Khởi tạo bối cảnh mới." };
   const { client, model, extraBody } = getFastProvider();
+  const { traceId } = state;
   
   const history = state.messages.map(m => ({ 
     role: (m._getType() === 'human' ? 'user' : 'assistant') as 'user' | 'assistant', 
@@ -92,6 +110,21 @@ async function summarizeHistoryNode(state: AgentStateType) {
 
   const summary = res.choices[0].message.content || "";
   logPayload("Summarize", history, summary);
+
+  if (traceId) {
+    ObservabilityService.emitSpan(traceId, {
+      nodeName: 'summarize',
+      model,
+      input: { historyLength: history.length },
+      output: summary,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      latencyMs: Date.now() - startTime
+    }).catch(console.error);
+  }
+
   return { 
     context_summary: summary,
     reflection: "Đã nén bối cảnh hội thoại để tối ưu bộ nhớ truy xuất.",
@@ -136,7 +169,8 @@ async function retrieveNode(state: AgentStateType) {
  * Node 4: Grade evidence
  */
 async function gradeNode(state: AgentStateType) {
-  const { evidence, messages } = state;
+  const startTime = Date.now();
+  const { evidence, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
   if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu nào liên quan." };
 
@@ -155,6 +189,20 @@ async function gradeNode(state: AgentStateType) {
 
   const rawOut = res.choices[0].message.content || "{}";
   logPayload("Grader", { lastQuery, context: context.slice(0, 500) }, rawOut);
+
+  if (traceId) {
+    ObservabilityService.emitSpan(traceId, {
+      nodeName: 'grade',
+      model,
+      input: { query: lastQuery },
+      output: rawOut,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      latencyMs: Date.now() - startTime
+    }).catch(console.error);
+  }
 
   let grade = false;
   let reason = "Tài liệu chưa đủ thông tin.";
@@ -180,8 +228,10 @@ async function gradeNode(state: AgentStateType) {
  * Node 5: Rewrite query
  */
 async function rewriteNode(state: AgentStateType) {
+  const startTime = Date.now();
   const lastQuery = state.messages[state.messages.length - 1].content as string;
   const { client, model, extraBody } = getFastProvider();
+  const { traceId } = state;
   
   const input = `User Query: "${lastQuery}"\nPrevious Tries: ${JSON.stringify(state.subQueries || [])}`;
   const res = await client.chat.completions.create({
@@ -196,6 +246,20 @@ async function rewriteNode(state: AgentStateType) {
 
   const output = res.choices[0].message.content || "{}";
   logPayload("Rewriter", input, output);
+
+  if (traceId) {
+    ObservabilityService.emitSpan(traceId, {
+      nodeName: 'rewrite',
+      model,
+      input: { previousQueries: state.subQueries },
+      output: output,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      latencyMs: Date.now() - startTime
+    }).catch(console.error);
+  }
 
   let parsed = { queries: [] as string[], reasoning: "" };
   try {
@@ -214,7 +278,8 @@ async function rewriteNode(state: AgentStateType) {
  * Node 6: Compress Facts
  */
 async function compressNode(state: AgentStateType) {
-  const { evidence } = state;
+  const startTime = Date.now();
+  const { evidence, traceId } = state;
   if (!evidence.docs.length) return { reflection: "Không có dữ liệu để nén, chuẩn bị phản hồi trực tiếp." };
   
   const { client, model, extraBody } = getGenerationProvider();
@@ -231,6 +296,20 @@ async function compressNode(state: AgentStateType) {
   
   const summary = res.choices[0].message.content || "";
   logPayload("Compressor", rawTextWithSources.slice(0, 1000), summary);
+
+  if (traceId) {
+    ObservabilityService.emitSpan(traceId, {
+      nodeName: 'compress',
+      model,
+      input: { docCount: evidence.docs.length },
+      output: summary,
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      latencyMs: Date.now() - startTime
+    }).catch(console.error);
+  }
   
   return { 
     context_summary: summary,

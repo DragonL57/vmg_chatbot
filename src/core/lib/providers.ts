@@ -6,6 +6,7 @@ export interface ProviderResult {
   model: string;
   reasoningModel?: string;
   extraBody?: any;
+  isBatch?: boolean;
 }
 
 /**
@@ -24,7 +25,8 @@ export function getPoeProvider(): ProviderResult {
 }
 
 /**
- * DashScope Provider (Primary for EVERYTHING: Chat, Reasoning, Memory)
+ * DashScope Provider (Primary for Real-time: Chat, Reasoning)
+ * Supports Context Caching (90% Savings)
  */
 export function getDashScopeProvider(): ProviderResult {
   const client = new OpenAI({
@@ -38,8 +40,24 @@ export function getDashScopeProvider(): ProviderResult {
 }
 
 /**
+ * DashScope Batch Provider (Background: Memory, Long-running tasks)
+ * Synchronous waiting but 50% flat cost reduction. No caching support.
+ */
+export function getBatchProvider(): ProviderResult {
+  const client = new OpenAI({
+    apiKey: env.DASHSCOPE_API_KEY || '',
+    baseURL: 'https://batch.dashscope.aliyuncs.com/compatible-mode/v1',
+    timeout: 1800000, // 30 minute default timeout
+  });
+  return {
+    client,
+    model: env.DASHSCOPE_MODEL,
+    isBatch: true,
+  };
+}
+
+/**
  * Logic to get the model for indexing/uploading files.
- * Based on the INDEXING_PROVIDER environment variable.
  */
 export function getIndexingProvider(): ProviderResult {
   if (env.INDEXING_PROVIDER === 'dashscope' && env.DASHSCOPE_API_KEY) {
@@ -49,22 +67,25 @@ export function getIndexingProvider(): ProviderResult {
 }
 
 /**
- * Global Fast Provider (Agentic Steps) -> Always Alibaba
+ * Global Fast Provider (Agentic Steps in reasoning loop)
+ * MUST be real-time for UX.
  */
 export function getFastProvider(): ProviderResult {
   return getDashScopeProvider();
 }
 
 /**
- * Global Generation Provider (Final Answers) -> Always Alibaba
+ * Global Generation Provider (Final Answers)
+ * MUST be real-time for UX.
  */
 export function getGenerationProvider(): ProviderResult {
   return getDashScopeProvider();
 }
 
 /**
- * Sleep-time Provider (Background Memory) -> Always Alibaba
+ * Sleep-time Provider (Background Memory Reconciliation)
+ * Best suited for BATCH to save 50% cost.
  */
 export function getSleepTimeProvider(): ProviderResult {
-  return getDashScopeProvider();
+  return getBatchProvider();
 }

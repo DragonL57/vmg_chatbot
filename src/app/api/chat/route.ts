@@ -9,16 +9,17 @@ import { createServerSupabase } from '@/core/lib/supabase-server';
 import { MemoryService } from '@core/services/memory.service';
 import { getInternalUserId } from '@core/services/auth.service';
 import { estimateTokens } from '@core/lib/utils';
+import { ObservabilityService } from '@core/services/observability.service';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; 
 
 /**
- * Agentic RAG Chat Route - Structured JSON Stream
+ * Agentic RAG Chat Route - Structured JSON Stream with Observability
  */
 export async function POST(req: Request) {
-  const { messages, serviceMode } = await req.json();
+  const { messages, serviceMode, conversationId } = await req.json();
   const recentMessages = messages.slice(-10);
 
   if (!serviceMode) {
@@ -32,11 +33,13 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
 
-  // Phase 0: Long-term Memory Retrieval (Bounded)
   const internalUserId = await getInternalUserId(user.id);
   if (!internalUserId) {
     return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
   }
+
+  // Phase 0: Start Observability Trace
+  const traceId = await ObservabilityService.startTrace(internalUserId, conversationId).catch(() => null);
 
   const memories = await MemoryService.getUserMemories(internalUserId, 20);
   const userMemoriesStr = memories.map(m => `- ${m.fact}`).join('\n');
@@ -51,6 +54,9 @@ export async function POST(req: Request) {
     async start(controller) {
       const emit = (obj: any) => controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
 
+      // Emit root trace ID immediately for UI linking
+      if (traceId) emit({ type: 'trace_id', value: traceId });
+
       try {
         let finalState: any = {};
         const graphStream = await ragGraph.stream({
@@ -58,6 +64,7 @@ export async function POST(req: Request) {
           mode: serviceMode,
           allCollections: allCollections,
           userMemories: memories.map(m => m.fact),
+          traceId: traceId,
         });
 
         for await (const step of graphStream) {
@@ -90,8 +97,9 @@ export async function POST(req: Request) {
           }
         }
 
-        // Phase 2: Final Generation (with Retry)
+        // Phase 2: Final Generation (with Trace)
         emit({ type: 'phase', value: 'generate' });
+        const genStartTime = Date.now();
         const { client, model, extraBody } = getGenerationProvider();
         
         const memoryContext = userMemoriesStr 
@@ -114,44 +122,16 @@ ${MASTER_OUTPUT_CONSTRAINTS}
 ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
         `.trim();
 
-        const inputTokens = estimateTokens(systemPrompt + JSON.stringify(recentMessages));
-        console.log(`[PAYLOAD] FinalGen     | In: ${systemPrompt.length.toLocaleString()} chars (~${inputTokens} tokens) | Pending Out...`);
-
         const messagesToModel: any[] = [];
         if (estimateTokens(systemPrompt) > 1024) {
           messagesToModel.push({
             role: 'system',
-            content: [
-              { 
-                type: 'text', 
-                text: systemPrompt, 
-                cache_control: { type: 'ephemeral' } 
-              }
-            ]
+            content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
           });
         } else {
           messagesToModel.push({ role: 'system', content: systemPrompt });
         }
-        
-        // Marker 2: Cache the History turn (if multi-turn)
-        if (recentMessages.length > 2) {
-          const historyMinusLast = recentMessages.slice(0, -1);
-          const lastUserMessage = recentMessages[recentMessages.length - 1];
-          
-          messagesToModel.push(...historyMinusLast);
-          messagesToModel.push({
-            role: 'user',
-            content: [
-              { 
-                type: 'text', 
-                text: lastUserMessage.content, 
-                cache_control: { type: 'ephemeral' } 
-              }
-            ]
-          });
-        } else {
-          messagesToModel.push(...recentMessages);
-        }
+        messagesToModel.push(...recentMessages);
 
         const response = await client.chat.completions.create({
           model,
@@ -162,66 +142,55 @@ ${knowledgeBlock || "No specific enterprise knowledge found for this query."}
         });
 
         let fullContent = '';
-        let usage: any = null;
+        let finalUsage: any = null;
         for await (const chunk of response) {
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
             fullContent += content;
             emit({ type: 'content', value: content });
           }
-          if (chunk.usage) {
-            usage = chunk.usage;
-            if (usage.prompt_tokens_details) {
-              const { cached_tokens, cache_creation_input_tokens } = usage.prompt_tokens_details;
-              if (cached_tokens > 0 || cache_creation_input_tokens > 0) {
-                 console.log(`[CACHE] Hit: ${cached_tokens || 0} | New: ${cache_creation_input_tokens || 0}`);
-              }
-            }
-          }
+          if (chunk.usage) finalUsage = chunk.usage;
         }
 
-        console.log(`[PAYLOAD] FinalGen     | Out: ${fullContent.length.toLocaleString().padStart(5)} chars`);
-
-        // Phase 3: Metadata & Citations
-        if (evidence && evidence.docs.length > 0) {
-          const citationMetadata = evidence.docs.reduce((acc: Record<string, string>, doc) => {
-            const sourceKey = doc.source || doc.title;
-            const content = doc.parentContent || doc.content;
-            if (acc[sourceKey]) {
-              if (!acc[sourceKey].includes(content)) {
-                acc[sourceKey] += `\n\n--- [Đoạn trích bổ sung] ---\n\n${content}`;
-              }
-            } else {
-              acc[sourceKey] = content;
-            }
-            return acc;
-          }, {});
-          emit({ type: 'citations', value: citationMetadata });
+        // Emit final span for observability
+        if (traceId && finalUsage) {
+          ObservabilityService.emitSpan(traceId, {
+            nodeName: 'final_generation',
+            model,
+            input: { systemPromptLength: systemPrompt.length },
+            output: fullContent,
+            promptTokens: finalUsage.prompt_tokens || 0,
+            completionTokens: finalUsage.completion_tokens || 0,
+            cachedTokens: finalUsage.prompt_tokens_details?.cached_tokens || 0,
+            cacheCreationTokens: finalUsage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+            latencyMs: Date.now() - genStartTime
+          }).catch(console.error);
         }
 
-        // Aggregate true total tokens
+        // Finalize trace
+        if (traceId) {
+          await ObservabilityService.finalizeTrace(traceId).catch(console.error);
+        }
+
+        // Aggregate true total tokens for UI
         const graphUsage = finalState.totalUsage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-        const finalUsage = usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+        const usage = finalUsage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
         const trueTotalUsage = {
-          prompt_tokens: (graphUsage.prompt_tokens || 0) + (finalUsage.prompt_tokens || 0),
-          completion_tokens: (graphUsage.completion_tokens || 0) + (finalUsage.completion_tokens || 0),
-          total_tokens: (graphUsage.total_tokens || 0) + (finalUsage.total_tokens || 0),
+          prompt_tokens: (graphUsage.prompt_tokens || 0) + (usage.prompt_tokens || 0),
+          completion_tokens: (graphUsage.completion_tokens || 0) + (usage.completion_tokens || 0),
+          total_tokens: (graphUsage.total_tokens || 0) + (usage.total_tokens || 0),
         };
         emit({ type: 'tokens', value: trueTotalUsage });
 
-        // Phase 4: Memory Extraction (Knowledge Agent)
+        // Phase 4: Memory Extraction
         if (internalUserId) {
-          try {
-            const count = await MemoryService.extractAndSaveMemories(internalUserId, messages);
-            if (count > 0) emit({ type: 'memory_update', count });
-          } catch (err) {
-            console.error('[Memory Extraction] Failed:', err);
-          }
+          MemoryService.extractAndSaveMemories(internalUserId, messages).catch(console.error);
         }
 
         controller.close();
-      } catch (error) {
+      } catch (error: any) {
         console.error('[Chat API] Error:', error);
+        if (traceId) await ObservabilityService.finalizeTrace(traceId, error.message).catch(console.error);
         emit({ type: 'error', value: 'Đã có lỗi xảy ra trong quá trình xử lý.' });
         controller.close();
       }

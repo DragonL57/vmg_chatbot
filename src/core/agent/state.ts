@@ -59,6 +59,11 @@ export const AgentState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => "",
   }),
+  /** Root observability trace ID */
+  traceId: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+    default: () => null,
+  }),
   /** Long-term user memories/facts retrieved for this user */
   userMemories: Annotation<string[]>({
     reducer: (x, y) => y,

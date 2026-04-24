@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Message } from '@core/types/chat';
-import { Database, ChevronDown, ChevronUp, Search, Flag, BrainCircuit } from 'lucide-react';
+import { Database, ChevronDown, ChevronUp, Search, Flag, BrainCircuit, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
 import { ReportModal } from './report-modal';
 import { AgentSteps } from './agent-steps';
@@ -41,13 +41,29 @@ const SystemMessage: React.FC<{ message: Message }> = ({ message }) => {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [], sessionId, isChatLoading }) => {
   const isUser = message.role === 'user';
+  const isAssistant = message.role === 'assistant';
   const isSystem = message.role === 'system';
   const isSafetyWarning = message.content?.includes('⚠️ Cảnh báo vi phạm chính sách an toàn');
   const [showModal, setShowModal] = useState(false);
   const [reportState, setReportState] = useState<'idle' | 'done'>('idle');
+  const [feedback, setFeedback] = useState<number | null>(null);
 
   // Logic to determine if this message is currently being "typed" by the AI
   const isGenerating = isChatLoading && !isUser && !isSystem && conversation[conversation.length - 1]?.id === message.id;
+
+  const handleFeedback = async (type: 1 | -1) => {
+    if (!message.traceId || feedback !== null) return;
+    setFeedback(type);
+    try {
+      await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ traceId: message.traceId, feedback: type }),
+      });
+    } catch (error) {
+      console.error('Feedback failed:', error);
+    }
+  };
 
   if (isSystem) return <SystemMessage message={message} />;
 
@@ -105,7 +121,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
           </div>
 
           {!isUser && !isSystem && (
-            <div className="px-4 w-full">
+            <div className="px-4 w-full flex items-center gap-4">
               <button
                 onClick={() => { if (reportState !== 'done') setShowModal(true); }}
                 className={`mt-1.5 flex items-center gap-1.5 py-0.5 rounded-[4px] text-[11px] font-medium transition-all
@@ -117,6 +133,30 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
                 <Flag className="w-3 h-3" />
                 {reportState === 'done' ? 'Đã báo cáo' : 'Báo cáo'}
               </button>
+
+              {/* Observability Feedback */}
+              {isAssistant && message.traceId && !isGenerating && (
+                <div className="flex items-center gap-2 mt-1.5 border-l border-black/[0.05] pl-4 animate-in fade-in slide-in-from-left-1 duration-300">
+                  <button
+                    onClick={() => handleFeedback(1)}
+                    disabled={feedback !== null}
+                    className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === 1 ? 'text-green-600' : 'text-black/20 hover:text-black/60'}`}
+                  >
+                    {feedback === 1 ? <Check className="w-3 h-3" /> : <ThumbsUp className="w-3 h-3" />}
+                  </button>
+                  <button
+                    onClick={() => handleFeedback(-1)}
+                    disabled={feedback !== null}
+                    className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === -1 ? 'text-red-600' : 'text-black/20 hover:text-black/60'}`}
+                  >
+                    <ThumbsDown className="w-3 h-3" />
+                  </button>
+                  {/* Trace ID indicator (mini) */}
+                  <span className="text-[9px] font-mono text-black/10 select-none ml-1">
+                    {message.traceId.split('-')[0]}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

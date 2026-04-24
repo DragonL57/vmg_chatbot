@@ -83,3 +83,31 @@ export const userMemoryTasks = pgTable("user_memory_tasks", {
   outputFileId: text("output_file_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const agentTraces = pgTable("agent_traces", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  conversationId: uuid("conversation_id").references(() => conversations.id),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  totalCostUsd: text("total_cost_usd").notNull().default("0"),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  feedback: integer("feedback").default(0), // 1: Good, -1: Bad
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const agentSpans = pgTable("agent_spans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  traceId: uuid("trace_id").references(() => agentTraces.id).notNull(),
+  nodeName: text("node_name").notNull(),
+  model: text("model").notNull(),
+  input: jsonb("input"),
+  output: jsonb("output"),
+  promptTokens: integer("prompt_tokens").notNull().default(0),
+  completionTokens: integer("completion_tokens").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
+  cacheCreationTokens: integer("cache_creation_tokens").notNull().default(0),
+  costUsd: text("cost_usd").notNull().default("0"),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});

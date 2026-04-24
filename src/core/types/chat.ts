@@ -10,6 +10,7 @@ export interface Message {
   readonly citations?: Record<string, string>;
   readonly reasoningTrace?: ReadonlyArray<string>;
   readonly memoryUpdated?: boolean;
+  readonly traceId?: string;
 }
 
 export interface ChatSession {

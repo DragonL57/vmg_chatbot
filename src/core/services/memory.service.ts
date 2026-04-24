@@ -3,6 +3,7 @@ import { userMemories } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getSleepTimeProvider } from '../lib/providers';
 import { z } from 'zod';
+import { ObservabilityService } from './observability.service';
 
 const memoryExtractionSchema = z.object({
   actions: z.array(z.object({
@@ -46,13 +47,14 @@ export class MemoryService {
    * Sleep-time Memory Curator (Letta-inspired Asynchronous Management).
    * Instead of just extracting, this agent reconciles new info with existing memory blocks.
    */
-  static async extractAndSaveMemories(userId: string, messages: { role: string; content: string }[]): Promise<number> {
+  static async extractAndSaveMemories(userId: string, messages: { role: string; content: string }[], traceId?: string | null): Promise<number> {
+    const startTime = Date.now();
     const recentMessages = messages.slice(-6);
     const contextStr = recentMessages
       .map(m => `${m.role.toUpperCase()}: ${m.content}`)
       .join('\n');
 
-    const { client, model } = getSleepTimeProvider();
+    const { client, model, isBatch } = getSleepTimeProvider();
 
     try {
       // 1. Retrieve Current Memory State (to allow the agent to reflect and reconcile)
@@ -137,6 +139,22 @@ QUY TẮC CẤU TRÚC:
         } catch (e) {
           console.error('[MemoryCurator] Action failed:', action, e);
         }
+      }
+
+      // Record span for observability (Batch aware)
+      if (traceId) {
+        ObservabilityService.emitSpan(traceId, {
+          nodeName: 'memory_curator',
+          model,
+          input: { historyLength: recentMessages.length },
+          output: actions,
+          promptTokens: res.usage?.prompt_tokens || 0,
+          completionTokens: res.usage?.completion_tokens || 0,
+          cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
+          cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+          latencyMs: Date.now() - startTime,
+          isBatch: isBatch
+        }).catch(console.error);
       }
 
       console.log(`[MemoryCurator] Reconciled ${changeCount} changes for user ${userId}`);
