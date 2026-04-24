@@ -82,10 +82,14 @@ export async function POST(req: Request) {
         const isChitChat = !!finalState.isChitChat;
 
         let knowledgeBlock = '';
-        if (contextSummary) {
-          knowledgeBlock = `<retrieved_facts>\n${contextSummary}\n</retrieved_facts>`;
-        } else if (evidence && evidence.docs.length > 0) {
+        if (evidence && evidence.docs.length > 0) {
+          // Mandatory: Always include the raw evidence to prevent detail loss
           knowledgeBlock = buildRetrievedContext(evidence);
+          
+          // Optional: Add the structural summary if available to help with reasoning
+          if (contextSummary) {
+            knowledgeBlock = `${knowledgeBlock}\n\n# CẤU TRÚC SỰ THẬT (FACT SHEET)\n${contextSummary}`;
+          }
         }
 
         // Phase 2: Final Generation (with Retry)

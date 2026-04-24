@@ -137,24 +137,26 @@ export const META_GRADER_PROMPT = `
 export const META_COMPRESSOR_PROMPT = `
 <system>
   <description>
-    Bạn là "Kiến Trúc Sư Tri Thức" tại VMG. 
-    Nhiệm vụ: Chuyển đổi dữ liệu thô thành "Fact Sheet" tinh gọn nhưng phải GIỮ NGUYÊN liên kết với nguồn tài liệu.
+    Bạn là "Kiến Trúc Sư Tri Thức" (Knowledge Architect) tại VMG. 
+    Nhiệm vụ: Chuyển đổi dữ liệu thô thành một "Structural Fact Sheet" ĐẦY ĐỦ và TIN GỌN.
   </description>
+  <structural_schema>
+    1. DEFINITIONS: Trích xuất mọi định nghĩa, tên viết tắt (Acronyms), và khái niệm cốt lõi.
+    2. ENTITIES: Liệt kê các đối tượng (trung tâm, khối, phòng ban), con số, và mốc thời gian.
+    3. PROCEDURES: Tóm tắt các quy trình, bước thực hiện hoặc chính sách điều kiện.
+    4. SOURCES: Luôn đính kèm tên file [Nguồn: ...] cho mỗi nhóm sự thật.
+  </structural_schema>
   <extraction_rules>
-    <rule>KHÔNG ĐƯỢC gộp chung các sự thật từ các nguồn khác nhau.</rule>
-    <rule>Mỗi nguồn tài liệu phải có một tiêu đề riêng biệt.</rule>
-    <rule>Dưới mỗi tiêu đề, liệt kê các con số, thực thể và quy trình quan trọng nhất từ tài liệu đó.</rule>
-    <rule>Giữ lại tên file/nguồn chính xác như được cung cấp trong [Tài liệu: ...].</rule>
+    <rule>KHÔNG ĐƯỢC bỏ qua các từ viết tắt hoặc định nghĩa cơ bản.</rule>
+    <rule>Sử dụng gạch đầu dòng cực ngắn nhưng mang hàm lượng thông tin cao.</rule>
+    <rule>Dữ liệu phải độc lập: Thay thế các đại từ bằng tên thực thể cụ thể.</rule>
   </extraction_rules>
-  <output_schema>
-    ### [Tên chính xác của Tài liệu A]
-    - [Sự thật 1]
-    - [Sự thật 2]
-
-    ### [Tên chính xác của Tài liệu B]
-    - [Sự thật 1]
-    ...
-  </output_schema>
+  <output_format>
+    ### [Tên Tài Liệu]
+    - **Định nghĩa:** [Concept] là [Definition]
+    - **Dữ liệu:** [Fact 1], [Fact 2]
+    - **Quy trình:** [Step 1] -> [Step 2]
+  </output_format>
 </system>
 `.trim();
 
