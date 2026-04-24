@@ -9,6 +9,7 @@ import { supabase } from '@/core/lib/supabase';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { Tooltip } from '../ui/tooltip';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,7 +35,11 @@ const ChatContextMenu: React.FC<{
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[9998]" onClick={onClose} />
+      <button 
+        className="fixed inset-0 z-[9998] cursor-default w-full h-full bg-transparent border-none p-0" 
+        onClick={onClose}
+        aria-label="Đóng menu"
+      />
       <div 
         className="fixed z-[9999] w-32 bg-white rounded-md shadow-lg border border-black/[0.08] py-1 animate-in fade-in zoom-in-95 duration-100"
         style={{ 
@@ -44,21 +49,21 @@ const ChatContextMenu: React.FC<{
       >
         <button 
           onClick={() => { onStar(chat.id, !!chat.isStarred); onClose(); }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-black/70 hover:bg-black/5"
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-black/70 hover:bg-black/5 text-left border-none"
         >
           <Star className={`w-3.5 h-3.5 ${chat.isStarred ? 'text-amber-500 fill-current' : ''}`} /> 
           {chat.isStarred ? 'Bỏ dấu sao' : 'Đánh dấu sao'}
         </button>
         <button 
           onClick={() => { onRename(chat); onClose(); }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-black/70 hover:bg-black/5"
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-black/70 hover:bg-black/5 text-left border-none"
         >
           <Edit2 className="w-3.5 h-3.5" /> Đổi tên
         </button>
         <div className="h-px bg-black/[0.05] my-1" />
         <button 
           onClick={() => { onDelete(chat.id); onClose(); }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-red-600 hover:bg-red-50"
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-red-600 hover:bg-red-50 text-left border-none"
         >
           <Trash2 className="w-3.5 h-3.5" /> Xóa
         </button>
@@ -217,7 +222,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     } catch (e) { 
       toast.error('Lỗi khi đổi tên'); 
       // Granular Rollback: Revert only the title of the specific item
-      setHistory(prev => prev.map(item => item.id === idToSave ? { ...item, title: originalItem.title } : item));
+      setHistory(prev => {
+        const reverted = prev.map(item => item.id === idToSave ? { ...item, title: originalItem.title } : item);
+        return reverted.sort((a, b) => {
+          if (a.isStarred !== b.isStarred) return b.isStarred - a.isStarred;
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+      });
     } finally {
       setIsRenaming(false);
     }
@@ -252,9 +263,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     <>
       {/* Backdrop */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/[0.05] backdrop-blur-[1px] z-40 md:hidden animate-in fade-in duration-300" 
-          onClick={onClose} 
+        <button 
+          className="fixed inset-0 bg-black/[0.05] backdrop-blur-[1px] z-40 md:hidden animate-in fade-in duration-300 w-full h-full cursor-default border-none p-0" 
+          onClick={onClose}
+          aria-label="Đóng thanh bên"
         />
       )}
 
@@ -266,7 +278,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         {/* Profile/Branding Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
-          <Link href="/" className="flex items-center gap-2 group" onClick={() => onClose()}>
+          <Link href="/" className="flex items-center gap-2 group" onClick={() => {
+            if (pathname === '/') {
+              window.location.href = '/'; // Hard reload if already at root to clear state
+            }
+            onClose();
+          }}>
             <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-all">
               <Image src="/apple-icon.svg" alt="VMG" width={32} height={32} />
             </div>
@@ -328,7 +345,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         <button 
                           disabled={isRenaming}
                           onMouseDown={(e) => { e.preventDefault(); submitRename(); }}
-                          className="disabled:opacity-30"
+                          className="disabled:opacity-30 p-1"
+                          aria-label="Lưu tên mới"
                         >
                           <Check className="w-3.5 h-3.5 text-green-600" />
                         </button>
@@ -340,7 +358,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                              router.push(`/chat/${chat.id}`);
                              onClose();
                           }}
-                          className={`w-full flex items-center gap-2.5 px-3 h-8 rounded-[4px] text-[13px] transition-all text-left ${
+                          className={`w-full flex items-center gap-2.5 px-3 h-8 rounded-[4px] text-[13px] transition-all text-left border-none ${
                             currentSessionId === chat.id ? 'bg-black/[0.06] text-black font-semibold' : 'text-black/60 hover:bg-black/5 hover:text-black/90'
                           }`}
                         >
@@ -356,7 +374,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                           <Tooltip content="Thao tác">
                             <button
                               onClick={(e) => handleMenuClick(e, chat.id)}
-                              className={`p-1 rounded hover:bg-black/10 transition-opacity ${activeMenuId === chat.id ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100'}`}
+                              aria-label="Menu thao tác"
+                              className={`p-1 rounded hover:bg-black/10 transition-opacity border-none ${activeMenuId === chat.id ? 'opacity-100' : 'opacity-0 group-hover/item:opacity-100'}`}
                             >
                               <MoreVertical className="w-3.5 h-3.5 text-black/40" />
                             </button>
@@ -386,25 +405,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* User Workspace */}
         <div className="p-2 mt-auto border-t border-black/[0.05] space-y-1 bg-[#f6f5f4] z-10">
-          <div 
-            onClick={() => { router.push('/profile'); onClose(); }}
-            className={`flex items-center gap-3 p-2 rounded-[4px] hover:bg-black/5 transition-colors cursor-pointer group ${pathname === '/profile' ? 'bg-black/[0.04]' : ''}`}
-          >
-            <div className="w-7 h-7 rounded-[6px] bg-[#D32F2F] flex items-center justify-center text-white text-[11px] font-bold shadow-sm overflow-hidden shrink-0">
-              {userAvatar ? (
-                <Image src={userAvatar} alt={userName} width={28} height={28} className="object-cover" />
-              ) : (
-                userInitial
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold text-black/80 truncate">{userName}</p>
-              <p className="text-[10px] text-black/40 font-medium">MATE Workspace</p>
-            </div>
+          <div className="flex items-center gap-1 group">
+            <Link 
+              href="/profile"
+              onClick={() => onClose()}
+              aria-label="Xem hồ sơ cá nhân"
+              className={`flex-1 flex items-center gap-3 p-2 rounded-[4px] hover:bg-black/5 transition-colors ${pathname === '/profile' ? 'bg-black/[0.04]' : ''}`}
+            >
+              <div className="w-7 h-7 rounded-[6px] bg-[#D32F2F] flex items-center justify-center text-white text-[11px] font-bold shadow-sm overflow-hidden shrink-0">
+                {userAvatar ? (
+                  <Image src={userAvatar} alt={userName} width={28} height={28} className="object-cover" />
+                ) : (
+                  userInitial
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold text-black/80 truncate">{userName}</p>
+                <p className="text-[10px] text-black/40 font-medium">MATE Workspace</p>
+              </div>
+            </Link>
+            
             <Tooltip content="Đăng xuất">
               <button 
-                onClick={(e) => { e.stopPropagation(); handleLogout(); }}
-                className="p-1.5 text-black/30 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100"
+                onClick={() => handleLogout()}
+                aria-label="Đăng xuất"
+                className="p-1.5 text-black/30 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 border-none"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>

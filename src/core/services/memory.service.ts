@@ -96,7 +96,7 @@ Nếu không có thông tin mới hoặc thông tin đã tồn tại, trả về
         }
         memories = validation.data.memories;
       } catch (e) {
-        console.error('[MemoryService] LLM response was not valid JSON:', output);
+        console.error('[MemoryService] LLM response was not valid JSON');
         return 0;
       }
 
