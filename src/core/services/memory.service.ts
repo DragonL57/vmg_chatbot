@@ -24,15 +24,16 @@ export interface UserMemory {
  */
 export class MemoryService {
   /**
-   * Retrieves all known facts about a user.
+   * Retrieves all known facts about a user, with a hard limit to prevent context overflow.
    */
-  static async getUserMemories(userId: string): Promise<UserMemory[]> {
+  static async getUserMemories(userId: string, limit = 20): Promise<UserMemory[]> {
     try {
       return await db
         .select()
         .from(userMemories)
         .where(eq(userMemories.userId, userId))
-        .orderBy(desc(userMemories.createdAt));
+        .orderBy(desc(userMemories.createdAt))
+        .limit(limit);
     } catch (err) {
       console.error('[MemoryService] Failed to fetch memories:', err);
       return [];
@@ -53,8 +54,9 @@ export class MemoryService {
     const { client, model, extraBody } = getFastProvider();
 
     try {
-      const existingMemories = await this.getUserMemories(userId);
-      const existingFactsStr = existingMemories.map(m => m.fact).join(', ');
+      // Limit existing context to the most recent 15 memories to prevent prompt bloating
+      const existingMemories = await this.getUserMemories(userId, 15);
+      const existingFactsStr = existingMemories.map(m => m.fact).join(', ').slice(0, 2000);
 
       const res = await client.chat.completions.create({
         model,

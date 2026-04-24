@@ -44,7 +44,7 @@ export async function DELETE(request: Request) {
     const result = deleteSchema.safeParse(body);
     
     if (!result.success) {
-      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
 
     const { memoryId } = result.data;
@@ -77,7 +77,7 @@ export async function PATCH(request: Request) {
     const result = patchSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: result.error.issues[0].message }, { status: 400 });
     }
 
     memoryId = result.data.memoryId;
