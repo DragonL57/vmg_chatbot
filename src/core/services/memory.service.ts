@@ -1,13 +1,15 @@
 import { db } from '../db';
 import { userMemories } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { getFastProvider } from '../lib/providers';
+import { getSleepTimeProvider } from '../lib/providers';
 import { z } from 'zod';
 
 const memoryExtractionSchema = z.object({
-  memories: z.array(z.object({
-    fact: z.string().min(1).max(1000),
-    category: z.enum(['persona', 'preference', 'entity', 'episodic'])
+  actions: z.array(z.object({
+    op: z.enum(['ADD', 'UPDATE', 'DELETE']),
+    fact: z.string().optional(),
+    category: z.enum(['persona', 'preference', 'entity', 'episodic']).optional(),
+    id: z.string().uuid().optional()
   }))
 });
 
@@ -50,7 +52,7 @@ export class MemoryService {
       .map(m => `${m.role.toUpperCase()}: ${m.content}`)
       .join('\n');
 
-    const { client, model, extraBody } = getFastProvider();
+    const { client, model } = getSleepTimeProvider();
 
     try {
       // 1. Retrieve Current Memory State (to allow the agent to reflect and reconcile)
@@ -76,7 +78,7 @@ DỰA TRÊN ĐOẠN CHAT MỚI, HÃY THỰC HIỆN CÁC THAO TÁC SAU:
 
 QUY TẮC CẤU TRÚC:
 - Viết ở ngôi thứ ba. 
-- Category: persona (vai trò/danh tính), preference (sở thích), entity (địa điểm/phòng ban), episodic (sự kiện).
+- Category: persona (vai trò/danh tính), preference (sở thích), entity ( địa điểm/phòng ban), episodic (sự kiện).
 - KHÔNG tạo ra các bản ghi có nội dung tương tự nhau (VD: "Tên là Long" và "Tên người dùng là Long" -> MERGE lại).
 
 Định dạng trả về JSON:
@@ -91,26 +93,38 @@ QUY TẮC CẤU TRÚC:
           { role: 'user', content: `Đoạn chat mới nhất:\n${contextStr}` }
         ],
         response_format: { type: 'json_object' },
-        ...(extraBody ? { extra_body: extraBody } : {}),
       });
 
       const output = res.choices[0].message.content || '{"actions": []}';
-      const { actions } = JSON.parse(output);
+      
+      let actions: any[] = [];
+      try {
+        const parsed = JSON.parse(output);
+        const validation = memoryExtractionSchema.safeParse(parsed);
+        if (!validation.success) {
+           console.warn('[MemoryCurator] Response failed validation:', validation.error.format());
+           return 0;
+        }
+        actions = validation.data.actions;
+      } catch (e) {
+        console.error('[MemoryCurator] Response was not valid JSON');
+        return 0;
+      }
 
       if (!actions || actions.length === 0) return 0;
 
       let changeCount = 0;
       for (const action of actions) {
         try {
-          if (action.op === 'ADD') {
+          if (action.op === 'ADD' && action.fact) {
             await db.insert(userMemories).values({
               userId,
               fact: action.fact,
-              category: action.category
+              category: action.category || 'general'
             }).onConflictDoNothing();
             changeCount++;
           } 
-          else if (action.op === 'UPDATE' && action.id) {
+          else if (action.op === 'UPDATE' && action.id && action.fact) {
             await db.update(userMemories)
               .set({ fact: action.fact })
               .where(eq(userMemories.id, action.id));

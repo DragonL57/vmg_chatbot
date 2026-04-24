@@ -1,9 +1,8 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { AgentState, type AgentStateType } from "./state";
-import { ManagerService, type RetrievalEvidence } from "@core/services/manager.service";
 import { VectorSearchService } from "@core/services/vector-search.service";
 import { getFastProvider, getGenerationProvider } from "@core/lib/providers";
-import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { estimateTokens } from "@core/lib/utils";
 import { 
   SEARCH_OPTIMIZATION_PROMPT, 
@@ -11,6 +10,8 @@ import {
   META_COMPRESSOR_PROMPT,
   GATEWAY_AGENT_PROMPT
 } from "@core/prompts/rag-agents";
+import { z } from "zod";
+
 const TOKEN_COMPRESSION_THRESHOLD = 3000;
 
 /**
@@ -22,20 +23,20 @@ function logPayload(node: string, input: any, output: any) {
   console.log(`[PAYLOAD] ${node.padEnd(12)} | In: ${inputChars.toLocaleString().padStart(6)} chars | Out: ${outputChars.toLocaleString().padStart(5)} chars`);
 }
 
+const graderSchema = z.object({
+  is_relevant: z.string().default("NO"),
+  reasoning: z.string().optional().default("")
+});
+
 /**
  * Node 0+2: Semantic Router & Intent Expansion (Merged)
- * One call to decide Silos and generate Search Variations.
  */
 async function routerExpandNode(state: AgentStateType) {
   const { mode, allCollections, messages } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-
-  // FAST PATH: Specific silo selection skips LLM routing logic but still needs expansion
   const isAuto = mode === 'auto' || mode === 'discovery';
   const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
-
   const { client, model, extraBody } = getFastProvider();
-  
   const systemContent = GATEWAY_AGENT_PROMPT(siloList);
 
   const res = await client.chat.completions.create({
@@ -56,7 +57,6 @@ async function routerExpandNode(state: AgentStateType) {
     parsed = JSON.parse(output);
   } catch (e) {}
 
-  // Resolve target collections
   let finalSilos = isAuto ? parsed.selected : [mode];
   if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
 
@@ -64,7 +64,8 @@ async function routerExpandNode(state: AgentStateType) {
     isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
     subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery],
-    reflection: parsed.reasoning || "Đang xác định chiến lược tra cứu..."
+    reflection: parsed.reasoning || "Đang xác định chiến lược tra cứu...",
+    totalUsage: res.usage
   };
 }
 
@@ -93,12 +94,13 @@ async function summarizeHistoryNode(state: AgentStateType) {
   logPayload("Summarize", history, summary);
   return { 
     context_summary: summary,
-    reflection: "Đã nén bối cảnh hội thoại để tối ưu bộ nhớ truy xuất." 
+    reflection: "Đã nén bối cảnh hội thoại để tối ưu bộ nhớ truy xuất.",
+    totalUsage: res.usage
   };
 }
 
 /**
- * Node 3: Retrieve evidence (Parallel across selected collections)
+ * Node 3: Retrieve evidence
  */
 async function retrieveNode(state: AgentStateType) {
   const { subQueries, targetCollections } = state;
@@ -124,19 +126,11 @@ async function retrieveNode(state: AgentStateType) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  console.log(`[RetrieveNode] Total raw: ${rawDocs.length} | Unique: ${deduplicated.length} | Final: ${rankedDocs.length}`);
   return { 
     evidence: { docs: rankedDocs },
     reflection: `Đang quét ${targetCollections.length} kho dữ liệu với ${queries.length} hướng truy vấn...` 
   };
 }
-
-import { z } from "zod";
-
-const graderSchema = z.object({
-  is_relevant: z.string().default("NO"),
-  reasoning: z.string().optional().default("")
-});
 
 /**
  * Node 4: Grade evidence
@@ -162,14 +156,11 @@ async function gradeNode(state: AgentStateType) {
   const rawOut = res.choices[0].message.content || "{}";
   logPayload("Grader", { lastQuery, context: context.slice(0, 500) }, rawOut);
 
-  // Safe parsing and validation
   let grade = false;
   let reason = "Tài liệu chưa đủ thông tin.";
-  
   try {
     const parsed = JSON.parse(rawOut);
     const result = graderSchema.safeParse(parsed);
-    
     if (result.success) {
       grade = result.data.is_relevant.toUpperCase() === "YES";
       reason = result.data.reasoning || (grade ? "Tài liệu rất phù hợp." : "Tài liệu chưa đủ thông tin.");
@@ -178,16 +169,15 @@ async function gradeNode(state: AgentStateType) {
     console.error('[rag-graph] Grader parse failed:', e);
   }
 
-  console.log(`[GradeNode] Verdict: ${grade ? "✅ YES" : "❌ NO"}`);
-  
   return { 
     isRelevant: grade,
-    reflection: reason
+    reflection: reason,
+    totalUsage: res.usage
   };
 }
 
 /**
- * Node 5: Rewrite query (Search Specialist)
+ * Node 5: Rewrite query
  */
 async function rewriteNode(state: AgentStateType) {
   const lastQuery = state.messages[state.messages.length - 1].content as string;
@@ -215,7 +205,8 @@ async function rewriteNode(state: AgentStateType) {
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],
     iterations: (state.iterations || 0) + 1,
-    reflection: parsed.reasoning || "Đang tối ưu hóa lại câu lệnh tìm kiếm..."
+    reflection: parsed.reasoning || "Đang tối ưu hóa lại câu lệnh tìm kiếm...",
+    totalUsage: res.usage
   };
 }
 
@@ -243,7 +234,8 @@ async function compressNode(state: AgentStateType) {
   
   return { 
     context_summary: summary,
-    reflection: "Đã trích xuất các sự thật cốt lõi và ánh xạ nguồn tài liệu."
+    reflection: "Đã trích xuất các sự thật cốt lõi và ánh xạ nguồn tài liệu.",
+    totalUsage: res.usage
   };
 }
 

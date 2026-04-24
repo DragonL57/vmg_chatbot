@@ -74,3 +74,12 @@ export const userMemories = pgTable("user_memories", {
   userIdIdx: index("user_memories_user_id_idx").on(table.userId),
   userFactUnique: uniqueIndex("user_memories_user_fact_unique").on(table.userId, table.fact),
 }));
+
+export const userMemoryTasks = pgTable("user_memory_tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  batchId: text("batch_id").notNull().unique(),
+  status: text("status").notNull().default("in_progress"), // validating, in_progress, completed, failed
+  outputFileId: text("output_file_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});

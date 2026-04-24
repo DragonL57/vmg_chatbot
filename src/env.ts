@@ -6,17 +6,14 @@ export const env = createEnv({
     POE_API_KEY: z.string().min(1),
     POE_BOT_NAME: z.string().min(1).default('grok-4.1-fast-non-reasoning'),
     POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
-    LLM_PROVIDER: z.enum(['poe', 'inception']).default('poe'),
-    INCEPTION_API_KEY: z.string().default(''),
-    INCEPTION_MODEL: z.string().default('mercury-2'),
-    INCEPTION_MODEL_EFFORT: z.enum(['instant', 'low', 'medium', 'high']).default('instant'),
-    INCEPTION_REASONING_MODEL: z.string().default('mercury-2'),
-    INCEPTION_REASONING_EFFORT: z.enum(['instant', 'low', 'medium', 'high']).default('medium'),
-    INDEXING_PROVIDER: z.enum(['poe', 'inception', 'openai', '']).default(''),
-    INDEXING_API_KEY: z.string().default(''),
-    INDEXING_BASE_URL: z.string().default(''),
-    INDEXING_MODEL: z.string().default(''),
-    INDEXING_MODEL_EFFORT: z.string().default(''),
+    
+    // DashScope (Qwen) configuration
+    DASHSCOPE_API_KEY: z.string().optional(),
+    DASHSCOPE_MODEL: z.string().default('qwen-plus'),
+    
+    LLM_PROVIDER: z.enum(['poe', 'dashscope']).default('poe'),
+    INDEXING_PROVIDER: z.enum(['poe', 'dashscope']).default('poe'),
+    
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),
     SUPABASE_URL: z.string().url(),

@@ -1,6 +1,8 @@
 /**
  * Safely parses a JSON string, handling potential markdown blocks or extra text.
  */
+import { getEncoding } from "js-tiktoken";
+
 /**
  * Normalizes a string to ASCII-safe slug (lowercase, no accents, underscores instead of spaces).
  * Critical for reliable Qdrant collection naming.
@@ -17,11 +19,25 @@ export function slugify(str: string): string {
 }
 
 /**
- * Rough token estimation (1 token ≈ 4 chars or 0.75 words)
+ * Accurately counts tokens in a string using cl100k_base encoding.
+ * Pure JS implementation (No WASM required).
+ */
+export function countTokens(text: string): number {
+  if (!text) return 0;
+  const encoding = getEncoding("cl100k_base");
+  return encoding.encode(text).length;
+}
+
+/**
+ * Accurate token estimation using js-tiktoken.
  */
 export function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  try {
+    return countTokens(text);
+  } catch (e) {
+    return Math.ceil(text.length / 4);
+  }
 }
 
 export function safeJsonParse<T>(str: string): T | null {

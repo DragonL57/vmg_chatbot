@@ -64,6 +64,22 @@ export const AgentState = Annotation.Root({
     reducer: (x, y) => y,
     default: () => [],
   }),
+  /** Total token usage accumulated across all nodes in the reasoning graph */
+  totalUsage: Annotation<{
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }>({
+    reducer: (x, y) => {
+      if (!x) return y;
+      return {
+        prompt_tokens: x.prompt_tokens + y.prompt_tokens,
+        completion_tokens: x.completion_tokens + y.completion_tokens,
+        total_tokens: x.total_tokens + y.total_tokens,
+      };
+    },
+    default: () => ({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }),
+  }),
 });
 
 export type AgentStateType = typeof AgentState.State;

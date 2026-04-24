@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryService } from './memory.service';
 import { db } from '../db';
-import { getFastProvider } from '../lib/providers';
+import { getSleepTimeProvider } from '../lib/providers';
 
 // Mock dependencies
 vi.mock('../db', () => ({
@@ -24,7 +24,7 @@ vi.mock('../db/schema', () => ({
 }));
 
 vi.mock('../lib/providers', () => ({
-  getFastProvider: vi.fn(),
+  getSleepTimeProvider: vi.fn(),
 }));
 
 describe('MemoryService Unit Tests', () => {
@@ -69,7 +69,7 @@ describe('MemoryService Unit Tests', () => {
           }
         }]
       };
-      (getFastProvider as any).mockReturnValue({
+      (getSleepTimeProvider as any).mockReturnValue({
         client: { chat: { completions: { create: vi.fn().mockResolvedValue(mockLLMResponse) } } }
       });
 
@@ -93,7 +93,7 @@ describe('MemoryService Unit Tests', () => {
       const mockLLMResponse = {
         choices: [{ message: { content: 'invalid-json' } }]
       };
-      (getFastProvider as any).mockReturnValue({
+      (getSleepTimeProvider as any).mockReturnValue({
         client: { chat: { completions: { create: vi.fn().mockResolvedValue(mockLLMResponse) } } }
       });
 
@@ -112,12 +112,12 @@ describe('MemoryService Unit Tests', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              actions: [{ op: 'DELETE', id: 'uuid-to-delete' }]
+              actions: [{ op: 'DELETE', id: 'f87a3b3a-67d4-47c3-8f0a-6e9c9c8f0a6e' }]
             })
           }
         }]
       };
-      (getFastProvider as any).mockReturnValue({
+      (getSleepTimeProvider as any).mockReturnValue({
         client: { chat: { completions: { create: vi.fn().mockResolvedValue(mockLLMResponse) } } }
       });
 

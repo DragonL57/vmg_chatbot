@@ -1,14 +1,14 @@
 # Project Architecture: VMG MATE
 
-This document provides a comprehensive technical overview of the VMG MATE system, mapping its components to Clean Architecture layers and detailing the sophisticated Agentic systems implemented.
+This document provides a comprehensive technical overview of the VMG MATE system, mapping its components to Clean Architecture layers and detailing the sophisticated Multi-Agent orchestration.
 
 ## 1. Core Principles
 - **Dependency Rule**: Dependencies point inward: `Adapters → Application → Domain`.
 - **Pure Domain**: The Domain layer contains zero side effects or external dependencies.
-- **Agent Legibility**: Code is optimized for agent comprehension first (max 300 lines per file, clear naming, explicit types).
-- **Metacognitive Transparency**: The system is designed to expose its internal reasoning (Thinking Trace) to build user trust.
+- **Agentic Orchestration**: Uses LangGraph to manage complex, stateful reasoning loops.
+- **Sleep-time Compute**: Background agents reconcile and maintain long-term state asynchronously.
 
-## 2. System Architecture
+## 2. System Layering
 
 ```mermaid
 graph TD
@@ -23,7 +23,7 @@ graph TD
     subgraph "Application Layer"
         Graph[LangGraph RAG Workflow]
         AuthService[Auth / Role Service]
-        MemoryService[Long-term Memory Service]
+        MemoryCurator[Memory Curator Agent]
         VectorSearch[Vector Search Service]
     end
 
@@ -35,80 +35,75 @@ graph TD
     UI --> Proxy
     Proxy --> API
     API --> Graph
-    API --> MemoryService
+    API --> MemoryCurator
     Graph --> LLM_Adapter
     Graph --> DB_Adapter
     Graph --> AuthService
     AuthService --> DB_Adapter
-    MemoryService --> DB_Adapter
-    
-    %% Dependency Rules
-    Graph -.-> Types
-    AuthService -.-> Types
-    LLM_Adapter -.-> Types
+    MemoryCurator --> DB_Adapter
 ```
 
-## 3. Sophisticated Agentic Systems
+## 3. Multi-Agent Ecosystem
 
-### A. Metacognitive Reasoning Flow (LangGraph)
-The following graph describes the internal "inner monologue" and self-correction loop of VMG MATE:
+VMG MATE operates as a group of specialized agents sharing a common state.
+
+| Agent | Role | Persistence |
+| :--- | :--- | :--- |
+| **Primary Assistant** | Final response generation and user interaction. | Short-term (Session) |
+| **Gateway Agent** | Intent classification and Knowledge Silo routing. | Volatile |
+| **Search Specialist** | Multi-query expansion and vector retrieval. | Volatile |
+| **Grader Agent** | Evaluates document relevance to prevent hallucinations. | Volatile |
+| **Knowledge Architect** | Compresses raw data into structured "Fact Sheets". | Volatile |
+| **Memory Curator** | Background reconciliation of user facts (Add/Update/Delete). | Long-term (DB) |
+
+## 4. Agent Interaction & Communication
+
+### A. Synchronous Reasoning Loop (The "Thinking" Phase)
+This loop occurs in real-time during a chat request. The agents communicate by updating a shared `AgentState` object.
 
 ```mermaid
-flowchart TD
-    Start((START)) --> MemRetrieve[Retrieve User Memories]
-    MemRetrieve --> Summarize[Summarize History]
-    Summarize --> Router[Gateway Router]
-    
-    Router -- "isChitChat = true" --> EndResponse[Generate Final Response]
-    Router -- "isChitChat = false" --> Retrieve[Parallel Knowledge Retrieval]
-    
-    Retrieve --> Grade{Grade Relevance}
-    
-    Grade -- "Irrelevant (Retry < 3)" --> Rewrite[Refine Search Query]
-    Rewrite --> Router
-    
-    Grade -- "Relevant / Max Retries" --> Compress[Compress to Fact Sheet]
-    Compress --> EndResponse
-    
-    EndResponse --> MemExtract[Background Memory Extraction]
-    MemExtract --> End((END))
+sequenceDiagram
+    participant U as User
+    participant G as Gateway Agent
+    participant S as Search Specialist
+    participant GR as Grader Agent
+    participant A as Knowledge Architect
+    participant P as Primary Assistant
 
-    style Router fill:#f96,stroke:#333,stroke-width:2px
-    style Grade fill:#f96,stroke:#333,stroke-width:2px
-    style EndResponse fill:#dfd,stroke:#333,stroke-width:2px
-    style MemExtract fill:#bbf,stroke:#333,stroke-dasharray: 5 5
+    U->>G: User Question
+    G->>G: Analyze & Route
+    G->>S: Sub-queries & Silos
+    S->>S: Retrieve Context
+    S->>GR: Raw Evidence
+    GR->>GR: Relevance Check
+    alt Irrelevant
+        GR->>S: Refine & Retry Loop
+    else Relevant
+        GR->>A: Evidence
+    end
+    A->>A: Structure into Fact Sheet
+    A->>P: Facts + Evidence
+    P->>U: Final Answer (with Citations)
 ```
 
-### B. Persistent Context Engineering (Long-term Memory)
-MATE implements a "Knowledge Agent" pattern to bridge the gap between sessions.
-- **Extraction**: A background task uses LLM reasoning to extract persistent facts (Persona, Preferences, Entities) from user messages.
-- **Refinement**: Facts are rewritten in the **third person** to create a structured knowledge graph of the user.
-- **Deduplication**: Semantic and exact checks prevent redundant snippets from cluttering the memory.
-- **Injection**: Stored memories are retrieved and injected into the System Prompt at the start of every chat, allowing for deep personalization.
+### B. Asynchronous Sleep-time Loop (The "Memory" Phase)
+Inspired by the **Letta/MemGPT** architecture, this agent runs after the user response is delivered to manage the agent's long-term "Persona Block".
 
-### C. Interactive Citation Pipeline
-Transparency is enforced through a multi-stage citation pipeline:
-- **Metadata Propagation**: Document sources (filenames) and exact text snippets are preserved from the Vector DB through the compression phase.
-- **JSON Streaming**: The API emits a `citations` metadata block at the end of the stream.
-- **Interactive UI**: The frontend parses specific citation syntax and renders clickable badges that open a **Source Preview Drawer**, showing the exact excerpt used by the AI.
+```mermaid
+graph LR
+    subgraph "Live Request"
+        API[Chat API] --> Stream[JSON Stream]
+    end
 
-## 4. Layer Mapping
+    subgraph "Sleep-time Compute"
+        API -- Async Call --> Curator[Memory Curator Agent]
+        DB[(User Memories)] -- Read State --> Curator
+        Curator -- Reflect & Reconcile --> Curator
+        Curator -- ADD/UPDATE/DELETE --> DB
+    end
+```
 
-### Domain Layer (`src/core/types/`, `src/core/lib/`)
-- `src/core/types/chat.ts`: Defines the core `Message` entity, now extended with `reasoningTrace`, `citations`, and `memoryUpdated` fields.
-- `src/core/lib/bm25.ts`: Pure algorithmic implementation of BM25 for hybrid search ranking.
-
-### Application Layer (`src/core/agent/`, `src/core/services/`)
-- `src/core/agent/rag-graph.ts`: The central orchestrator of the agentic reasoning process.
-- `src/core/services/memory.service.ts`: Handles the complex logic of extracting and structuring user memories.
-- `src/core/services/auth.service.ts`: Manages user synchronization and maps external Supabase IDs to internal DB IDs.
-
-### Adapters Layer (`src/app/api/`, `src/components/`, `src/proxy.ts`)
-- **Stateful Chat Layout**: The `ChatInterface` is hosted in `src/app/(main)/layout.tsx`, allowing it to persist state (streaming text, reasoning) during navigation between the hub and specific chat IDs.
-- **Metacognitive Console**: `AgentSteps.tsx` provides a collapsible, bulleted trace of the agent's internal monologue.
-- **Minimalist Profile**: `src/app/(main)/profile/page.tsx` uses an admin-table aesthetic to give users full control (View, Edit, Delete) over their long-term memory.
-
-## 5. Security & Multi-Tenancy
-- **Domain Restriction**: Enforced at the Edge via `src/proxy.ts` (Next.js Middleware).
-- **Environment Isolation**: The OAuth flow uses environment-aware redirection (Site URL vs. Redirect URLs) to handle local development and production seamlessly.
-- **RBAC**: Role-based access control hides administrative tools (e.g., Admin Panel) based on `app_metadata` claims.
+## 5. Metadata & Grounding
+- **Citations**: Sources are carried as metadata through the entire pipeline (Retrieval -> Compression -> Generation).
+- **Passive Data Injection**: Long-term memories are injected into the System Prompt as READ-ONLY XML blocks to prevent prompt injection.
+- **Stateful Layout**: The chat state is preserved in the layout to ensure the streaming reasoning trace isn't lost during internal navigation.
