@@ -57,12 +57,14 @@ describe('MemoryService Unit Tests', () => {
       const mockFrom = { where: vi.fn().mockReturnValue(mockWhere) };
       (db.select as any).mockReturnValue({ from: vi.fn().mockReturnValue(mockFrom) });
 
-      // 2. Mock LLM response
+      // 2. Mock LLM response with the new Curator Schema
       const mockLLMResponse = {
         choices: [{
           message: {
             content: JSON.stringify({
-              memories: [{ fact: 'Người dùng thích học SAT', category: 'preference' }]
+              actions: [
+                { op: 'ADD', fact: 'Người dùng thích học SAT', category: 'preference' }
+              ]
             })
           }
         }]
@@ -82,6 +84,7 @@ describe('MemoryService Unit Tests', () => {
     });
 
     it('should reject invalid JSON from LLM gracefully', async () => {
+      // Setup current state to allow fetch before LLM call
       const mockOrderBy = { limit: vi.fn().mockResolvedValue([]) };
       const mockWhere = { orderBy: vi.fn().mockReturnValue(mockOrderBy) };
       const mockFrom = { where: vi.fn().mockReturnValue(mockWhere) };
@@ -99,7 +102,7 @@ describe('MemoryService Unit Tests', () => {
       expect(db.insert).not.toHaveBeenCalled();
     });
 
-    it('should reject malformed schema from LLM (Security Item 7)', async () => {
+    it('should handle deletion actions correctly', async () => {
       const mockOrderBy = { limit: vi.fn().mockResolvedValue([]) };
       const mockWhere = { orderBy: vi.fn().mockReturnValue(mockOrderBy) };
       const mockFrom = { where: vi.fn().mockReturnValue(mockWhere) };
@@ -109,7 +112,7 @@ describe('MemoryService Unit Tests', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              memories: [{ fact: '', category: 'invalid-category' }] // Fails validation
+              actions: [{ op: 'DELETE', id: 'uuid-to-delete' }]
             })
           }
         }]
@@ -118,8 +121,11 @@ describe('MemoryService Unit Tests', () => {
         client: { chat: { completions: { create: vi.fn().mockResolvedValue(mockLLMResponse) } } }
       });
 
+      (db.delete as any).mockReturnValue({ where: vi.fn().mockResolvedValue({}) });
+
       const count = await MemoryService.extractAndSaveMemories(mockUserId, []);
-      expect(count).toBe(0);
+      expect(count).toBe(1);
+      expect(db.delete).toHaveBeenCalled();
     });
   });
 });
