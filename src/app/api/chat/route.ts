@@ -23,14 +23,25 @@ export async function POST(req: Request) {
     const { messages, serviceMode, conversationId } = await req.json();
     if (!serviceMode) return new Response(JSON.stringify({ error: 'Missing serviceMode' }), { status: 400 });
 
-    const { user, internalUserId } = await handleAuth();
-    if (!user || !internalUserId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    // 1. Parallel Initialization
+    const [authResult, allCollections] = await Promise.all([
+      handleAuth(),
+      listCollections().catch(() => []),
+    ]);
 
-    const allCollections = await listCollections().catch(() => []);
-    const memories = await MemoryService.getUserMemories(internalUserId, 20);
-    const userMemoriesStr = memories.map(m => `- ${m.fact}`).join('\n');
+    if (!authResult.user || !authResult.internalUserId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
 
-    const traceId = await ObservabilityService.startTrace(internalUserId, conversationId).catch(() => null);
+    const { internalUserId } = authResult;
+
+    // 2. Parallel Secondary Init
+    const [memoriesResult, traceId] = await Promise.all([
+      MemoryService.getUserMemories(internalUserId, 20),
+      ObservabilityService.startTrace(internalUserId, conversationId).catch(() => null)
+    ]);
+
+    const userMemoriesStr = memoriesResult.map(m => `- ${m.fact}`).join('\n');
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -39,7 +50,7 @@ export async function POST(req: Request) {
 
         try {
           // 1. Run Agentic Reasoning Graph
-          const finalState = await runReasoningGraph(messages, serviceMode, allCollections, memories, traceId, emit);
+          const finalState = await runReasoningGraph(messages, serviceMode, allCollections, memoriesResult, traceId, emit);
           
           // 2. Build Final System Prompt
           const systemPrompt = buildSystemPrompt(finalState, userMemoriesStr);
