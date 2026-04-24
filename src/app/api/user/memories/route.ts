@@ -6,6 +6,16 @@ import { userMemories } from '@core/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 import { getInternalUserId } from '@core/services/auth.service';
+import { z } from 'zod';
+
+const deleteSchema = z.object({
+  memoryId: z.string().uuid('ID tri thức không hợp lệ')
+});
+
+const patchSchema = z.object({
+  memoryId: z.string().uuid('ID tri thức không hợp lệ'),
+  fact: z.string().min(1, 'Nội dung tri thức không được để trống').max(1000, 'Nội dung tri thức quá dài')
+});
 
 export async function GET() {
   const supabase = await createServerSupabase();
@@ -29,10 +39,16 @@ export async function DELETE(request: Request) {
   const internalUserId = await getInternalUserId(user.id);
   if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
 
-  const { memoryId } = await request.json();
-  if (!memoryId) return NextResponse.json({ error: 'Missing memoryId' }, { status: 400 });
-
   try {
+    const body = await request.json();
+    const result = deleteSchema.safeParse(body);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
+    }
+
+    const { memoryId } = result.data;
+
     await db.delete(userMemories).where(
       and(
         eq(userMemories.id, memoryId),
@@ -41,6 +57,7 @@ export async function DELETE(request: Request) {
     );
     return NextResponse.json({ success: true });
   } catch (err) {
+    console.error(`[Memories API] DELETE failed for user ${internalUserId}, memory ${memoryId}:`, err);
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
   }
 }
@@ -54,10 +71,18 @@ export async function PATCH(request: Request) {
   const internalUserId = await getInternalUserId(user.id);
   if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
 
-  const { memoryId, fact } = await request.json();
-  if (!memoryId || !fact) return NextResponse.json({ error: 'Missing data' }, { status: 400 });
-
+  let memoryId = 'unknown';
   try {
+    const body = await request.json();
+    const result = patchSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
+    }
+
+    memoryId = result.data.memoryId;
+    const { fact } = result.data;
+
     await db.update(userMemories)
       .set({ fact })
       .where(
@@ -68,6 +93,7 @@ export async function PATCH(request: Request) {
       );
     return NextResponse.json({ success: true });
   } catch (err) {
+    console.error(`[Memories API] PATCH failed for user ${internalUserId}, memory ${memoryId}:`, err);
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }
 }

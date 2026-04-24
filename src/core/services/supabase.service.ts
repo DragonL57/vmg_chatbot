@@ -79,6 +79,10 @@ export async function upsertConversation(payload: ConversationPayload) {
 }
 
 export async function getConversationById(id: string, supabaseId: string) {
+  // Get our internal user info
+  const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
+  if (!user) return null;
+
   const [conversation] = await db
     .select({
       id: conversations.id,
@@ -88,8 +92,22 @@ export async function getConversationById(id: string, supabaseId: string) {
       userId: conversations.userId,
     })
     .from(conversations)
-    .innerJoin(users, eq(conversations.userId, users.id))
-    .where(sql`${conversations.id} = ${id} AND ${users.supabaseId} = ${supabaseId}`);
+    .where(eq(conversations.id, id));
+
+  if (!conversation) return null;
+
+  // Security & Migration Check
+  // 1. If conversation has no owner, lazy-backfill it to the current user (Migration)
+  if (!conversation.userId) {
+    console.log(`[SupabaseService] Lazy-backfilling conversation ${id} to user ${user.id}`);
+    await db.update(conversations).set({ userId: user.id }).where(eq(conversations.id, id));
+    return { ...conversation, userId: user.id };
+  }
+
+  // 2. If it has an owner, ensure it's the right one (Security)
+  if (conversation.userId !== user.id) {
+    return null; // Unauthorized
+  }
   
   return conversation;
 }
@@ -98,6 +116,8 @@ export async function listConversationsByUser(supabaseId: string) {
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.supabaseId, supabaseId));
   if (!user) return [];
 
+  // Important: We still only list conversations that have a userId. 
+  // Legacy conversations with NULL userId will only appear once accessed directly via ID (lazy backfilled).
   return await db.select({
     id: conversations.id,
     title: conversations.title,

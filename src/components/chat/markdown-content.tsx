@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 import { BookOpen, X } from 'lucide-react';
 import { Tooltip } from '../ui/tooltip';
 
@@ -66,7 +65,6 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUse
     <div className={`max-w-none ${isUser ? 'text-white' : 'text-black/90'}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
         components={{
           p: ({ children }) => (
             <p className="m-0 mb-2 last:mb-0 leading-[1.6]">

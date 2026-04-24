@@ -2,6 +2,14 @@ import { db } from '../db';
 import { userMemories } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getFastProvider } from '../lib/providers';
+import { z } from 'zod';
+
+const memoryExtractionSchema = z.object({
+  memories: z.array(z.object({
+    fact: z.string().min(1).max(1000),
+    category: z.enum(['persona', 'preference', 'entity', 'episodic'])
+  }))
+});
 
 export interface UserMemory {
   id: string;
@@ -74,11 +82,21 @@ Nếu không có thông tin mới hoặc thông tin đã tồn tại, trả về
       });
 
       const output = res.choices[0].message.content || '{"memories": []}';
+      
+      // Strict Validation at Boundary
       let memories: { fact: string; category: string }[] = [];
       try {
         const parsed = JSON.parse(output);
-        memories = parsed.memories || [];
-      } catch (e) {}
+        const validation = memoryExtractionSchema.safeParse(parsed);
+        if (!validation.success) {
+           console.warn('[MemoryService] LLM response failed validation:', validation.error.format());
+           return 0;
+        }
+        memories = validation.data.memories;
+      } catch (e) {
+        console.error('[MemoryService] LLM response was not valid JSON:', output);
+        return 0;
+      }
 
       if (memories.length > 0) {
         // Final sanity check against exact duplicates before saving
