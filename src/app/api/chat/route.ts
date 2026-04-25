@@ -1,8 +1,13 @@
-import { getGenerationProvider } from '@core/lib/providers';
+import { getGenerationProvider, ProviderResult } from '@core/lib/providers';
 import { AGENT_ORCHESTRATOR_PROMPT } from '@core/prompts/rag-agents';
 import { MASTER_AGENT_IDENTITY, MASTER_OUTPUT_CONSTRAINTS } from '@core/prompts/master';
+import { ragGraph } from '@core/agent/rag-graph';
+import { HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import type { RetrievalEvidence } from '@core/services/manager.service';
+import { listCollections } from '@core/services/supabase.service';
+import { createServerSupabase } from '@/core/lib/supabase-server';
 import { MemoryService } from '@core/services/memory.service';
+import { getInternalUserId } from '@core/services/auth.service';
 import { estimateTokens } from '@core/lib/utils';
 import { ObservabilityService } from '@core/services/observability.service';
 import { waitUntil } from '@vercel/functions';
@@ -11,50 +16,65 @@ export const runtime = 'nodejs';
 export const maxDuration = 60; 
 
 /**
- * Stage 2: Final Generation
- * Receives reasoning results and streams the final answer.
+ * Unified Chat Route Handler - Minimalist (No Citations)
  */
 export async function POST(req: Request) {
   try {
-    const { 
-      messages, 
-      finalState, 
-      traceId, 
-      internalUserId, 
-      userMemoriesStr 
-    } = await req.json();
+    const { messages, serviceMode, conversationId } = await req.json();
+    if (!serviceMode) return new Response(JSON.stringify({ error: 'Missing serviceMode' }), { status: 400 });
 
-    if (!finalState) return new Response(JSON.stringify({ error: 'Missing reasoning state' }), { status: 400 });
+    const supabase = await createServerSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+
+    const internalUserId = await getInternalUserId(user.id);
+    if (!internalUserId) return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
 
     const stream = new ReadableStream({
       async start(controller) {
         const emit = (obj: any) => controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
 
         try {
-          // 1. Build Final System Prompt
-          const systemPrompt = buildSystemPrompt(finalState, userMemoriesStr);
+          const [allCollections, memories] = await Promise.all([
+            listCollections().catch(() => []),
+            MemoryService.getUserMemories(internalUserId, 20)
+          ]);
+          const traceId = await ObservabilityService.startTrace(internalUserId, conversationId).catch(() => null);
+          if (traceId) emit({ type: 'trace_id', value: traceId });
 
-          // 2. Perform Final Generation
-          emit({ type: 'phase', value: 'generate' });
-          const genStartTime = Date.now();
-          const { client, model, extraBody } = getGenerationProvider();
+          // Phase 1: Reasoning
+          const langchainMessages = messages.slice(-10).map((m: any) => 
+            m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
+          );
 
-          const messagesToModel: any[] = [];
-          if (estimateTokens(systemPrompt) > 1024) {
-            messagesToModel.push({
-              role: 'system',
-              content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }]
-            });
-          } else {
-            messagesToModel.push({ role: 'system', content: systemPrompt });
+          let finalState: any = {};
+          const graphStream = await ragGraph.stream({
+            messages: langchainMessages,
+            mode: serviceMode,
+            allCollections,
+            userMemories: memories.map(m => m.fact),
+            traceId,
+          });
+
+          for await (const step of graphStream) {
+            const nodeName = Object.keys(step)[0];
+            const state = (step as Record<string, any>)[nodeName];
+            finalState = { ...finalState, ...state };
+            if (state.reflection) emit({ type: 'phase', value: nodeName, reflection: state.reflection });
           }
-          messagesToModel.push(...messages.slice(-10));
+
+          // Phase 2: Generation
+          emit({ type: 'phase', value: 'generate' });
+          const { client, model, extraBody } = getGenerationProvider();
+          
+          const userMemoriesStr = memories.map(m => `- ${m.fact}`).join('\n');
+          const systemPrompt = buildSystemPrompt(finalState, userMemoriesStr);
 
           const response = await client.chat.completions.create({
             model,
             stream: true,
             stream_options: { include_usage: true },
-            messages: messagesToModel,
+            messages: [{ role: 'system', content: systemPrompt }, ...messages.slice(-10)],
             ...(extraBody ? { extra_body: extraBody } : {}),
           });
 
@@ -69,42 +89,30 @@ export async function POST(req: Request) {
             if (chunk.usage) finalUsage = chunk.usage;
           }
 
-          // 3. Handle Post-Response Tasks
+          // Finalize background tasks
           finalizeObservability(traceId, finalState, fullContent, finalUsage, systemPrompt.length);
-          
-          // 4. Emit Total Tokens to UI
           emitTotalTokens(finalState, finalUsage, emit);
 
           if (internalUserId) {
-            try {
-              const count = await MemoryService.extractAndSaveMemories(internalUserId, messages, traceId);
-              if (count > 0) emit({ type: 'memory_update', count });
-            } catch (err) {
-              console.error('[Memory Extraction] Failed:', err);
-            }
+            const count = await MemoryService.extractAndSaveMemories(internalUserId, messages, traceId);
+            if (count > 0) emit({ type: 'memory_update', count });
           }
 
           controller.close();
         } catch (error: any) {
-          console.error('[Chat Generation API] Error:', error);
-          if (traceId) ObservabilityService.finalizeTrace(traceId, error.message).catch(console.error);
-          emit({ type: 'error', value: 'Đã có lỗi xảy ra trong quá trình tạo câu trả lời.' });
+          console.error('[Chat API] Loop Error:', error);
           controller.close();
         }
       },
     });
 
     return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson' } });
-
   } catch (error) {
     console.error('[Chat API] Fatal Error:', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
   }
 }
 
-/**
- * Constructs the complex system prompt (Stage 2)
- */
 function buildSystemPrompt(state: any, userMemories: string): string {
   const evidence = state.evidence as RetrievalEvidence;
   const contextSummary = state.context_summary as string;
@@ -122,7 +130,7 @@ function buildSystemPrompt(state: any, userMemories: string): string {
 
   return `
 ${MASTER_AGENT_IDENTITY}${memoryContext}
-${isChitChat ? 'Bạn đang trong chế độ "Tán gẫu". Hãy phản hồi thân thiện.' : 
+${isChitChat ? 'Bạn đang trong chế độ "Tán gẫu".' : 
 `${AGENT_ORCHESTRATOR_PROMPT(1, 3)}
 # STRICT GROUNDING RULE
 - TRẢ LỜI dựa trên # KNOWLEDGE CONTEXT. BẮT BUỘC sử dụng nếu có thông tin.`}
@@ -135,7 +143,6 @@ ${knowledgeBlock || "No specific enterprise knowledge found."}
 function finalizeObservability(traceId: string | null, finalState: any, content: string, usage: any, promptLen: number) {
   if (!traceId) return;
   const { model } = getGenerationProvider();
-  
   waitUntil((async () => {
     if (usage) {
       await ObservabilityService.emitSpan(traceId, {

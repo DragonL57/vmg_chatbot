@@ -25,13 +25,16 @@ export const MessageList: React.FC<MessageListProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom
   useEffect(() => { 
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
+    }
   }, [messages.length, isLoading, loadingPhase]);
 
   if (isHistoryLoading) {
     return (
-      <div className="flex-1 overflow-hidden px-4 md:px-24 lg:px-48 py-6 space-y-10 bg-white">
+      <div className="flex-1 overflow-y-auto px-4 md:px-24 lg:px-48 py-6 space-y-10 bg-white custom-scrollbar">
         <div className="w-full space-y-10 max-w-4xl mx-auto">
           {[1, 2].map((i) => (
             <div key={i} className="flex gap-4 animate-pulse">
@@ -70,7 +73,7 @@ export const MessageList: React.FC<MessageListProps> = ({
               message={msg} 
               conversation={messages} 
               sessionId={sessionId}
-              isChatLoading={isLoading} // Pass the global loading state
+              isChatLoading={isLoading} 
             />
           ) : null
         ))}

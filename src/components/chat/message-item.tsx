@@ -111,7 +111,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
                 defaultCollapsed={true} 
               />
             )}
-            <MarkdownContent content={message.content} isUser={isUser} citations={message.citations} />
+            <MarkdownContent content={message.content} isUser={isUser} />
             
             {!isUser && message.memoryUpdated && (
               <div className="mt-3 flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.02] border border-black/[0.04] rounded-md w-fit animate-in fade-in duration-700">

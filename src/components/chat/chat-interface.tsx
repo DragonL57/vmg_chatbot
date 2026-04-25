@@ -4,11 +4,9 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import { Message } from '@core/types/chat';
 import { MessageList } from './message-list';
 import { ChatInput } from './chat-input';
-import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Menu, Settings2, LayoutGrid } from 'lucide-react';
-import { LocationData } from './location-modal';
 import { type KnowledgeCollection } from '@core/services/supabase.service';
 import { toast } from 'sonner';
 import { supabase } from '@/core/lib/supabase';
@@ -23,16 +21,13 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const params = useParams();
   const router = useRouter();
   
-  // Initialize sessionId from URL if available, otherwise generate new
-  const [sessionId, setSessionId] = useState<string>(() => (params?.id as string) || uuidv4());
-  
+  const [sessionId, setSessionId] = useState<string>(uuidv4());
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
   const [agentReflections, setAgentReflections] = useState<string[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(() => !!params?.id);
-  const [location, setLocation] = useState<LocationData | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
   const [isCollectionsLoading, setIsCollectionsLoading] = useState(true);
   const [selectedCollection, setSelectedCollection] = useState('auto');
@@ -40,278 +35,147 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const [chatTitle, setChatTitle] = useState<string | undefined>(undefined);
   
   const lastSavedCountRef = useRef<number>(0);
-  const prevSessionIdRef = useRef<string | null>(null);
+  const prevSessionIdRef = useRef<string | null>((params?.id as string) || null);
   const isNewSessionLocalRef = useRef<boolean>(false);
   const reflectionsRef = useRef<string[]>([]);
-  const tokenUsageRef = useRef<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
-  const [phaseDetail, setPhaseDetail] = useState<string>('');
+  const tokenUsageRef = useRef<any>(null);
 
-  const sessionFromPath = params?.id as string | undefined;
-
+  // Sync session ID with URL
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
-    };
-    fetchUser();
+    const id = params?.id as string;
+    if (id && id !== sessionId) setSessionId(id);
+  }, [params?.id]);
+
+  // Initial Auth
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
 
+  // Reliable Load Logic
   useEffect(() => {
-    // Only act if the session in the URL has actually changed from what we last handled
-    const currentPrevSessionId = prevSessionIdRef.current;
-    if (sessionFromPath !== (currentPrevSessionId || undefined)) {
-      const isNavigatingFromRoot = currentPrevSessionId === null;
-      prevSessionIdRef.current = sessionFromPath || null;
-
-      if (sessionFromPath) {
-        // Navigated to or Refreshed on a specific session
-        // Note: we fetch even if sessionFromPath === sessionId (e.g. on mount/refresh)
-        // unless it's a locally started session that hasn't reached DB yet
-        if (isNewSessionLocalRef.current) {
-          isNewSessionLocalRef.current = false;
-          return;
-        }
-
-        setMessages([]); // Clear immediately
-        setSessionId(sessionFromPath);
-        setIsHistoryLoading(true);
-        lastSavedCountRef.current = 0;
-        setChatTitle(undefined);
-        fetch(`/api/conversation/${sessionFromPath}`)
-          .then(async (res) => {
-            if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
-            return res.json();
-          })
-          .then(data => {
-            if (data.messages) {
-              setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-              lastSavedCountRef.current = data.messages.length;
-            }
-          })
-          .catch((err) => {
-            toast.error('Lỗi khi tải cuộc hội thoại');
-          })
-          .finally(() => setIsHistoryLoading(false));
-      } else {
-        // Navigated to root (Trò chuyện mới) from an existing session
-        if (!isNavigatingFromRoot) {
-          setSessionId(uuidv4());
-          setMessages([]);
-          setChatTitle(undefined);
-          lastSavedCountRef.current = 0;
-          isNewSessionLocalRef.current = false;
-        }
-      }
-    }
-  }, [sessionFromPath, sessionId]);
-
-  useEffect(() => {
-    fetch('/api/collections')
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setCollections(data); })
-      .catch((err) => {
-        console.error('[ChatInterface] Failed to fetch collections:', err);
-        toast.error('Không thể tải danh sách kho tri thức.');
-      })
-      .finally(() => setIsCollectionsLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const cachedLocation = localStorage.getItem('vmg-mate-location');
-    if (cachedLocation) {
-      try {
-        setLocation(JSON.parse(cachedLocation));
+    const id = params?.id as string;
+    if (id) {
+      if (isNewSessionLocalRef.current) {
+        isNewSessionLocalRef.current = false;
+        setIsHistoryLoading(false);
         return;
-      } catch (e) {
-        localStorage.removeItem('vmg-mate-location');
       }
+      setIsHistoryLoading(true);
+      fetch(`/api/conversation/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.messages) {
+            setMessages(data.messages.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+            lastSavedCountRef.current = data.messages.length;
+          }
+        })
+        .finally(() => setIsHistoryLoading(false));
+    } else {
+      setMessages([]);
+      setSessionId(uuidv4());
+      lastSavedCountRef.current = 0;
+      setIsHistoryLoading(false);
     }
+  }, [params?.id]);
 
-    fetch('https://ip-api.com/json/')
-      .then(r => r.json())
-      .then((data) => {
-        if (data.status !== 'success') return;
-        const loc = {
-          latitude: data.lat, longitude: data.lon,
-          accuracy: null, city: data.city ?? null,
-          region: data.regionName ?? null, country: data.country ?? null,
-        };
-        setLocation(loc);
-        localStorage.setItem('vmg-mate-location', JSON.stringify(loc));
-      })
-      .catch((err) => {
-        console.warn('[ChatInterface] Geolocation fetch failed:', err);
-      });
+  useEffect(() => {
+    fetch('/api/collections').then(r => r.json()).then(data => { if (Array.isArray(data)) setCollections(data); });
   }, []);
 
-  const saveConversation = useCallback(async (msgs: Message[], customTitle?: string, shouldRefreshSidebar: boolean = false) => {
-    if (!user) return;
+  const saveConversation = useCallback(async (msgs: Message[], title?: string, shouldRefreshSidebar: boolean = false) => {
+    if (!user || msgs.length === 0) return;
     try {
       await fetch('/api/conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: sessionId,
-          userId: user.id,
-          title: customTitle,
-          messages: msgs.filter(m => !m.isToolCall).map(m => ({ 
-            role: m.role, 
-            content: m.content, 
-            timestamp: m.timestamp,
-            citations: m.citations,
-            reasoningTrace: m.reasoningTrace
+          id: sessionId, userId: user.id, title,
+          messages: msgs.map(m => ({ 
+            role: m.role, content: m.content, timestamp: m.timestamp,
+            citations: m.citations, reasoningTrace: m.reasoningTrace, traceId: m.traceId
           })),
-          location,
           tokenUsage: tokenUsageRef.current,
         }),
       });
-      if (shouldRefreshSidebar) {
-        window.dispatchEvent(new CustomEvent('refresh-chat-history'));
-      }
+      if (shouldRefreshSidebar) window.dispatchEvent(new CustomEvent('refresh-chat-history'));
     } catch (e) {}
-  }, [sessionId, location, user]);
+  }, [sessionId, user]);
 
   const sendMessage = async (content: string) => {
+    if (!content.trim() || isLoading) return;
     const userMessage: Message = { id: uuidv4(), role: 'user', content: content.trim(), timestamp: new Date() };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    const assistantId = uuidv4();
+    const isFirstMessage = messages.length === 0;
+    
+    setMessages(prev => [...prev, userMessage, {
+      id: assistantId, role: 'assistant', content: '', timestamp: new Date(), reasoningTrace: []
+    }]);
+
     setInput('');
     setIsLoading(true);
-    setLoadingPhase('decompose');
-    setAgentReflections([]);
+    setLoadingPhase('thinking');
     reflectionsRef.current = [];
 
-    // If first message at root, update URL to lock in session
-    if (messages.length === 0 && !params?.id) {
+    if (isFirstMessage && !params?.id) {
       isNewSessionLocalRef.current = true;
       router.replace(`/chat/${sessionId}`, { scroll: false });
     }
 
-    // Generate title if it's the first message
-    if (messages.length === 0) {
-      try {
-        const titleRes = await fetch('/api/conversation/generate-title', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firstMessage: content.trim() }),
-        });
-        const titleData = await titleRes.json();
-        if (titleData.title) setChatTitle(titleData.title);
-      } catch (e) {}
-    }
-
     try {
-      // --- STAGE 1: AGENTIC REASONING ---
-      setLoadingPhase('initializing');
-      const reasoningResponse = await fetch('/api/chat/reasoning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })), 
-          serviceMode: selectedCollection,
-          conversationId: sessionId
-        }),
-      });
-      if (!reasoningResponse.ok) throw new Error('Reasoning failed');
-
-      const reasoningReader = reasoningResponse.body?.getReader();
-      const decoder = new TextDecoder();
-      let reasoningResult: any = null;
-      let rTraceId = '';
-      let rBuffer = '';
-
-      while (true) {
-        const { value, done } = await reasoningReader!.read();
-        if (done) break;
-        rBuffer += decoder.decode(value, { stream: true });
-        const lines = rBuffer.split('\n');
-        rBuffer = lines.pop() || '';
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const data = JSON.parse(line);
-            if (data.type === 'phase') {
-              setLoadingPhase(data.value);
-              if (data.detail) setPhaseDetail(data.detail);
-              if (data.reflection) {
-                reflectionsRef.current = [...reflectionsRef.current, data.reflection];
-                setAgentReflections(reflectionsRef.current);
-              }
-            }
-            if (data.type === 'trace_id') rTraceId = data.value;
-            if (data.type === 'reasoning_complete') reasoningResult = data;
-          } catch (e) {}
-        }
-      }
-
-      if (!reasoningResult) throw new Error('Incomplete reasoning chain');
-
-      // --- STAGE 2: FINAL GENERATION ---
-      setLoadingPhase('generate');
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })), 
-          finalState: reasoningResult.finalState,
-          traceId: rTraceId,
-          internalUserId: reasoningResult.internalUserId,
-          userMemoriesStr: reasoningResult.userMemoriesStr
+          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), 
+          serviceMode: selectedCollection,
+          conversationId: sessionId
         }),
       });
-      if (!response.ok) throw new Error('Generation failed');
-      
+
+      if (!response.ok) throw new Error('Chat failed');
       const reader = response.body?.getReader();
-      let assistantId = '';
-      let streamBuffer = ''; 
+      const decoder = new TextDecoder();
       let fullContent = '';
+      let activeTraceId = '';
 
       while (true) {
         const { value, done } = await reader!.read();
         if (done) break;
-        
-        streamBuffer += decoder.decode(value, { stream: true });
-        const lines = streamBuffer.split('\n');
-        streamBuffer = lines.pop() || '';
-        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(Boolean);
         for (const line of lines) {
-          if (!line.trim()) continue;
           try {
             const data = JSON.parse(line);
-            if (data.type === 'phase') { 
-              setLoadingPhase(data.value); 
-              if (data.detail) setPhaseDetail(data.detail); 
+            if (data.type === 'trace_id') {
+              activeTraceId = data.value;
+              // Link traceId to the assistant message immediately if it exists
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, traceId: activeTraceId } : m));
             }
-            else if (data.type === 'tokens') { tokenUsageRef.current = data.value; }
-            else if (data.type === 'citations') {
-              setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, citations: data.value } : msg));
-            }
-            else if (data.type === 'memory_update') {
-              setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, memoryUpdated: true } : msg));
-            }
-            else if (data.type === 'content') {
-              const text = data.value;
-              fullContent += text;
-              if (!assistantId) {
-                assistantId = uuidv4();
-                setMessages((prev) => [...prev, { 
-                  id: assistantId, 
-                  role: 'assistant', 
-                  content: text, 
-                  timestamp: new Date(),
-                  reasoningTrace: reflectionsRef.current,
-                  traceId: rTraceId
-                }]);
-              } else {
-                setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: msg.content + text } : msg));
+            if (data.type === 'phase') {
+              setLoadingPhase(data.value);
+              if (data.reflection) {
+                reflectionsRef.current = [...reflectionsRef.current, data.reflection];
+                setAgentReflections([...reflectionsRef.current]);
+                setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, reasoningTrace: reflectionsRef.current } : m));
               }
             }
-          } catch (e) {}
+            if (data.type === 'content') {
+              fullContent += data.value;
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullContent, traceId: activeTraceId } : m));
+            }
+            if (data.type === 'citations') {
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, citations: data.value } : m));
+            }
+            if (data.type === 'tokens') tokenUsageRef.current = data.value;
+            if (data.type === 'memory_update') {
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, memoryUpdated: true } : m));
+            }
+          } catch {}
         }
       }
     } catch (error) {
-      console.error(error);
-      toast.error('Lỗi kết nối với máy chủ trợ lý.');
+      toast.error('Lỗi kết nối');
+      setMessages(prev => prev.filter(m => m.id !== assistantId || m.content !== ''));
     } finally {
       setIsLoading(false);
       setLoadingPhase('');
@@ -320,75 +184,37 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
 
   useEffect(() => {
     if (!isLoading && messages.length > lastSavedCountRef.current && messages.some(m => m.role === 'assistant')) {
-       // Always signal refresh on save to re-order history (push to top)
+       // Force sidebar refresh on new messages or new sessions
        saveConversation(messages, chatTitle, true);
        lastSavedCountRef.current = messages.length;
     }
-  }, [isLoading, messages, saveConversation, chatTitle]);
+  }, [isLoading, messages, saveConversation]);
 
   return (
-    <div className="flex-1 flex flex-col relative transition-all duration-300 min-h-0">
-      {/* ZaUI Native Header (44px + Safe Area) */}
-      <header 
-        className="bg-white shrink-0 z-30 border-b border-black/[0.06] px-4"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="h-[44px] flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <button onClick={onToggleSidebar} className="p-1 -ml-1 text-black/40 md:hidden hover:bg-black/5 rounded">
-              <Menu className="w-5 h-5" strokeWidth={1.5} />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button className="h-8 px-3 text-[13px] font-medium text-black/50 hover:bg-black/5 rounded transition-all flex items-center gap-1.5">
-              <LayoutGrid className="w-4 h-4" strokeWidth={1.5} /> Không gian
-            </button>
-            <div className="w-px h-4 bg-black/[0.08] mx-1"></div>
-            <button className="p-2 text-black/40 hover:bg-black/5 rounded transition-colors"><Settings2 className="w-5 h-5" strokeWidth={1.5} /></button>
-          </div>
+    <div className="flex-1 flex flex-col relative bg-white min-h-0">
+      <header className="bg-white border-b border-black/[0.06] px-4 h-[44px] flex items-center justify-between shrink-0">
+        <button onClick={onToggleSidebar} className="p-2 md:hidden"><Menu className="w-5 h-5" /></button>
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="w-4 h-4 text-black/40" />
+          <span className="text-sm font-medium text-black/60">Không gian</span>
         </div>
+        <button className="p-2"><Settings2 className="w-5 h-5 text-black/40" /></button>
       </header>
-
-      {/* Dynamic App Content */}
-      <div className="flex-1 overflow-hidden relative flex flex-col bg-[#f6f5f4]">
+      <div className="flex-1 flex flex-col min-h-0 relative">
         <MessageList 
-          messages={messages} 
-          isLoading={isLoading}
-          isHistoryLoading={isHistoryLoading}
-          loadingPhase={loadingPhase}
-          phaseDetail={phaseDetail}
-          agentReflections={agentReflections}
-          currentMode={selectedCollection}
-          sessionId={sessionId}
-          collections={collections}
-          onCollectionSelect={setSelectedCollection}
-          onSuggestionClick={(t) => sendMessage(t)} 
+          messages={messages} isLoading={isLoading} isHistoryLoading={isHistoryLoading}
+          loadingPhase={loadingPhase} agentReflections={agentReflections}
+          currentMode={selectedCollection} sessionId={sessionId} collections={collections}
+          onCollectionSelect={setSelectedCollection} onSuggestionClick={sendMessage} 
         />
       </div>
-
-      {/* Focused Input Bar (Tightened & Floating) */}
-      <div className="shrink-0 bg-transparent px-4 md:px-16 lg:px-32 pt-px pb-4" style={{ paddingBottom: 'calc(max(env(safe-area-inset-bottom), 0px) + 8px)' }}>
-        <div className="max-w-4xl mx-auto">
-          <ChatInput
-            input={input}
-            handleInputChange={(e) => setInput(e.target.value)}
-            handleSubmit={(e) => { e.preventDefault(); if(input.trim()) sendMessage(input); }}
-            isLoading={isLoading}
-          />
-          <div className="mt-2 flex justify-center px-4">
-            <p className="text-[11px] text-[#a39e98] text-center leading-none">
-              VMG MATE là Trợ lý AI. Vui lòng kiểm tra lại thông tin. <a href="mailto:support@vmg.edu.vn" className="underline hover:text-[#D32F2F]">Góp ý lỗi</a>
-            </p>
-          </div>
-        </div>
+      <div className="p-4 md:px-32 max-w-5xl mx-auto w-full shrink-0">
+        <ChatInput input={input} handleInputChange={(e) => setInput(e.target.value)} handleSubmit={(e) => { e.preventDefault(); sendMessage(input); }} isLoading={isLoading} />
       </div>
     </div>
   );
 };
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = (props) => (
-  <Suspense fallback={<div>Loading...</div>}>
-    <ChatContent {...props} />
-  </Suspense>
+  <Suspense fallback={<div>Loading...</div>}><ChatContent {...props} /></Suspense>
 );
