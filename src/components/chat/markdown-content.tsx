@@ -1,6 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css'; // Import KaTeX CSS for styling
 
 interface MarkdownContentProps {
   content: string;
@@ -8,13 +11,14 @@ interface MarkdownContentProps {
 }
 
 /**
- * Standard Markdown Content - Text-only focus.
+ * Standard Markdown Content - Text-only focus with LaTeX Support.
  */
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUser }) => {
   return (
     <div className={`max-w-none ${isUser ? 'text-white' : 'text-black/90'}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           p: ({ children }) => <p className="m-0 mb-2 last:mb-0 leading-[1.6]">{children}</p>,
           ul: ({ children }) => <ul className="list-disc pl-4 m-0 mb-2 last:mb-0 space-y-1">{children}</ul>,
