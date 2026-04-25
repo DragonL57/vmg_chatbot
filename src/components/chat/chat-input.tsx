@@ -1,4 +1,4 @@
-import React, { KeyboardEvent, useRef, useEffect } from 'react';
+import React, { KeyboardEvent, useRef, useEffect, memo } from 'react';
 import { ArrowUp, Paperclip } from 'lucide-react';
 
 interface ChatInputProps {
@@ -10,11 +10,9 @@ interface ChatInputProps {
 
 /**
  * ZaUI-compliant Chat Input.
- * - Height: 48px base (Medium spec)
- * - Border Radius: 8px (radius-md)
- * - Placeholder: Neutral 40 (#999)
+ * Memoized to prevent input lag during heavy background rendering.
  */
-export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, handleSubmit, isLoading }) => {
+export const ChatInput = memo(({ input, handleInputChange, handleSubmit, isLoading }: ChatInputProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -28,7 +26,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
     if (e.key === 'Enter' && !e.shiftKey && window.innerWidth >= 768) {
       e.preventDefault();
       const form = e.currentTarget.closest('form');
-      if (form) form.requestSubmit();
+      if (form) {
+        const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+        form.dispatchEvent(submitEvent);
+      }
     }
   };
 
@@ -75,4 +76,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ input, handleInputChange, 
       </div>
     </form>
   );
-};
+});
+
+ChatInput.displayName = 'ChatInput';

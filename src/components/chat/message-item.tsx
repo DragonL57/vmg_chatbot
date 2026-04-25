@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Message } from '@core/types/chat';
 import { Database, ChevronDown, ChevronUp, Search, Flag, BrainCircuit, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
@@ -12,7 +12,7 @@ interface MessageItemProps {
   isChatLoading?: boolean;
 }
 
-const SystemMessage: React.FC<{ message: Message }> = ({ message }) => {
+const SystemMessage = memo(({ message }: { message: Message }) => {
   const [showData, setShowData] = useState(false);
   const isTool = message.isToolCall;
 
@@ -37,9 +37,10 @@ const SystemMessage: React.FC<{ message: Message }> = ({ message }) => {
       </div>
     </div>
   );
-};
+});
+SystemMessage.displayName = 'SystemMessage';
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation = [], sessionId, isChatLoading }) => {
+export const MessageItem = memo(({ message, conversation = [], sessionId, isChatLoading }: MessageItemProps) => {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const isSystem = message.role === 'system';
@@ -163,4 +164,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, conversation 
       </div>
     </>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison to only re-render if essential props change
+  return (
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.reasoningTrace?.length === nextProps.message.reasoningTrace?.length &&
+    prevProps.isChatLoading === nextProps.isChatLoading &&
+    prevProps.message.traceId === nextProps.message.traceId &&
+    prevProps.message.memoryUpdated === nextProps.message.memoryUpdated &&
+    prevProps.message.citations === nextProps.message.citations
+  );
+});
+
+MessageItem.displayName = 'MessageItem';

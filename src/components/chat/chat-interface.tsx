@@ -190,6 +190,15 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     }
   }, [isLoading, messages, saveConversation]);
 
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+  }, []);
+
+  const handleFormSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (input.trim()) sendMessage(input);
+  }, [input, sendMessage]);
+
   return (
     <div className="flex-1 flex flex-col relative bg-white min-h-0">
       <header className="bg-white border-b border-black/[0.06] px-4 h-[44px] flex items-center justify-between shrink-0">
@@ -209,7 +218,12 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         />
       </div>
       <div className="p-4 md:px-32 max-w-5xl mx-auto w-full shrink-0">
-        <ChatInput input={input} handleInputChange={(e) => setInput(e.target.value)} handleSubmit={(e) => { e.preventDefault(); sendMessage(input); }} isLoading={isLoading} />
+        <ChatInput 
+          input={input} 
+          handleInputChange={handleInputChange} 
+          handleSubmit={handleFormSubmit} 
+          isLoading={isLoading} 
+        />
       </div>
     </div>
   );

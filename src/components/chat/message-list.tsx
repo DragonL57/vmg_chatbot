@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo, useMemo } from 'react';
 import { Message } from '@core/types/chat';
 import { MessageItem } from './message-item';
 import { AgentSteps } from './agent-steps';
@@ -19,10 +19,10 @@ interface MessageListProps {
   onSuggestionClick?: (text: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ 
+export const MessageList = memo(({ 
   messages, isLoading, isHistoryLoading, loadingPhase, phaseDetail, agentReflections, currentMode, sessionId, 
   collections = [], onCollectionSelect, onSuggestionClick 
-}) => {
+}: MessageListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -31,6 +31,20 @@ export const MessageList: React.FC<MessageListProps> = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
     }
   }, [messages.length, isLoading, loadingPhase]);
+
+  const renderedMessages = useMemo(() => {
+    return messages.map((msg, idx) => (
+      msg.content ? (
+        <MessageItem 
+          key={msg.id || `msg-${idx}`} 
+          message={msg} 
+          conversation={messages} 
+          sessionId={sessionId}
+          isChatLoading={isLoading} 
+        />
+      ) : null
+    ));
+  }, [messages, isLoading, sessionId]);
 
   if (isHistoryLoading) {
     return (
@@ -66,17 +80,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   return (
     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-24 lg:px-48 py-6 space-y-10 scroll-smooth bg-white custom-scrollbar">
       <div className="w-full space-y-10 max-w-4xl mx-auto">
-        {messages.map((msg, idx) => (
-          msg.content ? (
-            <MessageItem 
-              key={msg.id || `msg-${idx}`} 
-              message={msg} 
-              conversation={messages} 
-              sessionId={sessionId}
-              isChatLoading={isLoading} 
-            />
-          ) : null
-        ))}
+        {renderedMessages}
         {isLoading && loadingPhase && loadingPhase !== 'generate' && (
           <AgentSteps 
             phase={loadingPhase} 
@@ -87,4 +91,6 @@ export const MessageList: React.FC<MessageListProps> = ({
       </div>
     </div>
   );
-};
+});
+
+MessageList.displayName = 'MessageList';
