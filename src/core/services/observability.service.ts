@@ -78,35 +78,22 @@ export class ObservabilityService {
   }
 
   /**
-   * Pricing logic based on Qwen-Flash Tiered Model.
-   * Range 1 (<= 256K): Input $0.25/1M | Output $1.5/1M
-   * Range 2 (> 256K):  Input $1.00/1M | Output $4.00/1M
-   * Batch: 50% discount on standard price.
-   * Cache Hit: 10% of standard input price.
-   * Cache Creation: 125% of standard input price.
+   * Pricing logic based on Inception Mercury 2.
+   * Input: $0.25/1M | Output: $0.75/1M | Cache Hit: $0.025/1M
    */
   private static calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, isBatch = false): number {
-    let inputBase1M = 0.25;
-    let outputBase1M = 1.5;
+    const INPUT_BASE_1M = 0.25;
+    const OUTPUT_BASE_1M = 0.75;
+    const CACHE_HIT_1M = 0.025;
 
-    // Check tiers for qwen3.6-flash
-    if (model.includes('qwen3.6-flash') || model.includes('qwen-flash')) {
-      if (prompt > 256000) {
-        inputBase1M = 1.0;
-        outputBase1M = 4.0;
-      }
-    }
+    const priceStandardInput = INPUT_BASE_1M / 1_000_000;
+    const priceCacheHit = CACHE_HIT_1M / 1_000_000;
+    const priceOutput = OUTPUT_BASE_1M / 1_000_000;
 
-    const batchMultiplier = isBatch ? 0.5 : 1.0;
+    // Standard tokens = Total prompt - Cached
+    const standardTokens = Math.max(0, prompt - cached);
 
-    const priceStandardInput = (inputBase1M * batchMultiplier) / 1_000_000;
-    const priceCacheHit = (inputBase1M * 0.1) / 1_000_000;
-    const priceCacheCreation = (inputBase1M * 1.25) / 1_000_000;
-    const priceOutput = (outputBase1M * batchMultiplier) / 1_000_000;
-
-    const standardTokens = Math.max(0, prompt - cached - created);
-
-    const inputCost = (cached * priceCacheHit) + (created * priceCacheCreation) + (standardTokens * priceStandardInput);
+    const inputCost = (cached * priceCacheHit) + (standardTokens * priceStandardInput);
     const outputCost = completion * priceOutput;
 
     return inputCost + outputCost;

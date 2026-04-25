@@ -7,12 +7,12 @@ export const env = createEnv({
     POE_BOT_NAME: z.string().min(1).default('grok-4.1-fast-non-reasoning'),
     POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
     
-    // DashScope (Qwen) configuration
-    DASHSCOPE_API_KEY: z.string().optional(),
-    DASHSCOPE_MODEL: z.string().default('qwen-plus'),
+    // Inception Labs configuration
+    INCEPTION_API_KEY: z.string().optional(),
+    INCEPTION_MODEL: z.string().default('mercury-2'),
     
-    LLM_PROVIDER: z.enum(['poe', 'dashscope']).default('poe'),
-    INDEXING_PROVIDER: z.enum(['poe', 'dashscope']).default('poe'),
+    LLM_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
+    INDEXING_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
     
     QDRANT_URL: z.string().min(1),
     QDRANT_API_KEY: z.string().min(1),

@@ -1,6 +1,8 @@
 import { env } from '@/env';
 import OpenAI from 'openai';
 
+export type ReasoningEffort = 'instant' | 'low' | 'medium' | 'high';
+
 export interface ProviderResult {
   client: OpenAI;
   model: string;
@@ -10,7 +12,7 @@ export interface ProviderResult {
 }
 
 /**
- * Poe Provider (Available for Indexing)
+ * Poe Provider (Fallback/Indexing)
  */
 export function getPoeProvider(): ProviderResult {
   const client = new OpenAI({
@@ -25,34 +27,21 @@ export function getPoeProvider(): ProviderResult {
 }
 
 /**
- * DashScope Provider (Primary for Real-time: Chat, Reasoning)
- * Supports Context Caching (90% Savings)
+ * Inception Labs Provider (Primary Reasoning Engine)
+ * Supports Mercury 2 and reasoning_effort control.
  */
-export function getDashScopeProvider(): ProviderResult {
+export function getInceptionProvider(effort: ReasoningEffort = 'medium'): ProviderResult {
   const client = new OpenAI({
-    apiKey: env.DASHSCOPE_API_KEY || '',
-    baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    apiKey: env.INCEPTION_API_KEY || '',
+    baseURL: 'https://api.inceptionlabs.ai/v1',
   });
   return {
     client,
-    model: env.DASHSCOPE_MODEL,
-  };
-}
-
-/**
- * DashScope Batch Provider (Background: Memory, Long-running tasks)
- * Synchronous waiting but 50% flat cost reduction. No caching support.
- */
-export function getBatchProvider(): ProviderResult {
-  const client = new OpenAI({
-    apiKey: env.DASHSCOPE_API_KEY || '',
-    baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', // Unified to International
-    timeout: 1800000, 
-  });
-  return {
-    client,
-    model: env.DASHSCOPE_MODEL,
-    isBatch: true,
+    model: env.INCEPTION_MODEL,
+    extraBody: {
+      reasoning_effort: effort,
+      reasoning_summary: true
+    }
   };
 }
 
@@ -60,32 +49,35 @@ export function getBatchProvider(): ProviderResult {
  * Logic to get the model for indexing/uploading files.
  */
 export function getIndexingProvider(): ProviderResult {
-  if (env.INDEXING_PROVIDER === 'dashscope' && env.DASHSCOPE_API_KEY) {
-    return getDashScopeProvider();
+  if (env.INDEXING_PROVIDER === 'inception' && env.INCEPTION_API_KEY) {
+    return getInceptionProvider('low');
   }
   return getPoeProvider();
 }
 
 /**
- * Global Fast Provider (Agentic Steps in reasoning loop)
- * MUST be real-time for UX.
+ * Global Fast Provider (Agentic Steps: Router, Grader, Rewriter)
+ * Using 'instant' effort for maximum speed.
  */
 export function getFastProvider(): ProviderResult {
-  return getDashScopeProvider();
+  if (env.INCEPTION_API_KEY) return getInceptionProvider('instant');
+  return getPoeProvider();
 }
 
 /**
  * Global Generation Provider (Final Answers)
- * MUST be real-time for UX.
+ * Using 'medium' effort for balanced quality.
  */
 export function getGenerationProvider(): ProviderResult {
-  return getDashScopeProvider();
+  if (env.INCEPTION_API_KEY) return getInceptionProvider('medium');
+  return getPoeProvider();
 }
 
 /**
  * Sleep-time Provider (Background Memory Reconciliation)
- * Best suited for BATCH to save 50% cost.
+ * Using 'low' effort as latency isn't critical.
  */
 export function getSleepTimeProvider(): ProviderResult {
-  return getBatchProvider();
+  if (env.INCEPTION_API_KEY) return getInceptionProvider('low');
+  return getPoeProvider();
 }

@@ -69,15 +69,20 @@ export async function POST(req: Request) {
             if (chunk.usage) finalUsage = chunk.usage;
           }
 
-          // 3. Handle Post-Response Tasks (Observability + Memory)
+          // 3. Handle Post-Response Tasks
           finalizeObservability(traceId, finalState, fullContent, finalUsage, systemPrompt.length);
           
-          if (internalUserId) {
-            waitUntil(MemoryService.extractAndSaveMemories(internalUserId, messages, traceId).catch(console.error));
-          }
-
           // 4. Emit Total Tokens to UI
           emitTotalTokens(finalState, finalUsage, emit);
+
+          if (internalUserId) {
+            try {
+              const count = await MemoryService.extractAndSaveMemories(internalUserId, messages, traceId);
+              if (count > 0) emit({ type: 'memory_update', count });
+            } catch (err) {
+              console.error('[Memory Extraction] Failed:', err);
+            }
+          }
 
           controller.close();
         } catch (error: any) {
