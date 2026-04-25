@@ -106,7 +106,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   }, [sessionFromPath, sessionId]);
 
   useEffect(() => {
-    fetch('/api/admin/collections')
+    fetch('/api/collections')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setCollections(data); })
       .catch((err) => {

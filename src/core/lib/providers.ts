@@ -46,8 +46,8 @@ export function getDashScopeProvider(): ProviderResult {
 export function getBatchProvider(): ProviderResult {
   const client = new OpenAI({
     apiKey: env.DASHSCOPE_API_KEY || '',
-    baseURL: 'https://batch.dashscope.aliyuncs.com/compatible-mode/v1',
-    timeout: 1800000, // 30 minute default timeout
+    baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1', // Unified to International
+    timeout: 1800000, 
   });
   return {
     client,
