@@ -8,6 +8,7 @@ CREATE TABLE "agent_spans" (
 	"prompt_tokens" integer DEFAULT 0 NOT NULL,
 	"completion_tokens" integer DEFAULT 0 NOT NULL,
 	"cached_tokens" integer DEFAULT 0 NOT NULL,
+	"cache_creation_tokens" integer DEFAULT 0 NOT NULL,
 	"cost_usd" text DEFAULT '0' NOT NULL,
 	"latency_ms" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now()

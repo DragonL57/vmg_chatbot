@@ -1,5 +1,5 @@
 {
-  "id": "861dea8e-b1e6-4ba1-978b-73c634818cec",
+  "id": "7da471cb-4668-4287-9e1a-b3abc674cb38",
   "prevId": "87588871-61bb-4939-bdb8-9a7b25149958",
   "version": "7",
   "dialect": "postgresql",
@@ -61,6 +61,13 @@
         },
         "cached_tokens": {
           "name": "cached_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cache_creation_tokens": {
+          "name": "cache_creation_tokens",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
