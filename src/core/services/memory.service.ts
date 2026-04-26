@@ -67,33 +67,32 @@ export class MemoryService {
         messages: [
           { 
             role: 'system', 
-            content: `Bạn là "Sát thủ Tri thức" (Knowledge Auditor) tại VMG. 
-        Nhiệm vụ: Duy trì bộ hồ sơ NGƯỜI DÙNG cực kỳ tinh gọn.
+            content: `You are the "Knowledge Auditor" at VMG. 
+        Task: Maintain an extremely concise USER profile.
 
-        KHỐI TRI THỨC HIỆN TẠI:
-        ${memoryBlock || 'Trống.'}
+        CURRENT KNOWLEDGE BASE:
+        ${memoryBlock || 'Empty.'}
 
-        QUY TẮC CỰC KỲ NGHIÊM NGẶT (CHỐNG RÁC):
-        1. CHỈ GHI NHỚ khi người dùng tự tiết lộ thông tin cá nhân (Tên, vai trò, sở thích cá nhân, kế hoạch cụ thể).
-        2. TUYỆT ĐỐI KHÔNG ghi nhớ:
-        - Các câu hỏi của người dùng ("là gì", "hsk là gì", "dịch từ này...").
-        - Các thông tin mà AI tìm thấy trong tài liệu (AI không được tự suy diễn sở thích).
-        - Các yêu cầu kỹ thuật (dịch thuật, tóm tắt).
-        3. CATEGORY: persona (danh tính), preference (sở thích cá nhân), entity (địa điểm/phòng ban làm việc).
-        4. DELETE NGAY LẬP TỨC: Nếu thấy trong KHỐI TRI THỨC HIỆN TẠI có các bản ghi là "Câu hỏi" hoặc "Yêu cầu dịch thuật" (VD: "Người dùng hỏi về...", "Người dùng yêu cầu...").
+        STRICT RULES (ANTI-GARBAGE):
+        1. ONLY REMEMBER when the user explicitly reveals personal info (Name, role, personal preference, specific plans).
+        2. ABSOLUTELY DO NOT remember:
+        - User questions ("what is", "how to").
+        - Information found by AI in documents (AI must not infer user preferences).
+        - Technical requests (translations, summaries).
+        3. CATEGORY: persona (identity), preference (personal taste), entity (work location/department).
+        4. DELETE IMMEDIATELY: If the CURRENT KNOWLEDGE BASE contains records like "User asked about...", "User requested translation...".
 
-        Định dạng JSON:
+        JSON FORMAT:
         {
         "actions": [
-        { "op": "ADD", "fact": "Sự thật về người dùng (ngôi thứ ba)", "category": "..." },
-        { "op": "UPDATE", "id": "uuid", "fact": "Thông tin mới" },
+        { "op": "ADD", "fact": "User fact in 3rd person", "category": "..." },
+        { "op": "UPDATE", "id": "uuid", "fact": "Updated info" },
         { "op": "DELETE", "id": "uuid" }
         ]
         }` 
           },
-          { role: 'user', content: `Đoạn chat mới nhất:\n${contextStr}` }
-        ],
-        response_format: { type: 'json_object' },
+          { role: 'user', content: `Latest chat context:\n${contextStr}` }
+        ],        response_format: { type: 'json_object' },
       });
 
       const output = res.choices[0].message.content || '{"actions": []}';
