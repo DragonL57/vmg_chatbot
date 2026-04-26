@@ -93,6 +93,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
           messages: msgs.map(m => ({ 
             role: m.role, content: m.content, timestamp: m.timestamp,
             citations: m.citations, reasoningTrace: m.reasoningTrace, traceId: m.traceId
+            // memoryUpdated is NOT saved, making it transient UI state
           })),
           tokenUsage: tokenUsageRef.current,
         }),
@@ -108,7 +109,12 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
     const isFirstMessage = messages.length === 0;
     
     setMessages(prev => [...prev, userMessage, {
-      id: assistantId, role: 'assistant', content: '', timestamp: new Date(), reasoningTrace: []
+      id: assistantId, 
+      role: 'assistant', 
+      content: '', 
+      timestamp: new Date(), 
+      reasoningTrace: [],
+      memoryUpdated: false // Reset badge state for new message
     }]);
 
     setInput('');

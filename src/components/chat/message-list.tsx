@@ -33,8 +33,13 @@ export const MessageList = memo(({
   }, [messages.length, isLoading, loadingPhase]);
 
   const renderedMessages = useMemo(() => {
-    return messages.map((msg, idx) => (
-      msg.content ? (
+    return messages.map((msg, idx) => {
+      // Render if it has content OR it's an assistant message with reasoning (even if empty content)
+      const shouldRender = msg.content || (msg.role === 'assistant' && msg.reasoningTrace && msg.reasoningTrace.length > 0);
+      
+      if (!shouldRender) return null;
+
+      return (
         <MessageItem 
           key={msg.id || `msg-${idx}`} 
           message={msg} 
@@ -42,8 +47,8 @@ export const MessageList = memo(({
           sessionId={sessionId}
           isChatLoading={isLoading} 
         />
-      ) : null
-    ));
+      );
+    });
   }, [messages, isLoading, sessionId]);
 
   if (isHistoryLoading) {
@@ -81,13 +86,6 @@ export const MessageList = memo(({
     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-24 lg:px-48 py-6 space-y-10 scroll-smooth bg-white custom-scrollbar">
       <div className="w-full space-y-10 max-w-4xl mx-auto">
         {renderedMessages}
-        {isLoading && loadingPhase && loadingPhase !== 'generate' && (
-          <AgentSteps 
-            phase={loadingPhase} 
-            detail={phaseDetail} 
-            reflections={agentReflections} 
-          />
-        )}
       </div>
     </div>
   );

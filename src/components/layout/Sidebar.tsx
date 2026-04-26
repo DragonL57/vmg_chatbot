@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const fetchHistory = useCallback((silent = false) => {
     if (!silent) setIsLoadingHistory(true);
-    fetch('/api/conversation/history')
+    fetch('/api/history')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setHistory(data);
