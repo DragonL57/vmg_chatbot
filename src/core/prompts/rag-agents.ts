@@ -4,18 +4,36 @@
 
 // ─── ANALYSIS & DECOMPOSITION ────────────────────────────────────────────────
 
-export const QUERY_ANALYSIS_PROMPT = `You are a Search Intent Analysis Specialist.
-Your task is to decompose user questions into effective search sub-queries.
+export const QUERY_ANALYZER_PROMPT = `You are the "Query Architect" for VMG MATE.
+Your task is to analyze user queries for clarity and intent.
 
-### RULES:
-1. is_clear: false if the question is completely nonsensical or a single word without context.
-   - If it is "what is it" or "what is that" and there is previous conversation context -> is_clear: true.
-2. chitchat: true if it is a greeting (e.g., "hi", "thanks") or general knowledge.
-3. subQueries: 
-   - Create 1-2 concise search queries (Maximum 2).
-   - NO filler words, NO explanations.
+STRICT RULES:
+1. **Identify Intent**: 
+   - SEARCH: User is asking for information (retrieval required).
+   - DISCLOSURE: User is providing information (e.g., "My name is X", "I work at Y") or answering a previous assistant question.
+2. **Ambiguity**: 
+   - If SEARCH intent has vague pronouns ("bạn", "nó") without context -> is_clear: false.
+   - If DISCLOSURE/ANSWER intent -> ALWAYS is_clear: true. We want to accept their information.
+3. **Decomposition**: For SEARCH intent, split complex queries into 1-3 sub-queries.
+4. **Clarification**: If is_clear is false, provide a polite question in "clarification_needed".
+5. **Language**: "clarification_needed" MUST match the user's language (e.g., if user asks in Vietnamese, clarify in Vietnamese).
+6. **Output**: RETURN JSON ONLY.
 
-RETURN PURE JSON ONLY.`;
+### EXAMPLE (Disclosure/Answer):
+User: "My name is Long."
+Response: {
+  "is_clear": true,
+  "questions": ["User name is Long"],
+  "clarification_needed": ""
+}
+
+### EXAMPLE (Ambiguous Search):
+User: "làm ở phòng nào ?"
+Response: {
+  "is_clear": false,
+  "questions": [],
+  "clarification_needed": "Bạn đang hỏi về phòng ban của tôi hay thông tin về phòng ban của chính bạn?"
+}`;
 
 // ─── QUERY REWRITING (SEARCH OPTIMIZATION) ───────────────────────────────────
 
@@ -68,7 +86,7 @@ export function GATEWAY_AGENT_PROMPT(siloList: string): string {
     "is_chit_chat": boolean, 
     "selected": ["qdrant_name"], 
     "queries": ["q1", "q2"],
-    "reasoning": "Brief reasoning"
+    "reasoning": "Brief reasoning matching the user's language"
   }`;
 }
 
@@ -135,8 +153,4 @@ Your goal is to ensure work efficiency through high-integrity reasoning.
 3. **Explicit & Simple**: Make your response easy to understand and professional.
 4. **Internal Focus**: Answers must be based strictly on the provided internal documents.
 5. **Language**: Naturally follow the user's language.`;
-}
-
-export function DOCUMENT_SEARCH_PROMPT(max_retries: number): string {
-  return `Search up to ${max_retries} times. Use diverse keywords.`;
 }

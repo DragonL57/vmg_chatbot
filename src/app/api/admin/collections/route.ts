@@ -1,73 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { listCollections, createCollectionRecord } from '@core/services/supabase.service';
-import { qdrantClient, EMBEDDING_DIM } from '@core/lib/qdrant';
+import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { isAdmin } from '@/core/services/auth.service';
+import { DrizzleAuthRepositoryAdapter, DrizzleKnowledgeRepositoryAdapter } from '@core/infrastructure/adapters';
 
 export async function GET() {
   try {
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const roleIsAdmin = await isAdmin(user.id);
-    if (!roleIsAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const collections = await listCollections();
-    return NextResponse.json(collections);
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    const collections = await knowledgeRepo.listCollections();
+
+    return NextResponse.json({ collections });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch collections' }, { status: 500 });
+    console.error('[Admin Collections GET API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    const { name, qdrantName, description } = await req.json();
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const roleIsAdmin = await isAdmin(user.id);
-    if (!roleIsAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, qdrant_name, description } = await req.json();
-
-    if (!name || !qdrant_name) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    // 1. Create collection in Qdrant
-    try {
-      await qdrantClient.createCollection(qdrant_name, {
-        vectors: { size: EMBEDDING_DIM, distance: 'Cosine' }
-      });
-      
-      // Also ensure the 'source' index for deletions
-      await qdrantClient.createPayloadIndex(qdrant_name, {
-        field_name: 'source',
-        field_schema: 'keyword',
-        wait: true
-      });
-    } catch (qErr: any) {
-      // If already exists, we might want to continue or error
-      console.warn('Qdrant collection error:', qErr.message);
-    }
-
-    // 2. Save record in Supabase
-    const record = await createCollectionRecord({ name, qdrant_name, description });
-
-    return NextResponse.json(record);
-  } catch (error: any) {
-    console.error('Collection creation failed:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    const result = await knowledgeRepo.createCollection({ name, qdrantName, description });
+    
+    return NextResponse.json({ success: true, collection: result });
+  } catch (error) {
+    console.error('[Admin Collections POST API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

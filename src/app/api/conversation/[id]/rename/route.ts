@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { renameConversation } from '@/core/services/supabase.service';
+import { DrizzleAuthRepositoryAdapter, DrizzleChatRepositoryAdapter } from '@core/infrastructure/adapters';
 
 export async function POST(
   request: Request,
@@ -12,17 +12,18 @@ export async function POST(
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!title) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-    }
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
 
-    await renameConversation(id, title, user.id);
+    const chatRepo = new DrizzleChatRepositoryAdapter();
+    await chatRepo.rename(id, internalUserId, title);
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Conversation Rename API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

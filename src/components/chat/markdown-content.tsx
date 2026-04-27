@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css'; // Import KaTeX CSS for styling
 
 interface MarkdownContentProps {
@@ -18,9 +19,9 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUse
     <div className={`max-w-none ${isUser ? 'text-white' : 'text-black/90'}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
-          p: ({ children }) => <p className="m-0 mb-2 last:mb-0 leading-[1.6]">{children}</p>,
+          p: ({ children }) => <p className="m-0 mb-2 last:mb-0 leading-[1.6] whitespace-pre-wrap">{children}</p>,
           ul: ({ children }) => <ul className="list-disc pl-4 m-0 mb-2 last:mb-0 space-y-1">{children}</ul>,
           ol: ({ children }) => <ol className="list-decimal pl-4 m-0 mb-2 last:mb-0 space-y-1">{children}</ol>,
           strong: ({ children }) => <span className="font-bold text-inherit">{children}</span>,
@@ -55,7 +56,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUse
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-2 text-[13px] text-black/70 border-b border-black/[0.03] last:border-0">
+            <td className="px-3 py-2 text-[13px] text-black/70 border-b border-black/[0.03] last:border-0 whitespace-pre-wrap">
               {children}
             </td>
           ),

@@ -1,24 +1,33 @@
 import { NextResponse } from 'next/server';
-import { ManagerService } from '@/core/services/manager.service';
 import { createServerSupabase } from '@/core/lib/supabase-server';
+import { 
+  DrizzleAuthRepositoryAdapter, 
+  DrizzleChatRepositoryAdapter,
+  LLMProviderAdapter
+} from '@core/infrastructure/adapters';
+import { GenerateTitleUseCase } from '@core/application/use-cases/generate-title.use-case';
 
 export async function POST(req: Request) {
   try {
+    const { conversationId, firstMessage } = await req.json();
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { firstMessage } = await req.json();
-    if (!firstMessage) {
-      return NextResponse.json({ error: 'Missing firstMessage' }, { status: 400 });
-    }
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
 
-    const title = await ManagerService.generateTitle(firstMessage);
+    const llmProvider = new LLMProviderAdapter();
+    const chatRepo = new DrizzleChatRepositoryAdapter();
+    const generateUseCase = new GenerateTitleUseCase(llmProvider, chatRepo);
+
+    const title = await generateUseCase.execute(conversationId, internalUserId, firstMessage);
+
     return NextResponse.json({ title });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Generate Title API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

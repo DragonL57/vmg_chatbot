@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { starConversation } from '@/core/services/supabase.service';
+import { DrizzleAuthRepositoryAdapter, DrizzleChatRepositoryAdapter } from '@core/infrastructure/adapters';
 
 export async function POST(
   request: Request,
@@ -12,13 +12,18 @@ export async function POST(
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    await starConversation(id, !!isStarred, user.id);
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId) return NextResponse.json({ error: 'User not synced' }, { status: 403 });
+
+    const chatRepo = new DrizzleChatRepositoryAdapter();
+    await chatRepo.star(id, internalUserId, isStarred);
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Conversation Star API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

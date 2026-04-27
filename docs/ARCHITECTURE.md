@@ -1,6 +1,6 @@
 # VMG MATE: Agentic Architecture & Ecosystem
 
-**VMG MATE (Multi-Agent Tooling Ecosystem) Version 4.0.0** is a high-integrity Agentic AI system built on Clean Architecture, "Glass Box" observability principles, and advanced Context Engineering. 
+**VMG MATE (Multi-Agent Tooling Ecosystem) Version 4.1.0** is a high-integrity Agentic AI system built on strict **Clean Architecture**, "Glass Box" observability principles, and advanced Context Engineering. 
 
 It is designed as a professional digital companion for VMG English Center employees, operating under the philosophy: **"Machines execute, humans direct."**
 
@@ -8,53 +8,59 @@ It is designed as a professional digital companion for VMG English Center employ
 
 ## 1. High-Level System Architecture
 
-VMG MATE follows strict layer separation (Clean Architecture), ensuring that domain logic is pure and side effects are pushed to the adapter layers.
+VMG MATE follows a strict 3-layer Clean Architecture, ensuring that domain logic is pure and infrastructure details are completely decoupled via Ports.
 
 ```mermaid
 graph TD
-    subgraph "Adapters Layer (Impure Shell)"
+    subgraph "Infrastructure Layer (Impure Shell)"
         UI[React / Next.js UI]
-        API[Next.js Modular Routes]
+        API[Driving Adapters: API Routes]
         DB_Adapter[Drizzle + PostgreSQL / Supabase]
         Vector_Adapter[Qdrant / Vector Store]
-        LLM_Adapter[Inception Mercury 2 / Poe]
+        LLM_Adapter[LLM Provider Adapter]
     end
 
     subgraph "Application Layer (Orchestration)"
-        Graph[LangGraph Reasoning Loop]
-        AuthService[Auth / Internal Sync]
-        MemoryCurator[Asynchronous Memory Curator]
-        ObsService[Observability & Cost Engine]
-        ContextManager[Structured Compaction]
+        UC[Use Cases: ExtractMemory, IndexFile, ChatGraph]
+        Ports[Ports: IMemoryRepository, IVectorStorePort, ILLMProvider]
     end
 
     subgraph "Domain Layer (Pure Core)"
-        Types[Domain Types / Schemas]
-        Prompts[Agent Personas & Constraints]
+        Entities[Entities: UserMemory, DocumentChunk, QueryAnalysis]
+        D_Services[Domain Services: hierarchicalChunk]
+        Policies[Policies: CHAT_POLICIES]
     end
 
     UI --> API
-    API --> Graph
-    API --> MemoryCurator
-    Graph --> LLM_Adapter
-    Graph --> DB_Adapter
-    Graph --> Vector_Adapter
-    MemoryCurator --> LLM_Adapter
-    MemoryCurator --> DB_Adapter
-    API --> ObsService
-    ObsService --> DB_Adapter
+    API --> UC
+    UC --> Entities
+    UC --> D_Services
+    UC --> Ports
+    DB_Adapter -- Implements --> Ports
+    Vector_Adapter -- Implements --> Ports
+    LLM_Adapter -- Implements --> Ports
 ```
 
 ---
 
 ## 2. Multi-Agent RAG Graph (The "Thinking" Phase)
 
-The core reasoning of VMG MATE is managed by a LangGraph state machine (`src/core/agent/rag-graph.ts`). It employs a Metacognitive Reasoning loop that is visible to the user in real-time.
+The core reasoning of VMG MATE is managed by a LangGraph state machine (`src/core/agent/rag-graph.ts`). It employs a Metacognitive Reasoning loop with Dependency Injection for high testability.
 
 ```mermaid
 stateDiagram-v2
     [*] --> SummarizeHistory
-    SummarizeHistory --> RouterExpand : Context < 6 turns? Skip
+    SummarizeHistory --> AnalyzeQuery
+    
+    state AnalyzeQuery {
+        [*] --> ClarityCheck
+        ClarityCheck --> Decompose : if clear
+    }
+    
+    AnalyzeQuery --> RequestClarification : if unclear (is_clear == false)
+    RequestClarification --> [*] : User Input Required
+    
+    AnalyzeQuery --> RouterExpand : if clear
     
     state RouterExpand {
         [*] --> IntentAnalysis
@@ -80,102 +86,46 @@ stateDiagram-v2
 ```
 
 ### Agent Roles in the Graph:
-1. **Gateway Agent (RouterExpand)**: Classifies "chit-chat" vs "factual" queries. Selects target knowledge silos and expands initial queries.
-2. **Search Specialist (Retrieve)**: Executes parallel BM25/Vector hybrid searches across Qdrant collections.
-3. **Knowledge Evidence Grader (Grade)**: Evaluates if retrieved documents actually answer the user's intent.
-4. **Query Optimization Specialist (Rewrite)**: If grading fails, rewrites queries based on past failures to widen or narrow the search.
-5. **Knowledge Architect (Compress)**: Transforms raw retrieved data into a **SUPER CONCISE Fact Sheet**, shedding 50%+ of redundant tokens before final generation.
+1. **Query Architect (AnalyzeQuery)**: **[New in 4.1.0]** Detects ambiguity and vague pronouns. Automatically decomposes complex queries into parallelizable sub-queries. Polices language matching.
+2. **Gateway Agent (RouterExpand)**: Classifies "chit-chat" vs "factual" queries. Selects target knowledge silos based on expanded intents.
+3. **Search Specialist (Retrieve)**: Executes hierarchical search. Maps Child chunks back to unique Parent IDs to prevent context fragmentation.
+4. **Knowledge Evidence Grader (Grade)**: Evaluates if retrieved documents actually answer the user's intent.
+5. **Knowledge Architect (Compress)**: Transforms raw data into a **SUPER CONCISE Fact Sheet**, shedding 50%+ of redundant tokens.
 
 ---
 
 ## 3. Context Management & Rot Defenses
 
-To prevent **Context Rot** (instruction fade-out, goal drift, and attention dilution) during long-running conversations, VMG MATE implements industry-leading Context Engineering.
+To prevent **Context Rot** (instruction fade-out, goal drift), VMG MATE implements multi-layered defenses.
 
 ### A. The 40-60% Rule & Structured Compaction
 Instead of naive truncation, MATE uses an aggressive, early compaction strategy starting at **6 conversation turns**.
 
-```mermaid
-flowchart TD
-    A[Conversation Length >= 6] -->|Trigger| B(Structured Compaction Prompt)
-    B --> C{LLM Extraction}
-    C --> D[ACTIVE GOAL]
-    C --> E[KEY DECISIONS]
-    C --> F[CURRENT STATE]
-    C --> G[NEXT STEPS]
-    D & E & F & G --> H[Compact Context Summary]
-    H --> I[Replaces Old Messages in State]
-```
-
-### B. Instruction Re-Injection & Task Anchoring
-To defeat the "Lost-in-the-Middle" effect, critical instructions are dynamically injected at the *end* of the context window.
-
-```mermaid
-block-beta
-    columns 1
-    SystemPrompt["Initial System Prompt (Identity)"]
-    MemoryBlock["<user_memories> (Read-only Context)"]
-    History["Conversation History or Structured Summary"]
-    CurrentGoal["Task Anchor: ## CURRENT GOAL (Last User Msg)"]
-    KnowledgeContext["# KNOWLEDGE CONTEXT (Retrieved Fact Sheet)"]
-    ReInjection["# CRITICAL REMINDER (Re-Injection of Rules/Formatting)"]
-```
+### B. Hierarchical Retrieval (Parent-Child Mapping)
+**[New in 4.1.0]** MATE now indexes documents in two stages:
+- **Child Chunks**: Small (~500 chars), optimized for high-precision semantic search.
+- **Parent Chunks**: Large (Markdown headers), providing the full "Truth Sheet" context.
+- **Deduplication**: If multiple children match, only the unique Parent context is used in the graph.
 
 ---
 
 ## 4. Long-Term Memory Curator (The "Knowledge Auditor")
 
-VMG MATE possesses a "Trí nhớ vĩnh cửu" (Eternal Memory). A background agent continuously monitors the chat and extracts explicit personal disclosures.
-
-### Hybrid Few-Shot Architecture
-Rather than relying on brittle regex or hardcoded procedural logic, the Curator uses **Hybrid Few-Shot Prompting** with `reasoning_effort: 'high'`.
-
-```mermaid
-sequenceDiagram
-    participant API as Chat Route
-    participant M as MemoryService
-    participant LLM as Inception Mercury 2
-    participant DB as PostgreSQL (user_memories)
-
-    API->>M: async extractAndSaveMemories(userId, recentMessages)
-    M->>DB: Fetch existing memory block
-    M->>LLM: Prompt (Existing Memory + Recent Context + 4 Examples)
-    Note over LLM: Evaluates op: ADD | UPDATE | DELETE | []
-    LLM-->>M: JSON Action Array
-    M->>DB: Apply Upserts/Deletions
-    M->>API: emit({ type: 'memory_update' })
-```
+VMG MATE possesses an "Eternal Memory." A decoupled `ExtractUserMemoriesUseCase` monitors the chat for personal disclosures.
 
 **Anti-Garbage Rules**:
 - ONLY remembers explicit personal info (Name, role, department, preferences).
-- NEVER remembers questions ("what is X?"), AI-retrieved facts, or technical requests.
+- NEVER remembers questions or AI-retrieved facts.
+- **Strict Intent**: Detects if the user is answering a bot's question rather than searching.
 
 ---
 
 ## 5. Observability & Cost Engine ("Glass Box")
 
-VMG MATE tracks every LLM invocation granularly.
-
-### Span Tracking
-Every node in the RAG Graph emits a `SpanData` payload tracking:
-- `nodeName` (e.g., 'router_expand', 'grade')
-- `model` used
-- `promptTokens`, `completionTokens`
-- `cachedTokens`, `cacheCreationTokens`
-- `latencyMs`
+VMG MATE tracks every LLM invocation via the `IObservabilityPort`.
 
 ### Tiered Pricing Logic
-Calculates exact USD cost based on Inception Mercury 2's pricing tiers, including heavy discounts for Context Caching.
-
-```mermaid
-flowchart LR
-    SpanEmit[emitSpan] --> CostCalc{Calculate Cost}
-    CostCalc -->|Input Base| P1($0.25 / 1M)
-    CostCalc -->|Output Base| P2($0.75 / 1M)
-    CostCalc -->|Cache Hit| P3($0.025 / 1M)
-    P1 & P2 & P3 --> DB[Insert into agent_spans]
-    DB --> Finalize[Aggregate into agent_traces]
-```
+Calculates exact USD cost based on pricing tiers, including heavy discounts for Context Caching.
 
 ---
 
@@ -183,10 +133,10 @@ flowchart LR
 
 | Engine / Node | Reasoning Effort | Justification |
 | :--- | :--- | :--- |
-| **Agentic Steps** (Router, Grader, Rewriter, Summarizer) | `instant` | Speed is critical for multi-step loops. Cost efficiency. |
-| **Final Generation** | `high` | Maximum cognitive depth for synthesizing complex policies and facts. |
-| **Knowledge Architect** (Compressor) | `high` | Requires deep structural understanding to compress accurately without hallucination. |
-| **Memory Curator** (Background) | `high` | Accuracy is paramount over latency for long-term state. Needs strict JSON compliance. |
+| **Agentic Steps** | `instant` | Speed is critical for multi-step loops. Cost efficiency. |
+| **Final Generation** | `high` | Maximum cognitive depth for synthesizing complex policies. |
+| **Knowledge Architect** | `high` | Requires deep structural understanding for compression. |
+| **Memory Curator** | `high` | Accuracy is paramount for long-term state. |
 
 ---
-*Document Generated: April 2026*
+*Document Updated: April 2026 (Clean Architecture Refactor)*

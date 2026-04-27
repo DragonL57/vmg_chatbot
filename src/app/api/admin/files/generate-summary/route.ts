@@ -1,65 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { listKnowledgeFiles, updateKnowledgeFileRecord } from '@core/services/supabase.service';
-import { fetchFullFileContent, generateFileSummary, refreshCollectionDescription } from '@core/services/indexing.service';
+import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { isAdmin } from '@/core/services/auth.service';
+import { 
+  DrizzleAuthRepositoryAdapter, 
+  DrizzleKnowledgeRepositoryAdapter,
+  QdrantVectorStoreAdapter,
+  LLMProviderAdapter
+} from '@core/infrastructure/adapters';
+import { 
+  GetFullFileContentUseCase, 
+  GenerateFileSummaryUseCase 
+} from '@core/application/use-cases';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isUserAdmin = await isAdmin(user.id);
-    if (!isUserAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await req.json();
+    const { fileId, filename, mode } = await req.json();
     
-    if (!id) {
-      return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
-    }
+    const vectorStore = new QdrantVectorStoreAdapter();
+    const llmProvider = new LLMProviderAdapter();
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
 
-    // 1. Get file metadata
-    const files = await listKnowledgeFiles();
-    const file = files.find(f => f.id === id);
-    if (!file) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    }
+    const getFullContent = new GetFullFileContentUseCase(vectorStore);
+    const generateSummary = new GenerateFileSummaryUseCase(llmProvider, knowledgeRepo);
 
-    console.log(`[Manual Summary] Starting for: ${file.filename}`);
+    const fullContent = await getFullContent.execute(filename, mode);
+    if (!fullContent) return NextResponse.json({ error: 'File content not found' }, { status: 404 });
 
-    if (!file.mode) {
-      return NextResponse.json({ error: 'File mode is missing' }, { status: 400 });
-    }
+    const summary = await generateSummary.execute(fileId, fullContent);
 
-    // 2. Fetch full content from Qdrant (Smart Skeleton base)
-    const content = await fetchFullFileContent(file.filename, file.mode);
-    if (!content) {
-      return NextResponse.json({ error: 'Could not retrieve file content from vector store' }, { status: 400 });
-    }
-
-    // 3. Generate summary
-    const tokens = { prompt: 0, completion: 0, total: 0 };
-    const summary = await generateFileSummary(content, tokens);
-
-    // 4. Update database
-    await updateKnowledgeFileRecord(id, { summary });
-
-    // 5. Trigger collection refresh
-    await refreshCollectionDescription(file.mode, tokens);
-
-    return NextResponse.json({ 
-      success: true, 
-      summary,
-      tokens 
-    });
-  } catch (error: any) {
-    console.error('Manual summary error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ summary });
+  } catch (error) {
+    console.error('[Admin Generate Summary API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

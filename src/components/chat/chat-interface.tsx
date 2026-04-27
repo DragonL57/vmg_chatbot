@@ -7,7 +7,7 @@ import { ChatInput } from './chat-input';
 import { v4 as uuidv4 } from 'uuid';
 import { useViewportHeight } from '@/hooks/use-viewport-height';
 import { Menu, Settings2, LayoutGrid } from 'lucide-react';
-import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import { toast } from 'sonner';
 import { supabase } from '@/core/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
@@ -79,7 +79,9 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   }, [params?.id]);
 
   useEffect(() => {
-    fetch('/api/collections').then(r => r.json()).then(data => { if (Array.isArray(data)) setCollections(data); });
+    fetch('/api/collections').then(r => r.json()).then(data => { 
+      if (data && Array.isArray(data.collections)) setCollections(data.collections); 
+    });
   }, []);
 
   const saveConversation = useCallback(async (msgs: Message[], title?: string, shouldRefreshSidebar: boolean = false) => {

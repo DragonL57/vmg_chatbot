@@ -3,7 +3,7 @@ import { Message } from '@core/types/chat';
 import { MessageItem } from './message-item';
 import { AgentSteps } from './agent-steps';
 import { HubView } from './hub-view';
-import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface MessageListProps {
   messages: Message[];

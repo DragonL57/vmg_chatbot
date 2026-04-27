@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditTitle] = useState('');
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -29,7 +29,7 @@ export default function ProfilePage() {
         try {
           const res = await fetch('/api/user/memories');
           const data = await res.json();
-          if (data.memories) setMemories(data.memories);
+          if (data && Array.isArray(data.memories)) setMemories(data.memories);
         } catch (e) {
           toast.error('Không thể tải tri thức người dùng');
         }
@@ -159,7 +159,7 @@ export default function ProfilePage() {
                           autoFocus
                           className="flex-1 bg-black/[0.03] border border-black/[0.05] rounded-md px-2 py-1 text-[14px] font-medium outline-none focus:border-[#D32F2F]/20"
                           value={editValue}
-                          onChange={(e) => setEditTitle(e.target.value)}
+                          onChange={(e) => setEditValue(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleUpdateMemory(m.id);
                             if (e.key === 'Escape') setEditingId(null);
@@ -188,7 +188,7 @@ export default function ProfilePage() {
                       {editingId !== m.id && (
                         <>
                           <button 
-                            onClick={() => { setEditingId(m.id); setEditTitle(m.fact); }}
+                            onClick={() => { setEditingId(m.id); setEditValue(m.fact); }}
                             className="p-1.5 text-black/10 hover:text-black/40 transition-colors"
                             title="Chỉnh sửa"
                             aria-label="Chỉnh sửa tri thức"

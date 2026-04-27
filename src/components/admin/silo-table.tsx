@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2, ArrowRight } from 'lucide-react';
-import { type KnowledgeCollection, type KnowledgeFile } from '@core/services/supabase.service';
+import { type KnowledgeCollection, type KnowledgeFile } from '@core/application/ports/knowledge-repository.port';
 import Link from 'next/link';
 
 interface SiloTableProps {

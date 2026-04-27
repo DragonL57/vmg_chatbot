@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { ChevronLeft, Trash2, Check, Loader2, Sparkles, Database } from 'lucide-react';
-import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeFile, type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -35,11 +35,11 @@ export default function FileDetailPage({ params }: FileDetailPageProps) {
         fetch('/api/admin/collections'),
         fetch('/api/admin/files')
       ]);
-      const cols = await colRes.json();
-      const allFiles = await fileRes.json();
+      const colData = await colRes.json();
+      const fileData = await fileRes.json();
       
-      const currentFile = allFiles.find((f: any) => f.id === fileId);
-      const currentSilo = cols.find((c: any) => c.id === siloId);
+      const currentFile = fileData?.files?.find((f: any) => f.id === fileId);
+      const currentSilo = colData?.collections?.find((c: any) => c.id === siloId);
 
       if (currentFile) {
         setFile(currentFile);

@@ -1,28 +1,10 @@
-import { db } from '../db';
-import { agentTraces, agentSpans } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { IObservabilityPort, SpanData } from "../../application/ports/observability.port";
+import { db } from "../../db";
+import { agentTraces, agentSpans } from "../../db/schema";
+import { eq } from "drizzle-orm";
 
-export interface SpanData {
-  nodeName: string;
-  model: string;
-  input?: any;
-  output?: any;
-  promptTokens: number;
-  completionTokens: number;
-  cachedTokens: number;
-  cacheCreationTokens: number;
-  latencyMs: number;
-  isBatch?: boolean;
-}
-
-/**
- * Service for 'Glass Box' Agent Observability and Cost Monitoring.
- */
-export class ObservabilityService {
-  /**
-   * Starts a new trace for a user interaction.
-   */
-  static async startTrace(userId: string, conversationId: string): Promise<string> {
+export class DrizzleObservabilityAdapter implements IObservabilityPort {
+  async startTrace(userId: string, conversationId: string): Promise<string> {
     const result = await db.insert(agentTraces).values({
       userId,
       conversationId,
@@ -31,10 +13,7 @@ export class ObservabilityService {
     return result[0].id;
   }
 
-  /**
-   * Records a single step (span) within an agentic reasoning loop.
-   */
-  static async emitSpan(traceId: string, data: SpanData): Promise<void> {
+  async emitSpan(traceId: string, data: SpanData): Promise<void> {
     const cost = this.calculateCost(
       data.model, 
       data.promptTokens, 
@@ -59,10 +38,7 @@ export class ObservabilityService {
     });
   }
 
-  /**
-   * Finalizes a trace by aggregating all spans and updating the root.
-   */
-  static async finalizeTrace(traceId: string, error?: string): Promise<void> {
+  async finalizeTrace(traceId: string, error?: string): Promise<void> {
     const spans = await db.select().from(agentSpans).where(eq(agentSpans.traceId, traceId));
     
     const totalTokens = spans.reduce((sum, s) => sum + s.promptTokens + s.completionTokens, 0);
@@ -77,11 +53,7 @@ export class ObservabilityService {
     }).where(eq(agentTraces.id, traceId));
   }
 
-  /**
-   * Pricing logic based on Inception Mercury 2.
-   * Input: $0.25/1M | Output: $0.75/1M | Cache Hit: $0.025/1M
-   */
-  private static calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, isBatch = false): number {
+  private calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, isBatch = false): number {
     const INPUT_BASE_1M = 0.25;
     const OUTPUT_BASE_1M = 0.75;
     const CACHE_HIT_1M = 0.025;
@@ -90,7 +62,6 @@ export class ObservabilityService {
     const priceCacheHit = CACHE_HIT_1M / 1_000_000;
     const priceOutput = OUTPUT_BASE_1M / 1_000_000;
 
-    // Standard tokens = Total prompt - Cached
     const standardTokens = Math.max(0, prompt - cached);
 
     const inputCost = (cached * priceCacheHit) + (standardTokens * priceStandardInput);

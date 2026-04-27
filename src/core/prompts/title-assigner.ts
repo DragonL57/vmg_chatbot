@@ -1,6 +1,5 @@
-export const TITLE_ASSIGNER_PROMPT = `
-You are a helpful assistant for VMG English Center.
-Your task is to generate a concise, descriptive title (in the same language as the text) for the provided text chunk.
-The title should summarize the main topic or policy described in the chunk.
+export const CONVERSATION_TITLE_PROMPT = `
+You are an expert at titling conversations.
+Please write a concise title (under 10 words) that describes the main content of the following message.
 Do not use quotes. Just output the title.
 `.trim();

@@ -11,6 +11,14 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 | **Purity** | `ChatInterface` logic is complex; could benefit from custom hook extraction. | Complex state management risks bugs. | Low |
 | **Build Tooling** | `drizzle-kit` introspect bug requires manual schema sync script. | Friction during schema migrations. | Medium |
 
+## Resolved Debt (2026-04-27)
+- [x] **Architectural Drift**: Refactored the entire system from Service-Oriented to a strict 3-layer Clean Architecture (Domain -> Application -> Infrastructure).
+- [x] **God Services**: Decoupled `MemoryService` and `IndexingService` into Use Cases and Ports.
+- [x] **Graph Coupling**: Implemented Dependency Injection in LangGraph nodes via `RunnableConfig`.
+- [x] **Ambiguity Hallucination**: Added `QueryArchitect` node for ambiguity detection and clarification.
+- [x] **Retrieval Grounding**: Implemented Hierarchical Retrieval (Child Search -> Parent Context).
+- [x] **Prompt Slop**: Centralized and translated all prompts to English.
+
 ## Resolved Debt (2026-04-23)
 - [x] **Hardcoded Auth**: Moved admin password from client-side code to server-side `env`.
 - [x] **Enterprise Security**: Implemented Google OAuth, RBAC, and domain restriction.

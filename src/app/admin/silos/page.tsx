@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeFile, type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import { slugify } from '@/core/lib/utils';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { SiloTable } from '@/components/admin/silo-table';
@@ -34,8 +34,8 @@ export default function SilosPage() {
       ]);
       const colData = await colRes.json();
       const fileData = await fileRes.json();
-      if (Array.isArray(colData)) setCollections(colData);
-      if (Array.isArray(fileData)) setFiles(fileData);
+      if (colData && Array.isArray(colData.collections)) setCollections(colData.collections);
+      if (fileData && Array.isArray(fileData.files)) setFiles(fileData.files);
     } catch (err) {}
     finally { setLoading(false); }
   }
