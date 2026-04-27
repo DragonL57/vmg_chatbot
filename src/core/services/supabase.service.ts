@@ -140,7 +140,22 @@ export async function renameConversation(id: string, title: string, supabaseId: 
   return await db.update(conversations).set({ title }).where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${dbUser.id}`);
 }
 
-export async function listKnowledgeFiles() {
+export interface KnowledgeFile {
+  id: string;
+  filename: string;
+  sourceUrl: string | null;
+  status: "pending" | "indexing" | "completed" | "failed";
+  errorMessage: string | null;
+  mode: string;
+  folder: string | null;
+  progress: number | null;
+  summary: string | null;
+  logs: unknown;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export async function listKnowledgeFiles(): Promise<KnowledgeFile[]> {
   return await db.select().from(knowledgeFiles).orderBy(desc(knowledgeFiles.createdAt));
 }
 
@@ -170,7 +185,8 @@ export interface KnowledgeCollection {
 }
 
 export async function listCollections(): Promise<KnowledgeCollection[]> {
-  return await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt));
+  const result = await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt));
+  return result as KnowledgeCollection[];
 }
 
 export async function createCollectionRecord(payload: any) {

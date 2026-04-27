@@ -66,18 +66,18 @@ export function getFastProvider(): ProviderResult {
 
 /**
  * Global Generation Provider (Final Answers)
- * Using 'medium' effort for balanced quality.
+ * Using 'high' effort for maximum quality and synthesis.
  */
 export function getGenerationProvider(): ProviderResult {
-  if (env.INCEPTION_API_KEY) return getInceptionProvider('medium');
+  if (env.INCEPTION_API_KEY) return getInceptionProvider('high');
   return getPoeProvider();
 }
 
 /**
  * Sleep-time Provider (Background Memory Reconciliation)
- * Using 'low' effort as latency isn't critical.
+ * Using 'high' effort as accuracy is more important than speed.
  */
 export function getSleepTimeProvider(): ProviderResult {
-  if (env.INCEPTION_API_KEY) return getInceptionProvider('low');
+  if (env.INCEPTION_API_KEY) return getInceptionProvider('high');
   return getPoeProvider();
 }

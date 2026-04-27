@@ -33,7 +33,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Manual Summary] Starting for: ${file.filename}`);
 
-    // 2. Fetch content from Qdrant (Smart Skeleton base)
+    if (!file.mode) {
+      return NextResponse.json({ error: 'File mode is missing' }, { status: 400 });
+    }
+
+    // 2. Fetch full content from Qdrant (Smart Skeleton base)
     const content = await fetchFullFileContent(file.filename, file.mode);
     if (!content) {
       return NextResponse.json({ error: 'Could not retrieve file content from vector store' }, { status: 400 });
