@@ -68,7 +68,8 @@ export async function POST(req: Request) {
           const { client, model, extraBody } = getGenerationProvider();
           
           const userMemoriesStr = memories.map(m => `- ${m.fact}`).join('\n');
-          const systemPrompt = buildSystemPrompt(finalState, userMemoriesStr);
+          const lastUserMessage = messages[messages.length - 1].content;
+          const systemPrompt = buildSystemPrompt(finalState, userMemoriesStr, lastUserMessage);
 
           const response = await client.chat.completions.create({
             model,
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
   }
 }
 
-function buildSystemPrompt(state: any, userMemories: string): string {
+function buildSystemPrompt(state: any, userMemories: string, lastUserMessage: string): string {
   const evidence = state.evidence as RetrievalEvidence;
   const contextSummary = state.context_summary as string;
   const isChitChat = !!state.isChitChat;
@@ -125,11 +126,26 @@ function buildSystemPrompt(state: any, userMemories: string): string {
   }
 
   const memoryContext = userMemories 
-    ? `\n# THÔNG TIN BỐI CẢNH VỀ NGƯỜI DÙNG (READ-ONLY)\n<user_memories>\n${userMemories}\n</user_memories>\n` 
+    ? `\n# THÔNG TIN BỐI CẢNH VỀ NGƯỜI DÙNG\n<user_memories>\n${userMemories}\n</user_memories>\n` 
     : '';
 
+  // Defense 7: Task Anchoring
+  const taskAnchor = `\n## CURRENT GOAL\n${lastUserMessage}\n`;
+
+  // Defense 2 & 8: Instruction Re-Injection (Placed near the end)
+  const reInjection = `
+# CRITICAL REMINDER (RE-INJECTION)
+- IDENTITY: You are VMG MATE.
+- GROUNDING: Use # KNOWLEDGE CONTEXT only.
+- PROACTIVITY: Provide full definitions and procedures directly.
+- LANGUAGE: Follow the user's language naturally.
+- MATH: Use $ for inline, $$ for block.
+  `.trim();
+
   return `
-${MASTER_AGENT_IDENTITY}${memoryContext}
+${MASTER_AGENT_IDENTITY}
+${memoryContext}
+${taskAnchor}
 ${isChitChat ? 'Bạn đang trong chế độ "Tán gẫu".' : 
 `${AGENT_ORCHESTRATOR_PROMPT(1, 3)}
 # STRICT GROUNDING RULE
@@ -137,6 +153,8 @@ ${isChitChat ? 'Bạn đang trong chế độ "Tán gẫu".' :
 ${MASTER_OUTPUT_CONSTRAINTS}
 # KNOWLEDGE CONTEXT
 ${knowledgeBlock || "No specific enterprise knowledge found."}
+
+${reInjection}
   `.trim();
 }
 

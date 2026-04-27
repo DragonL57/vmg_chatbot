@@ -8,7 +8,8 @@ import {
   SEARCH_OPTIMIZATION_PROMPT, 
   META_GRADER_PROMPT, 
   META_COMPRESSOR_PROMPT,
-  GATEWAY_AGENT_PROMPT
+  GATEWAY_AGENT_PROMPT,
+  STRUCTURED_COMPACTION_PROMPT
 } from "@core/prompts/rag-agents";
 import { z } from "zod";
 import { ObservabilityService } from "@core/services/observability.service";
@@ -83,7 +84,8 @@ async function routerExpandNode(state: AgentStateType) {
  */
 async function summarizeHistoryNode(state: AgentStateType) {
   const startTime = Date.now();
-  if (state.messages.length < 4) return { reflection: "" };
+  // Aggressive Early Compaction: Trigger at 6 messages to stay in 40-60% sweet spot
+  if (state.messages.length < 6) return { reflection: "" };
   
   const { client, model, extraBody } = getFastProvider();
   const { traceId } = state;
@@ -95,7 +97,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
   const res = await client.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: "Summarize this conversation very briefly (<100 words), keeping only core entities and goals." },
+      { role: "system", content: STRUCTURED_COMPACTION_PROMPT },
       ...history
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
@@ -120,7 +122,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
 
   return { 
     context_summary: summary,
-    reflection: "Đã tối ưu hóa bối cảnh hội thoại.",
+    reflection: "Đã tối ưu hóa bối cảnh hội thoại (Structured Compaction).",
     totalUsage: res.usage
   };
 }
