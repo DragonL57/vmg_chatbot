@@ -15,9 +15,6 @@ import { ObservabilityService } from "@core/services/observability.service";
 
 const TOKEN_COMPRESSION_THRESHOLD = 3000;
 
-/**
- * Utility to log exact character counts for cost evaluation
- */
 function logPayload(node: string, input: any, output: any) {
   const inputChars = JSON.stringify(input).length;
   const outputChars = JSON.stringify(output).length;
@@ -36,23 +33,21 @@ async function routerExpandNode(state: AgentStateType) {
   const startTime = Date.now();
   const { mode, allCollections, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  const isAuto = mode === 'auto' || mode === 'discovery';
   const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
   const { client, model, extraBody } = getFastProvider();
-  const systemContent = GATEWAY_AGENT_PROMPT(siloList);
-
+  
   const res = await client.chat.completions.create({
     model,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: systemContent },
+      { role: "system", content: GATEWAY_AGENT_PROMPT(siloList) },
       { role: "user", content: `Mode: ${mode} | Query: ${lastQuery}` }
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
 
   const output = res.choices[0].message.content || "{}";
-  logPayload("RouterExpand", { systemContent, lastQuery }, output);
+  logPayload("RouterExpand", { siloList, lastQuery }, output);
 
   if (traceId) {
     ObservabilityService.emitSpan(traceId, {
@@ -69,18 +64,16 @@ async function routerExpandNode(state: AgentStateType) {
   }
 
   let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery], reasoning: "" };
-  try {
-    parsed = JSON.parse(output);
-  } catch (e) {}
+  try { parsed = JSON.parse(output); } catch (e) {}
 
-  let finalSilos = isAuto ? parsed.selected : [mode];
+  let finalSilos = mode === 'auto' || mode === 'discovery' ? parsed.selected : [mode];
   if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
 
   return { 
     isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
     subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery],
-    reflection: parsed.reasoning || "Đang xác định chiến lược tra cứu...",
+    reflection: parsed.is_chit_chat ? "Đang xử lý hội thoại trực tiếp..." : (parsed.reasoning || "Đang xác định chiến lược tra cứu..."),
     totalUsage: res.usage
   };
 }
@@ -90,10 +83,10 @@ async function routerExpandNode(state: AgentStateType) {
  */
 async function summarizeHistoryNode(state: AgentStateType) {
   const startTime = Date.now();
-  if (state.messages.length < 4) return { reflection: "Khởi tạo bối cảnh mới." };
+  if (state.messages.length < 4) return { reflection: "" };
+  
   const { client, model, extraBody } = getFastProvider();
   const { traceId } = state;
-  
   const history = state.messages.map(m => ({ 
     role: (m._getType() === 'human' ? 'user' : 'assistant') as 'user' | 'assistant', 
     content: m.content as string 
@@ -102,7 +95,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
   const res = await client.chat.completions.create({
     model,
     messages: [
-      { role: "system", content: "Tóm tắt hội thoại cực kỳ ngắn gọn (dưới 100 từ), chỉ giữ lại các thực thể và ý chính quan trọng nhất." },
+      { role: "system", content: "Summarize this conversation very briefly (<100 words), keeping only core entities and goals." },
       ...history
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
@@ -127,7 +120,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
 
   return { 
     context_summary: summary,
-    reflection: "Đã nén bối cảnh hội thoại để tối ưu bộ nhớ truy xuất.",
+    reflection: "Đã tối ưu hóa bối cảnh hội thoại.",
     totalUsage: res.usage
   };
 }
@@ -137,9 +130,7 @@ async function summarizeHistoryNode(state: AgentStateType) {
  */
 async function retrieveNode(state: AgentStateType) {
   const { subQueries, targetCollections } = state;
-  const queries = (subQueries && subQueries.length > 0) 
-    ? subQueries 
-    : [state.messages[state.messages.length - 1].content as string];
+  const queries = (subQueries && subQueries.length > 0) ? subQueries : [state.messages[state.messages.length - 1].content as string];
 
   const allResults = await Promise.all(
     targetCollections.map(col => 
@@ -155,9 +146,7 @@ async function retrieveNode(state: AgentStateType) {
     return !isDuplicate;
   });
 
-  const rankedDocs = deduplicated
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  const rankedDocs = deduplicated.sort((a, b) => b.score - a.score).slice(0, 5);
 
   return { 
     evidence: { docs: rankedDocs },
@@ -172,7 +161,7 @@ async function gradeNode(state: AgentStateType) {
   const startTime = Date.now();
   const { evidence, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu nào liên quan." };
+  if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu liên quan." };
 
   const { client, model, extraBody } = getFastProvider();
   const context = evidence.docs.slice(0, 8).map(d => d.parentContent || d.content).join("\n\n");
@@ -182,7 +171,7 @@ async function gradeNode(state: AgentStateType) {
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: META_GRADER_PROMPT },
-      { role: "user", content: `Câu hỏi: ${lastQuery}\n\nTài liệu:\n${context.slice(0, 4000)}` }
+      { role: "user", content: `Question: ${lastQuery}\n\nContext:\n${context.slice(0, 4000)}` }
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
@@ -211,17 +200,11 @@ async function gradeNode(state: AgentStateType) {
     const result = graderSchema.safeParse(parsed);
     if (result.success) {
       grade = result.data.is_relevant.toUpperCase() === "YES";
-      reason = result.data.reasoning || (grade ? "Tài liệu rất phù hợp." : "Tài liệu chưa đủ thông tin.");
+      reason = result.data.reasoning || (grade ? "Đã tìm thấy thông tin phù hợp." : "Tài liệu chưa đủ thông tin.");
     }
-  } catch (e) {
-    console.error('[rag-graph] Grader parse failed:', e);
-  }
+  } catch (e) {}
 
-  return { 
-    isRelevant: grade,
-    reflection: reason,
-    totalUsage: res.usage
-  };
+  return { isRelevant: grade, reflection: reason, totalUsage: res.usage };
 }
 
 /**
@@ -229,29 +212,28 @@ async function gradeNode(state: AgentStateType) {
  */
 async function rewriteNode(state: AgentStateType) {
   const startTime = Date.now();
-  const lastQuery = state.messages[state.messages.length - 1].content as string;
+  const { messages, traceId, subQueries } = state;
+  const lastQuery = messages[messages.length - 1].content as string;
   const { client, model, extraBody } = getFastProvider();
-  const { traceId } = state;
   
-  const input = `User Query: "${lastQuery}"\nPrevious Tries: ${JSON.stringify(state.subQueries || [])}`;
   const res = await client.chat.completions.create({
     model,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SEARCH_OPTIMIZATION_PROMPT },
-      { role: "user", content: input }
+      { role: "user", content: `Query: ${lastQuery}` }
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
 
   const output = res.choices[0].message.content || "{}";
-  logPayload("Rewriter", input, output);
+  logPayload("Rewriter", { lastQuery }, output);
 
   if (traceId) {
     ObservabilityService.emitSpan(traceId, {
       nodeName: 'rewrite',
       model,
-      input: { previousQueries: state.subQueries },
+      input: { query: lastQuery },
       output: output,
       promptTokens: res.usage?.prompt_tokens || 0,
       completionTokens: res.usage?.completion_tokens || 0,
@@ -262,14 +244,12 @@ async function rewriteNode(state: AgentStateType) {
   }
 
   let parsed = { queries: [] as string[], reasoning: "" };
-  try {
-    parsed = JSON.parse(output);
-  } catch (e) {}
+  try { parsed = JSON.parse(output); } catch (e) {}
 
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],
     iterations: (state.iterations || 0) + 1,
-    reflection: parsed.reasoning || "Đang tối ưu hóa lại câu lệnh tìm kiếm...",
+    reflection: "Đang mở rộng phạm vi tìm kiếm tài liệu...",
     totalUsage: res.usage
   };
 }
@@ -279,23 +259,23 @@ async function rewriteNode(state: AgentStateType) {
  */
 async function compressNode(state: AgentStateType) {
   const startTime = Date.now();
-  const { evidence, traceId } = state;
-  if (!evidence.docs.length) return { reflection: "Không có dữ liệu để nén, chuẩn bị phản hồi trực tiếp." };
+  const { evidence, traceId, isChitChat } = state;
+  if (!evidence.docs.length || isChitChat) return { reflection: "" };
   
   const { client, model, extraBody } = getGenerationProvider();
-  const rawTextWithSources = evidence.docs.map(d => `[Tài liệu: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
+  const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
   
   const res = await client.chat.completions.create({
     model,
     messages: [
       { role: "system", content: META_COMPRESSOR_PROMPT },
-      { role: "user", content: `Dữ liệu thô kèm nguồn:\n${rawTextWithSources.slice(0, 6000)}` }
+      { role: "user", content: `Raw Data:\n${rawTextWithSources.slice(0, 6000)}` }
     ],
     ...(extraBody ? { extra_body: extraBody } : {}),
   });
   
   const summary = res.choices[0].message.content || "";
-  logPayload("Compressor", rawTextWithSources.slice(0, 1000), summary);
+  logPayload("Compressor", { docCount: evidence.docs.length }, summary);
 
   if (traceId) {
     ObservabilityService.emitSpan(traceId, {
@@ -313,12 +293,10 @@ async function compressNode(state: AgentStateType) {
   
   return { 
     context_summary: summary,
-    reflection: "Đã trích xuất các sự thật cốt lõi và ánh xạ nguồn tài liệu.",
+    reflection: "Đã tổng hợp các sự thật cốt lõi từ tài liệu.",
     totalUsage: res.usage
   };
 }
-
-// ─── GRAPH CONSTRUCTION ──────────────────────────────────────────────────────
 
 const workflow = new StateGraph(AgentState)
   .addNode("router_expand", routerExpandNode)
@@ -333,39 +311,23 @@ workflow.addEdge("summarize", "router_expand");
 
 workflow.addConditionalEdges(
   "router_expand",
-  (state) => {
-    if (state.isChitChat) return "compress";
-    return "retrieve";
-  },
-  {
-    compress: "compress",
-    retrieve: "retrieve"
-  }
+  (state) => state.isChitChat ? "compress" : "retrieve",
+  { compress: "compress", retrieve: "retrieve" }
 );
 
 workflow.addConditionalEdges(
   "retrieve",
   (state) => {
     const totalContent = state.evidence.docs.map(d => d.content).join("\n");
-    if (estimateTokens(totalContent) > TOKEN_COMPRESSION_THRESHOLD) return "compress";
-    return "grade";
+    return estimateTokens(totalContent) > TOKEN_COMPRESSION_THRESHOLD ? "compress" : "grade";
   },
-  {
-    compress: "compress",
-    grade: "grade"
-  }
+  { compress: "compress", grade: "grade" }
 );
 
 workflow.addConditionalEdges(
   "grade",
-  (state) => {
-    if (state.isRelevant || state.iterations >= 3) return "compress";
-    return "rewrite";
-  },
-  {
-    compress: "compress",
-    rewrite: "rewrite"
-  }
+  (state) => (state.isRelevant || state.iterations >= 3) ? "compress" : "rewrite",
+  { compress: "compress", rewrite: "rewrite" }
 );
 
 workflow.addEdge("rewrite", "router_expand");
