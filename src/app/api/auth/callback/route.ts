@@ -8,8 +8,13 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createServerSupabase();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     
+    if (error) {
+      console.error('[Auth Callback] Exchange failed:', error.message);
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`);
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const authRepo = new DrizzleAuthRepositoryAdapter();

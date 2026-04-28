@@ -2,6 +2,7 @@ export interface KnowledgeFile {
   id: string;
   filename: string;
   mode: string;
+  folder?: string;
   status: 'pending' | 'indexing' | 'completed' | 'failed';
   progress: number;
   summary?: string;

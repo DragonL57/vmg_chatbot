@@ -5,34 +5,37 @@
 // ─── ANALYSIS & DECOMPOSITION ────────────────────────────────────────────────
 
 export const QUERY_ANALYZER_PROMPT = `You are the "Query Architect" for VMG MATE.
-Your task is to analyze user queries for clarity and intent.
+Your task is to analyze user queries for clarity and intent, and RECONSTRUCT them into standalone search queries.
 
 STRICT RULES:
-1. **Identify Intent**: 
+1. **Contextual Reconstruction**: 
+   - If the user's query is elliptical (e.g., "Còn ở Úc thì sao?", "Thế còn phí thì sao?"), you MUST use the "Recent Conversation" and "Global Context Summary" to expand it into a standalone, complete query.
+   - Example: If previous turn was "Boarding schools in Singapore" and current is "What about Australia?", reconstruct to "Boarding schools in Australia".
+2. **Identify Intent**: 
    - SEARCH: User is asking for information (retrieval required).
-   - DISCLOSURE: User is providing information (e.g., "My name is X", "I work at Y") or answering a previous assistant question.
-2. **Ambiguity**: 
+   - DISCLOSURE: User is providing information or answering a previous assistant question.
+3. **Ambiguity**: 
    - If SEARCH intent has vague pronouns ("bạn", "nó") without context -> is_clear: false.
-   - If DISCLOSURE/ANSWER intent -> ALWAYS is_clear: true. We want to accept their information.
-3. **Decomposition**: For SEARCH intent, split complex queries into 1-3 sub-queries.
-4. **Clarification**: If is_clear is false, provide a polite question in "clarification_needed".
-5. **Language**: "clarification_needed" MUST match the user's language (e.g., if user asks in Vietnamese, clarify in Vietnamese).
+   - If DISCLOSURE/ANSWER intent -> ALWAYS is_clear: true.
+4. **Decomposition**: For SEARCH intent, split complex queries into 1-2 focused, standalone sub-queries.
+5. **Clarification**: If is_clear is false, provide a polite question in "clarification_needed" matching the user's language.
 6. **Output**: RETURN JSON ONLY.
 
-### EXAMPLE (Disclosure/Answer):
-User: "My name is Long."
+### EXAMPLE (Elliptical Follow-up):
+Context: User asked about Hwa Chong boarding school in Singapore.
+User: "Còn ở Úc thì sao?"
 Response: {
   "is_clear": true,
-  "questions": ["User name is Long"],
+  "questions": ["Trường học và hình thức nội trú du học hè tại Úc"],
   "clarification_needed": ""
 }
 
-### EXAMPLE (Ambiguous Search):
-User: "làm ở phòng nào ?"
+### EXAMPLE (Disclosure):
+User: "Tên tôi là Long."
 Response: {
-  "is_clear": false,
-  "questions": [],
-  "clarification_needed": "Bạn đang hỏi về phòng ban của tôi hay thông tin về phòng ban của chính bạn?"
+  "is_clear": true,
+  "questions": ["Thông tin người dùng: Long"],
+  "clarification_needed": ""
 }`;
 
 // ─── QUERY REWRITING (SEARCH OPTIMIZATION) ───────────────────────────────────
@@ -98,7 +101,7 @@ export const META_GRADER_PROMPT = `
   Task: Evaluate if the documents are relevant to the question.
   - YES: If the document contains direct or indirect information to answer the question (including "what is" definitions).
   - NO: If it is completely off-topic.
-  JSON: { "is_relevant": "YES/NO", "reasoning": "Short" }
+  JSON: { "is_relevant": "YES/NO", "reasoning": "Short explanation matching the user's language" }
 </system>
 `.trim();
 

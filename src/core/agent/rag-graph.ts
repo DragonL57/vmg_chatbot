@@ -107,7 +107,7 @@ async function analyzeQueryNode(state: AgentStateType, config: RunnableConfig) {
   return {
     questionIsClear: parsed.is_clear,
     rewrittenQuestions: parsed.questions,
-    reflection: parsed.is_clear ? "Đã phân tích và làm rõ yêu cầu." : (parsed.clarification_needed || "Yêu cầu chưa rõ ràng, cần thêm thông tin."),
+    reflection: parsed.is_clear ? "Query analyzed and clarified." : (parsed.clarification_needed || "The request is unclear, more information is needed."),
     subQueries: parsed.questions,
     totalUsage: res.usage
   };
@@ -161,7 +161,7 @@ async function routerExpandNode(state: AgentStateType, config: RunnableConfig) {
     isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
     subQueries: Array.isArray(parsed.queries) ? parsed.queries : queries,
-    reflection: parsed.is_chit_chat ? "Đang xử lý hội thoại trực tiếp..." : (parsed.reasoning || "Đang xác định chiến lược tra cứu..."),
+    reflection: parsed.is_chit_chat ? "Processing direct conversation..." : (parsed.reasoning || "Determining search strategy..."),
     totalUsage: res.usage
   };
 }
@@ -208,7 +208,7 @@ async function summarizeHistoryNode(state: AgentStateType, config: RunnableConfi
 
   return { 
     context_summary: summary,
-    reflection: "Đã tối ưu hóa bối cảnh hội thoại (Structured Compaction).",
+    reflection: "Conversation context optimized (Structured Compaction).",
     totalUsage: res.usage
   };
 }
@@ -240,7 +240,7 @@ async function retrieveNode(state: AgentStateType, config: RunnableConfig) {
 
   return { 
     evidence: { docs: rankedDocs },
-    reflection: `Đang quét ${targetCollections.length} kho dữ liệu với ${queries.length} hướng truy vấn...` 
+    reflection: `Scanning ${targetCollections.length} silos with ${queries.length} query variations...` 
   };
 }
 
@@ -252,7 +252,7 @@ async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
   const { evidence, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu liên quan." };
+  if (!evidence.docs.length) return { isRelevant: false, reflection: "No relevant documents found." };
 
   const context = evidence.docs.slice(0, 8).map(d => d.parentContent || d.content).join("\n\n");
 
@@ -284,13 +284,13 @@ async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   }
 
   let grade = false;
-  let reason = "Tài liệu chưa đủ thông tin.";
+  let reason = "Documents provide insufficient information.";
   const parsed = safeParseJson("grade", rawOut, {});
   const result = graderSchema.safeParse(parsed);
   
   if (result.success) {
     grade = result.data.is_relevant.toUpperCase() === "YES";
-    reason = result.data.reasoning || (grade ? "Đã tìm thấy thông tin phù hợp." : "Tài liệu chưa đủ thông tin.");
+    reason = result.data.reasoning || (grade ? "Relevant information found." : "Documents provide insufficient information.");
   } else if (Object.keys(parsed).length > 0) {
     console.error("[grade] Validation failed:", result.error.format());
   }
@@ -341,7 +341,7 @@ async function rewriteNode(state: AgentStateType, config: RunnableConfig) {
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],
     iterations: (state.iterations || 0) + 1,
-    reflection: "Đang mở rộng phạm vi tìm kiếm tài liệu...",
+    reflection: "Expanding search scope for better evidence...",
     totalUsage: res.usage
   };
 }
@@ -385,7 +385,7 @@ async function compressNode(state: AgentStateType, config: RunnableConfig) {
 
   return { 
     context_summary: summary,
-    reflection: "Đã tổng hợp các sự thật cốt lõi từ tài liệu.",
+    reflection: "Synthesized core facts from retrieved documents.",
     totalUsage: res.usage
   };
 }

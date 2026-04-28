@@ -9,6 +9,9 @@ import { DeleteKnowledgeFileUseCase } from '@core/application/use-cases/delete-k
 import { z } from 'zod';
 
 const patchSchema = z.object({
+  filename: z.string().trim().min(1).optional(),
+  mode: z.string().trim().min(1).optional(),
+  folder: z.string().trim().optional(),
   status: z.enum(['pending', 'indexing', 'completed', 'failed']).optional(),
   progress: z.number().min(0).max(100).optional(),
   summary: z.string().optional(),

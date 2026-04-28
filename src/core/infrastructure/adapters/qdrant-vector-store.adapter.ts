@@ -63,6 +63,26 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     }));
   }
 
+  async listBySource(source: string, collectionName: string): Promise<DocumentChunk[]> {
+    const response = await qdrantClient.scroll(collectionName, {
+      filter: {
+        must: [{ key: 'source', match: { value: source } }]
+      },
+      limit: 100,
+      with_payload: true,
+    });
+
+    return response.points.map(r => ({
+      id: String(r.id),
+      parentId: String(r.payload?.parentId || ''),
+      title: String(r.payload?.title || ''),
+      content: String(r.payload?.content || ''),
+      source: String(r.payload?.source || ''),
+      parentContent: String(r.payload?.parentContent || ''),
+      collection: collectionName
+    }));
+  }
+
   async deleteBySource(source: string, collectionName: string): Promise<void> {
     await qdrantClient.delete(collectionName, {
       filter: {

@@ -51,6 +51,14 @@ export class IndexKnowledgeFileUseCase {
       const segments = hierarchicalChunk(markdown);
       await addLog(`CHUNKING: Split into ${segments.length} segments`, 5);
 
+      const parentIdMap = new Map<string, string>();
+      const getStableParentId = (parent: string) => {
+        if (!parentIdMap.has(parent)) {
+          parentIdMap.set(parent, randomUUID());
+        }
+        return parentIdMap.get(parent)!;
+      };
+
       const limit = pLimit(2);
       let processedCount = 0;
 
@@ -58,7 +66,7 @@ export class IndexKnowledgeFileUseCase {
         segments.map((seg, i) => 
           limit(async () => {
             const chunkIndex = i + 1;
-            const parentId = randomUUID();
+            const parentId = getStableParentId(seg.parent);
             
             // Phase 1: Context-Aware Rewriting
             const rewriteRes = await this.llmProvider.completion({

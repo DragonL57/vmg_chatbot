@@ -10,6 +10,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       id: r.id,
       filename: r.filename,
       mode: r.mode,
+      folder: r.folder || undefined,
       status: r.status as any,
       progress: r.progress || 0,
       summary: r.summary || undefined,
@@ -24,6 +25,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       id: result.id,
       filename: result.filename,
       mode: result.mode,
+      folder: result.folder || undefined,
       status: result.status as any,
       progress: result.progress || 0,
       summary: result.summary || undefined,
@@ -42,6 +44,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     if (file.logs !== undefined) updateData.logs = file.logs;
     if (file.filename !== undefined) updateData.filename = file.filename;
     if (file.mode !== undefined) updateData.mode = file.mode;
+    if (file.folder !== undefined) updateData.folder = file.folder;
 
     // To perform an INSERT (required for onConflict), we need filename and mode.
     // If they are missing, we must perform a direct UPDATE.
@@ -50,13 +53,14 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
         id: file.id,
         filename: file.filename,
         mode: file.mode,
+        folder: file.folder ?? 'root',
         status: file.status ?? 'pending',
         progress: file.progress ?? 0,
         summary: file.summary,
         logs: file.logs ?? [],
         updatedAt: new Date(),
       }).onConflictDoUpdate({
-        target: knowledgeFiles.id,
+        target: knowledgeFiles.filename,
         set: updateData
       });
     } else {

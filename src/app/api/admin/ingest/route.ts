@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
       id: finalFileId,
       filename,
       mode,
+      folder: folder || 'root',
       status: 'indexing',
       progress: 0,
       logs: [`[${new Date().toLocaleTimeString('vi-VN')}] Đã tải file từ Storage...`]

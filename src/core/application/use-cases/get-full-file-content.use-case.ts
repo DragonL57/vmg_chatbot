@@ -4,7 +4,7 @@ export class GetFullFileContentUseCase {
   constructor(private readonly vectorStore: IVectorStorePort) {}
 
   async execute(filename: string, collectionName: string): Promise<string> {
-    const results = await this.vectorStore.search('', collectionName, 100);
+    const results = await this.vectorStore.listBySource(filename, collectionName);
     const parents = new Set<string>();
     results.forEach(r => {
       if (r.source === filename && r.parentContent) parents.add(r.parentContent);

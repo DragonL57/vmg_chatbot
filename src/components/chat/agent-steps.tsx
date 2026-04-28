@@ -13,7 +13,7 @@ interface AgentStepsProps {
  * Inspired by assistant-ui "ReasoningPreview" pattern.
  */
 export const AgentSteps: React.FC<AgentStepsProps> = ({ phase, reflections = [], detail, defaultCollapsed = false }) => {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const isComplete = phase === 'complete';
 
   return (
