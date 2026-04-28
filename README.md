@@ -1,81 +1,58 @@
 # VMG MATE - Multi-Agent Tooling Ecosystem
 
-**Version: 4.0.0** — An intelligent agentic companion featuring Metacognitive Reasoning, Long-term Memory, and Enterprise-grade Security.
+**Version: 4.1.0** — High-Integrity Agentic RAG Platform.
 
-## 🌟 The "Mate" Philosophy: Machine execution, human direction.
-**VMG MATE** is built as a "Glass Box" system. Unlike traditional black-box chatbots, MATE exposes its entire reasoning process, allowing users to verify evidence, trace logic, and maintain absolute control over the AI's actions.
+## 🌟 The "Glass Box" Vision
+VMG MATE is not a chatbot; it is an **Agentic Retrieval-Augmented Generation (Agentic RAG)** system. We prioritize **Process-Aware Observability**, ensuring every decision—from query routing to evidence grading—is traceable, verifiable, and secure.
 
 ---
 
-## 🧠 Advanced Agentic Capabilities
+## 🏗️ Agentic RAG Taxonomy Alignment
+Based on the latest industry surveys (arXiv:2501.09136), VMG MATE is classified as a **Hybrid Adaptive-Corrective RAG** system.
+
+### 1. Agentic Design Patterns
+- **Reflection & Self-Critique**: Our `Meta-Grader` node evaluates retrieved documents for relevance. If the "Knowledge Evidence" is deemed insufficient, the system triggers a **Corrective Loop** to rewrite the query or expand the search.
+- **Planning (Orchestrator-Worker)**: The `Gateway Agent` acts as an orchestrator, decomposing user intent into specialized tasks for downstream worker nodes (Retrieval, Memory, or Chit-Chat).
+- **Tool Use**: Seamless integration with **Qdrant** (Vector), **PostgreSQL** (Relational), and **Web Search** tools, dynamically selected based on query complexity.
+
+### 2. Adaptive Workflow Patterns
+- **Evaluator-Optimizer**: We employ iterative refinement loops. If a generated answer fails internal grading, the system optimizes the prompt and re-attempts retrieval.
+- **Adaptive Routing**: Simple queries bypass the complex RAG graph for efficiency, while multi-hop questions trigger the full agentic reasoning chain.
+
+---
+
+## 🧠 Advanced Intent & Context Engineering
 
 ### 1. Intent Reconstruction (RECAP-Driven)
-We have integrated research from **RECAP (REwriting Conversations for Agent Planning)** to resolve the "Ellipsis & Drift" problem.
-- **Contextual Expansion**: MATE doesn't just read the last message; it reconstructs elliptical queries (e.g., "What about Australia?") into standalone, high-precision search terms using conversation history.
-- **True vs. Fake Shift Detection**: The "Query Architect" node distinguishes between users changing their goal vs. simply refining a previous one, preventing unnecessary search resets.
+Integrated from **RECAP (arXiv:2509.04472)**:
+- **Ellipsis Resolution**: Automatically reconstructs follow-up questions (e.g., "What about Australia?") into standalone search instructions.
+- **Fake Intent Shift Protection**: Distinguishes between goal changes and goal refinements to maintain search stability.
 
 ### 2. Context Engineering (Anthropic-Flavor)
-To prevent "Context Rot" and optimize the model's **Attention Budget**, we implement state-of-the-art context management:
-- **Structured Compaction**: Instead of basic summarization, MATE creates a "Working Memory Snapshot" that preserves **Active Goals**, **Key Decisions**, and **Rejected Alternatives**.
-- **Progressive Disclosure**: Only high-signal tokens are permitted in the context window. Redundant tool outputs and conversational filler are aggressively pruned.
-
-### 3. URASys Indexing (High-Precision RAG)
-Our proprietary **URASys (Universal Retrieval & Augmentation System)** ensures zero-hallucination grounding:
-- **Hierarchical Parent-Child Chunking**: Documents are split into semantic segments with stable `parentId` mapping. This allows the agent to search small chunks for precision but retrieve full sections for context.
-- **Context-Aware Rewriting**: Every chunk is rewritten by an LLM during ingestion to be self-contained, resolving pronouns and ambiguous references before they reach the vector store.
+- **Structured Compaction**: Prevents "Context Rot" by distilling conversation history into high-fidelity "Working Memory Snapshots."
+- **Attention Budget Optimization**: Aggressively prunes low-signal tokens to ensure the model focuses on critical facts and unresolved goals.
 
 ---
 
-## 🛡️ Enterprise Security & Integrity
+## 🛡️ Enterprise Security & URASys Indexing
 
-### 1. Zero-Trust Boundary Validation
-Every single API endpoint and internal port is protected by **Zod** schemas. 
-- **Untrusted Input**: No request body or query parameter enters our business logic without strict parsing.
-- **Type-Safe Adapters**: Our Clean Architecture ensures that infrastructure failures (Database, Vector Store) are caught at the boundary and never pollute the Domain layer.
+### 1. URASys (Universal Retrieval & Augmentation System)
+- **Hierarchical Indexing**: Parent-Child chunking with stable `parentId` mapping for precise retrieval without losing document context.
+- **Context-Aware Rewriting**: LLM-augmented ingestion resolves pronouns and ambiguity at the storage level.
 
-### 2. XSS & Injection Hardening
-- **Sanitized Markdown**: We use `rehype-sanitize` with custom whitelists to ensure that AI-generated content (including Math/LaTeX) is rendered safely without risking XSS injections.
-- **Safe Deletion**: Admin routes now perform DB-lookups for metadata instead of trusting client-provided filenames, preventing unauthorized data clearing.
-
----
-
-## 🏗️ Architectural Blueprint (Clean Architecture)
-
-```
-┌───────────────────────────────────────────────────────────┐
-│ Adapters (Next.js Routes, Qdrant, Drizzle, Supabase)      │ ← Infrastructure
-├───────────────────────────────────────────────────────────┤
-│ Use Cases (IndexFile, ExtractMemory, ReconstructQuery)    │ ← Application
-├───────────────────────────────────────────────────────────┤
-│ Entities (Message, KnowledgeFile, agent_traces)           │ ← Domain
-└───────────────────────────────────────────────────────────┘
-```
-
-### Key Technical Stack
-- **AI**: LangGraph (Stateful workflows), OpenAI GPT-4o / O3-Mini.
-- **Storage**: Supabase (PostgreSQL), Qdrant (Vector).
-- **Observability**: Custom `ILoggerProvider` for structured "Glass Box" tracing.
-- **Testing**: Vitest with mandatory 100% coverage for all Application Use Cases.
+### 2. Security Mandates
+- **Zero-Trust Boundaries**: All inputs are validated via **Zod** at the Adapter boundary.
+- **XSS Protection**: Whitelisted `rehype-sanitize` for safe Markdown/KaTeX rendering.
+- **Auth Guards**: Mandatory Supabase JWT verification on all internal data mutations.
 
 ---
 
-## 🛠️ Developer Setup
-
-### Environment Variables (`.env.local`)
-Required keys for full agentic functionality:
-- `DATABASE_URL`: Supabase Connection String (Port 6543 for pooling).
-- `QDRANT_URL` & `QDRANT_API_KEY`: High-performance vector retrieval.
-- `INCEPTION_API_KEY`: Enterprise LLM orchestration.
-- `SUPABASE_KEY`: Service Role Key for secure background indexing.
-
-### Critical Commands
-```bash
-pnpm install          # Install dependencies
-pnpm test run         # Execute full verification suite
-pnpm dev              # Launch localized development environment
-npm run db:push       # Synchronize schema changes
-```
+## 📊 Process-Aware Observability
+We evaluate **Process, not just Outcomes**.
+- **Thought Traces**: Real-time visualization of the agentic reasoning graph.
+- **Trace Finalization**: Mandatory trace lifecycle management to prevent "hanging" database records.
+- **Cost & Token Tracking**: Granular monitoring of token consumption per reasoning node.
 
 ---
-**VMG MATE** — *Your Intelligent Partner for a Smarter Workspace.*
+**VMG MATE** — *State-of-the-Art Agentic Intelligence for the Enterprise.*
 Copyright 2026 VMG English Center.

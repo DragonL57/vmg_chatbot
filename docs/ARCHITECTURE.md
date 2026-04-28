@@ -43,100 +43,84 @@ graph TD
 
 ---
 
-## 2. Multi-Agent RAG Graph (The "Thinking" Phase)
+## 2. Agentic RAG Taxonomy (Hybrid Adaptive-Corrective)
 
-The core reasoning of VMG MATE is managed by a LangGraph state machine (`src/core/agent/rag-graph.ts`). It employs a Metacognitive Reasoning loop with Dependency Injection for high testability.
+VMG MATE is formally classified as a **Hybrid Adaptive-Corrective Multi-Agent RAG** system. It combines dynamic query routing with self-correcting retrieval loops.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SummarizeHistory
-    SummarizeHistory --> AnalyzeQuery
+    [*] --> SummarizeHistory : [Anthropic Compaction]
+    SummarizeHistory --> AnalyzeQuery : [RECAP Reconstruction]
     
     state AnalyzeQuery {
         [*] --> ClarityCheck
         ClarityCheck --> Decompose : if clear
     }
     
-    AnalyzeQuery --> RequestClarification : if unclear (is_clear == false)
-    RequestClarification --> [*] : User Input Required
+    AnalyzeQuery --> RequestClarification : if unclear
     
     AnalyzeQuery --> RouterExpand : if clear
     
     state RouterExpand {
         [*] --> IntentAnalysis
-        IntentAnalysis --> ChitChatCheck
+        IntentAnalysis --> AdaptiveRouting : [ChitChat vs Facts]
     }
     
-    RouterExpand --> CompressFacts : if is_chit_chat == true
-    RouterExpand --> RetrieveEvidence : if is_chit_chat == false
+    RouterExpand --> CompressFacts : if is_chit_chat
+    RouterExpand --> RetrieveEvidence : if factual
     
-    RetrieveEvidence --> GradeEvidence : if tokens <= 3000
-    RetrieveEvidence --> CompressFacts : if tokens > 3000
+    RetrieveEvidence --> GradeEvidence
     
     state GradeEvidence {
-        [*] --> RelevanceCheck
+        [*] --> RelevanceCheck : [Meta-Grader]
     }
     
-    GradeEvidence --> CompressFacts : if relevant OR retries >= 3
-    GradeEvidence --> RewriteQuery : if irrelevant
+    GradeEvidence --> CompressFacts : if relevant (YES)
+    GradeEvidence --> RewriteQuery : if irrelevant (NO)
     
-    RewriteQuery --> RouterExpand : loop back
+    RewriteQuery --> RouterExpand : [Corrective Loop]
     
-    CompressFacts --> [*] : Output Context to Final Generator
+    CompressFacts --> [*] : [Fact Sheet Synthesis]
 ```
 
-### Agent Roles in the Graph:
-1. **Query Architect (AnalyzeQuery)**: **[New in 4.1.0]** Detects ambiguity and vague pronouns. Automatically decomposes complex queries into parallelizable sub-queries. Polices language matching.
-2. **Gateway Agent (RouterExpand)**: Classifies "chit-chat" vs "factual" queries. Selects target knowledge silos based on expanded intents.
-3. **Search Specialist (Retrieve)**: Executes hierarchical search. Maps Child chunks back to unique Parent IDs to prevent context fragmentation.
-4. **Knowledge Evidence Grader (Grade)**: Evaluates if retrieved documents actually answer the user's intent.
-5. **Knowledge Architect (Compress)**: Transforms raw data into a **SUPER CONCISE Fact Sheet**, shedding 50%+ of redundant tokens.
+### Advanced Agent Roles:
+1. **Query Architect (RECAP-Integrated)**:
+   - **Ellipsis Resolution**: Reconstructs elliptical queries (e.g., "Còn ở Úc?") into standalone search instructions.
+   - **Refinement Detection**: Protects against "Fake Intent Shifts" by recognizing when a user is refining a previous goal rather than changing it.
+2. **Gateway Agent (Orchestrator)**:
+   - Performs **Adaptive Routing** between specialized knowledge silos and general chit-chat.
+3. **Search Specialist (Worker)**:
+   - Executes **Hierarchical Retrieval**, mapping precise Child chunks back to stable Parent contexts.
+4. **Knowledge Evidence Grader (Reflection)**:
+   - Implements **Corrective RAG (CRAG)** principles to validate if retrieved evidence is sufficient for a high-integrity answer.
+5. **Knowledge Architect (Compression)**:
+   - Performs **Deep Token Distillation**, reducing evidence by 50%+ to maximize the model's **Attention Budget**.
 
 ---
 
-## 3. Context Management & Rot Defenses
+## 3. Context Engineering & Rot Defenses
 
-To prevent **Context Rot** (instruction fade-out, goal drift), VMG MATE implements multi-layered defenses.
+To prevent **Context Rot** and instruction fade, MATE implements defenses inspired by Anthropic's research:
 
-### A. The 40-60% Rule & Structured Compaction
-Instead of naive truncation, MATE uses an aggressive, early compaction strategy starting at **6 conversation turns**.
+### A. Structured Compaction (High-Fidelity)
+MATE does not "summarize" chat; it distills a **Working Memory Snapshot**:
+- **Active Goal**: Explicitly tracks what the user is currently trying to achieve.
+- **Key Decisions**: Records why specific paths were taken.
+- **Rejected Alternatives**: Tracks failed paths to prevent the agent from looping into previously discarded reasoning.
 
-### B. Hierarchical Retrieval (Parent-Child Mapping)
-**[New in 4.1.0]** MATE now indexes documents in two stages:
-- **Child Chunks**: Small (~500 chars), optimized for high-precision semantic search.
-- **Parent Chunks**: Large (Markdown headers), providing the full "Truth Sheet" context.
-- **Deduplication**: If multiple children match, only the unique Parent context is used in the graph.
-
----
-
-## 4. Long-Term Memory Curator (The "Knowledge Auditor")
-
-VMG MATE possesses an "Eternal Memory." A decoupled `ExtractUserMemoriesUseCase` monitors the chat for personal disclosures.
-
-**Anti-Garbage Rules**:
-- ONLY remembers explicit personal info (Name, role, department, preferences).
-- NEVER remembers questions or AI-retrieved facts.
-- **Strict Intent**: Detects if the user is answering a bot's question rather than searching.
+### B. URASys Indexing (Precision Retrieval)
+The **Universal Retrieval & Augmentation System** solves the "Lost in the Middle" problem:
+- **Child-to-Parent Mapping**: Child chunks (semantic precision) are mapped to Parent chunks (narrative context) via stable UUIDs.
+- **Context-Aware Rewriting**: Documents are rewritten during ingestion to be self-contained (resolving "it", "this program", "they").
 
 ---
 
-## 5. Observability & Cost Engine ("Glass Box")
+## 4. Observability: The "Glass Box" Mandate
 
-VMG MATE tracks every LLM invocation via the `IObservabilityPort`.
-
-### Tiered Pricing Logic
-Calculates exact USD cost based on pricing tiers, including heavy discounts for Context Caching.
-
----
-
-## 6. Model Provider Configurations
-
-| Engine / Node | Reasoning Effort | Justification |
-| :--- | :--- | :--- |
-| **Agentic Steps** | `instant` | Speed is critical for multi-step loops. Cost efficiency. |
-| **Final Generation** | `high` | Maximum cognitive depth for synthesizing complex policies. |
-| **Knowledge Architect** | `high` | Requires deep structural understanding for compression. |
-| **Memory Curator** | `high` | Accuracy is paramount for long-term state. |
+We evaluate the **Process, not just the Outcome**.
+- **Reasoning Spans**: Every node in the graph generates a structured span.
+- **Cost Calculation**: Tiered pricing with 90% discounts for Context Caching.
+- **Trace Integrity**: Spans are finalized even on early exits (Clarification/Error) to ensure log-integrity.
 
 ---
-*Document Updated: April 2026 (Clean Architecture Refactor)*
+*Document Updated: April 2026 (RECAP & Agentic Survey Integration)*
