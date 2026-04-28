@@ -55,9 +55,9 @@ export async function POST(req: Request) {
     }
 
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
-    const result = await knowledgeRepo.createCollection({ name, qdrantName, description });
+    const newCollection = await knowledgeRepo.createCollection({ name, qdrantName, description });
     
-    return NextResponse.json({ success: true, collection: result });
+    return NextResponse.json({ success: true, collection: newCollection });
   } catch (error) {
     console.error('[Admin Collections POST API] Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
