@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import 'katex/dist/katex.min.css'; // Import KaTeX CSS for styling
 
 interface MarkdownContentProps {
@@ -13,13 +14,24 @@ interface MarkdownContentProps {
 
 /**
  * Standard Markdown Content - Text-only focus with LaTeX Support.
+ * Sanitized to prevent XSS while allowing <br> in tables via rehype-raw.
  */
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, isUser }) => {
   return (
     <div className={`max-w-none ${isUser ? 'text-white' : 'text-black/90'}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, rehypeRaw]}
+        rehypePlugins={[
+          rehypeRaw,
+          [
+            rehypeSanitize,
+            {
+              ...defaultSchema,
+              tagNames: [...(defaultSchema.tagNames || []), 'math', 'inlineMath'],
+            },
+          ],
+          rehypeKatex,
+        ]}
         components={{
           p: ({ children }) => <p className="m-0 mb-2 last:mb-0 leading-[1.6] whitespace-pre-wrap">{children}</p>,
           ul: ({ children }) => <ul className="list-disc pl-4 m-0 mb-2 last:mb-0 space-y-1">{children}</ul>,

@@ -17,26 +17,53 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     }));
   }
 
+  async getFileByFilename(filename: string): Promise<KnowledgeFile | null> {
+    const [result] = await db.select().from(knowledgeFiles).where(eq(knowledgeFiles.filename, filename));
+    if (!result) return null;
+    return {
+      id: result.id,
+      filename: result.filename,
+      mode: result.mode,
+      status: result.status as any,
+      progress: result.progress || 0,
+      summary: result.summary || undefined,
+      logs: (result.logs as string[]) || []
+    };
+  }
+
   async upsertFile(file: Partial<KnowledgeFile> & { id: string }): Promise<void> {
-    await db.insert(knowledgeFiles).values({
-      id: file.id,
-      filename: file.filename!,
-      mode: file.mode!,
-      status: file.status,
-      progress: file.progress,
-      summary: file.summary,
-      logs: file.logs,
+    const updateData: any = {
       updatedAt: new Date(),
-    }).onConflictDoUpdate({
-      target: knowledgeFiles.id,
-      set: {
-        status: file.status,
-        progress: file.progress,
+    };
+    
+    if (file.status !== undefined) updateData.status = file.status;
+    if (file.progress !== undefined) updateData.progress = file.progress;
+    if (file.summary !== undefined) updateData.summary = file.summary;
+    if (file.logs !== undefined) updateData.logs = file.logs;
+    if (file.filename !== undefined) updateData.filename = file.filename;
+    if (file.mode !== undefined) updateData.mode = file.mode;
+
+    // To perform an INSERT (required for onConflict), we need filename and mode.
+    // If they are missing, we must perform a direct UPDATE.
+    if (file.filename && file.mode) {
+      await db.insert(knowledgeFiles).values({
+        id: file.id,
+        filename: file.filename,
+        mode: file.mode,
+        status: file.status ?? 'pending',
+        progress: file.progress ?? 0,
         summary: file.summary,
-        logs: file.logs,
-        updatedAt: new Date()
-      }
-    });
+        logs: file.logs ?? [],
+        updatedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: knowledgeFiles.id,
+        set: updateData
+      });
+    } else {
+      await db.update(knowledgeFiles)
+        .set(updateData)
+        .where(eq(knowledgeFiles.id, file.id));
+    }
   }
 
   async deleteFile(id: string): Promise<void> {

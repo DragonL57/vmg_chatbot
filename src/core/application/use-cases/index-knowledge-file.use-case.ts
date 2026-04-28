@@ -97,7 +97,9 @@ export class IndexKnowledgeFileUseCase {
             try {
               const parsed = JSON.parse(faqRes.content || "{}");
               faqs = Array.isArray(parsed.questions) ? parsed.questions : [];
-            } catch (e) {}
+            } catch (e) {
+              console.error("[IndexKnowledgeFile] FAQ JSON parse error:", e, "Content:", faqRes.content);
+            }
 
             const searchOptimizedContent = `[INTENTS]: ${faqs.join("; ")}\n\n[CONTENT]: ${rewrittenContent}`;
 

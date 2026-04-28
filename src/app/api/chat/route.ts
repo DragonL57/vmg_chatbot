@@ -14,7 +14,8 @@ import {
   DrizzleObservabilityAdapter,
   QdrantVectorStoreAdapter,
   DrizzleAuthRepositoryAdapter,
-  DrizzleKnowledgeRepositoryAdapter
+  DrizzleKnowledgeRepositoryAdapter,
+  ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { 
   ExtractUserMemoriesUseCase, 
@@ -48,13 +49,14 @@ export async function POST(req: Request) {
     const llmProvider = new LLMProviderAdapter();
     const obsPort = new DrizzleObservabilityAdapter();
     const vectorStore = new QdrantVectorStoreAdapter();
+    const logger = new ConsoleLoggerAdapter();
     
     const getInternalUserId = new GetInternalUserIdUseCase(authRepo);
     const internalUserId = await getInternalUserId.execute(user.id);
     if (!internalUserId) return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
 
     const getRecentMemories = new GetRecentMemoriesUseCase(memoryRepo);
-    const extractUserMemories = new ExtractUserMemoriesUseCase(llmProvider, memoryRepo, obsPort);
+    const extractUserMemories = new ExtractUserMemoriesUseCase(llmProvider, memoryRepo, obsPort, logger);
 
     const stream = new ReadableStream({
       async start(controller) {

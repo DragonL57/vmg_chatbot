@@ -27,6 +27,15 @@ function logPayload(node: string, input: any, output: any) {
   console.log(`[PAYLOAD] ${node.padEnd(12)} | In: ${inputChars.toLocaleString().padStart(6)} chars | Out: ${outputChars.toLocaleString().padStart(5)} chars`);
 }
 
+function safeParseJson<T>(nodeName: string, json: string, fallback: T): T {
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    console.error(`[${nodeName}] JSON parse error:`, e, "Raw output:", json);
+    return fallback;
+  }
+}
+
 const graderSchema = z.object({
   is_relevant: z.string().default("NO"),
   reasoning: z.string().optional().default("")
@@ -88,8 +97,12 @@ async function analyzeQueryNode(state: AgentStateType, config: RunnableConfig) {
         questions: result.data.questions,
         clarification_needed: result.data.clarification_needed || ""
       };
+    } else {
+      console.error("[analyze_query] Validation failed:", result.error.format());
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("[analyze_query] JSON parse error:", e, "Raw output:", output);
+  }
 
   return {
     questionIsClear: parsed.is_clear,
@@ -138,7 +151,8 @@ async function routerExpandNode(state: AgentStateType, config: RunnableConfig) {
   }
 
   let parsed = { is_chit_chat: false, selected: [] as string[], queries: queries, reasoning: "" };
-  try { parsed = JSON.parse(output); } catch (e) {}
+  const rawParsed = safeParseJson("router_expand", output, parsed);
+  parsed = { ...parsed, ...rawParsed };
 
   let finalSilos = mode === 'auto' || mode === 'discovery' ? parsed.selected : [mode];
   if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
@@ -271,14 +285,15 @@ async function gradeNode(state: AgentStateType, config: RunnableConfig) {
 
   let grade = false;
   let reason = "Tài liệu chưa đủ thông tin.";
-  try {
-    const parsed = JSON.parse(rawOut);
-    const result = graderSchema.safeParse(parsed);
-    if (result.success) {
-      grade = result.data.is_relevant.toUpperCase() === "YES";
-      reason = result.data.reasoning || (grade ? "Đã tìm thấy thông tin phù hợp." : "Tài liệu chưa đủ thông tin.");
-    }
-  } catch (e) {}
+  const parsed = safeParseJson("grade", rawOut, {});
+  const result = graderSchema.safeParse(parsed);
+  
+  if (result.success) {
+    grade = result.data.is_relevant.toUpperCase() === "YES";
+    reason = result.data.reasoning || (grade ? "Đã tìm thấy thông tin phù hợp." : "Tài liệu chưa đủ thông tin.");
+  } else if (Object.keys(parsed).length > 0) {
+    console.error("[grade] Validation failed:", result.error.format());
+  }
 
   return { isRelevant: grade, reflection: reason, totalUsage: res.usage };
 }
@@ -320,7 +335,8 @@ async function rewriteNode(state: AgentStateType, config: RunnableConfig) {
   }
 
   let parsed = { queries: [] as string[], reasoning: "" };
-  try { parsed = JSON.parse(output); } catch (e) {}
+  const rawParsed = safeParseJson("rewrite", output, parsed);
+  parsed = { ...parsed, ...rawParsed };
 
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],

@@ -72,8 +72,12 @@ export async function POST(req: NextRequest) {
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
     const indexUseCase = new IndexKnowledgeFileUseCase(llmProvider, vectorStore, knowledgeRepo);
 
-    // Ensure we have a valid fileId
-    const finalFileId = fileId || crypto.randomUUID();
+    // Ensure we have a valid fileId, reuse existing if filename matches
+    let finalFileId = fileId;
+    if (!finalFileId) {
+      const existing = await knowledgeRepo.getFileByFilename(filename);
+      finalFileId = existing ? existing.id : crypto.randomUUID();
+    }
 
     // 3. Initialize record
     await knowledgeRepo.upsertFile({

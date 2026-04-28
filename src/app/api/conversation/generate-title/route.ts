@@ -6,10 +6,27 @@ import {
   LLMProviderAdapter
 } from '@core/infrastructure/adapters';
 import { GenerateTitleUseCase } from '@core/application/use-cases/generate-title.use-case';
+import { z } from 'zod';
+
+const generateTitleSchema = z.object({
+  conversationId: z.string().uuid(),
+  firstMessage: z.string().trim().min(1, 'firstMessage cannot be empty').max(2000),
+});
 
 export async function POST(req: Request) {
   try {
-    const { conversationId, firstMessage } = await req.json();
+    const body = await req.json();
+    
+    // Validate input
+    const result = generateTitleSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid input', 
+        details: result.error.flatten().fieldErrors 
+      }, { status: 400 });
+    }
+
+    const { conversationId, firstMessage } = result.data;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 

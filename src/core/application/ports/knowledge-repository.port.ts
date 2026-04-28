@@ -17,6 +17,7 @@ export interface KnowledgeCollection {
 
 export interface IKnowledgeRepositoryPort {
   listFiles(): Promise<KnowledgeFile[]>;
+  getFileByFilename(filename: string): Promise<KnowledgeFile | null>;
   upsertFile(file: Partial<KnowledgeFile> & { id: string }): Promise<void>;
   deleteFile(id: string): Promise<void>;
   listCollections(): Promise<KnowledgeCollection[]>;

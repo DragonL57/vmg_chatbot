@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { DrizzleAuthRepositoryAdapter, DrizzleChatRepositoryAdapter } from '@core/infrastructure/adapters';
+import { z } from 'zod';
+
+const starSchema = z.object({
+  isStarred: z.boolean(),
+});
 
 export async function POST(
   request: Request,
@@ -8,7 +13,14 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { isStarred } = await request.json();
+    const body = await request.json();
+
+    const result = starSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    }
+
+    const { isStarred } = result.data;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 

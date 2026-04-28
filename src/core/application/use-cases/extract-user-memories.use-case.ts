@@ -1,6 +1,7 @@
 import { ILLMProvider, LLMMessage } from "../ports/llm-provider.port";
 import { IMemoryRepository } from "../ports/memory-repository.port";
 import { IObservabilityPort } from "../ports/observability.port";
+import { ILoggerProvider } from "../ports/logger.port";
 import { memoryExtractionSchema, MemoryAction } from "../../domain/entities/memory";
 import { KNOWLEDGE_AUDITOR_PROMPT } from "@core/prompts/memory";
 
@@ -14,14 +15,14 @@ export class ExtractUserMemoriesUseCase {
   constructor(
     private readonly llmProvider: ILLMProvider,
     private readonly memoryRepository: IMemoryRepository,
-    private readonly obsPort: IObservabilityPort
+    private readonly obsPort: IObservabilityPort,
+    private readonly logger: ILoggerProvider
   ) {}
 
   async execute(input: ExtractUserMemoriesInput): Promise<number> {
     const startTime = Date.now();
     const { userId, messages, traceId } = input;
     
-    // Logic from MemoryService
     const recentMessages = messages.slice(-6);
     const contextStr = recentMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
@@ -41,11 +42,22 @@ export class ExtractUserMemoriesUseCase {
       });
 
       const rawOutput = res.content || '{"actions": []}';
-      const parsed = JSON.parse(rawOutput.trim());
+      let parsed;
+      try {
+        parsed = JSON.parse(rawOutput.trim());
+      } catch (e) {
+        this.logger.error('JSON parse error in memory extraction', e, { rawOutput, traceId });
+        return 0;
+      }
+
       const validation = memoryExtractionSchema.safeParse(parsed);
       
       if (!validation.success) {
-         console.warn('[ExtractUserMemoriesUseCase] Invalid schema:', validation.error.format());
+         this.logger.warn('Invalid schema in memory extraction', { 
+           errors: validation.error.format(), 
+           rawOutput,
+           traceId 
+         });
          return 0;
       }
 
@@ -54,17 +66,21 @@ export class ExtractUserMemoriesUseCase {
 
       let changeCount = 0;
       for (const action of actions) {
-        if (action.op === 'ADD' && action.fact) {
-          await this.memoryRepository.add(userId, action.fact, action.category || 'episodic');
-          changeCount++;
-        } 
-        else if (action.op === 'UPDATE' && action.id && action.fact) {
-          await this.memoryRepository.update(action.id, userId, action.fact);
-          changeCount++;
-        }
-        else if (action.op === 'DELETE' && action.id) {
-          await this.memoryRepository.delete(action.id, userId);
-          changeCount++;
+        try {
+          if (action.op === 'ADD' && action.fact) {
+            await this.memoryRepository.add(userId, action.fact, action.category || 'episodic');
+            changeCount++;
+          } 
+          else if (action.op === 'UPDATE' && action.id && action.fact) {
+            await this.memoryRepository.update(action.id, userId, action.fact);
+            changeCount++;
+          }
+          else if (action.op === 'DELETE' && action.id) {
+            await this.memoryRepository.delete(action.id, userId);
+            changeCount++;
+          }
+        } catch (actionErr) {
+          this.logger.error('Failed to apply memory action', actionErr, { action, userId, traceId });
         }
       }
 
@@ -80,15 +96,18 @@ export class ExtractUserMemoriesUseCase {
           cacheCreationTokens: res.usage.cache_creation_tokens || 0,
           latencyMs: Date.now() - startTime,
           isBatch: res.isBatch
-        });
+        }).catch(err => this.logger.error('Failed to emit memory_curator span', err, { traceId }));
       }
 
-      console.log(`[ExtractUserMemoriesUseCase] ${changeCount} changes for user ${userId}`);
+      if (changeCount > 0) {
+        this.logger.info(`Memory extracted and synchronized`, { userId, changeCount, traceId });
+      }
+
       return changeCount;
 
     } catch (err) {
-      console.error('[ExtractUserMemoriesUseCase] Fatal error:', err);
-      return 0;
+      this.logger.error('Fatal error in ExtractUserMemoriesUseCase', err, { userId, traceId });
+      throw err; // Re-throw to be handled at the boundary
     }
   }
 }

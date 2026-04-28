@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { DrizzleAuthRepositoryAdapter, DrizzleChatRepositoryAdapter } from '@core/infrastructure/adapters';
 
-export async function POST(
+export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {

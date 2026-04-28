@@ -5,3 +5,4 @@ export * from './qdrant-vector-store.adapter';
 export * from './drizzle-knowledge-repository.adapter';
 export * from './drizzle-chat-repository.adapter';
 export * from './drizzle-auth-repository.adapter';
+export * from './console-logger.adapter';
