@@ -24,6 +24,8 @@ import {
 } from '@core/application/use-cases';
 import { DocumentChunk } from '@core/domain/entities/indexing';
 
+import { TokenUsage } from '@core/domain/entities/chat';
+
 export interface RetrievalEvidence {
   docs: DocumentChunk[];
 }
@@ -35,6 +37,7 @@ export const maxDuration = 60;
  * Unified Chat Route Handler - Minimalist (No Citations)
  */
 export async function POST(req: Request) {
+  const logger = new ConsoleLoggerAdapter();
   try {
     const { messages, serviceMode, conversationId } = await req.json();
     if (!serviceMode) return new Response(JSON.stringify({ error: 'Missing serviceMode' }), { status: 400 });
@@ -49,7 +52,6 @@ export async function POST(req: Request) {
     const llmProvider = new LLMProviderAdapter();
     const obsPort = new DrizzleObservabilityAdapter();
     const vectorStore = new QdrantVectorStoreAdapter();
-    const logger = new ConsoleLoggerAdapter();
     
     const getInternalUserId = new GetInternalUserIdUseCase(authRepo);
     const internalUserId = await getInternalUserId.execute(user.id);
@@ -60,7 +62,8 @@ export async function POST(req: Request) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        const emit = (obj: any) => controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
+        const emit = (obj: { type: string; value?: any; reflection?: string; count?: number }) => 
+          controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
 
         try {
           const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
@@ -73,11 +76,11 @@ export async function POST(req: Request) {
           if (traceId) emit({ type: 'trace_id', value: traceId });
 
           // Phase 1: Reasoning
-          const langchainMessages = messages.slice(-10).map((m: any) => 
+          const langchainMessages = messages.slice(-10).map((m: { role: string; content: string }) => 
             m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
           );
 
-          let finalState: any = {};
+          let finalState: AgentStateType = {} as AgentStateType;
           const graphStream = await ragGraph.stream({
             messages: langchainMessages,
             mode: serviceMode,
@@ -88,7 +91,8 @@ export async function POST(req: Request) {
             configurable: {
               llmProvider,
               vectorStore,
-              obsPort
+              obsPort,
+              logger
             }
           });
 
@@ -105,7 +109,9 @@ export async function POST(req: Request) {
               emitTotalTokens(finalState, null, emit);
               
               if (traceId) {
-                waitUntil(obsPort.finalizeTrace(traceId, 'clarification_requested').catch(console.error));
+                waitUntil(obsPort.finalizeTrace(traceId, 'clarification_requested').catch(err => 
+                  logger.error('Failed to finalize trace', err, { traceId })
+                ));
               }
               
               controller.close();
@@ -130,18 +136,26 @@ export async function POST(req: Request) {
           });
 
           let fullContent = '';
-          let finalUsage: any = null;
+          let finalUsage: TokenUsage | null = null;
           for await (const chunk of response) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
               fullContent += content;
               emit({ type: 'content', value: content });
             }
-            if (chunk.usage) finalUsage = chunk.usage;
+            if (chunk.usage) {
+              finalUsage = {
+                prompt_tokens: chunk.usage.prompt_tokens,
+                completion_tokens: chunk.usage.completion_tokens,
+                total_tokens: chunk.usage.total_tokens,
+                cached_tokens: (chunk.usage as any).prompt_tokens_details?.cached_tokens,
+                cache_creation_tokens: (chunk.usage as any).prompt_tokens_details?.cache_creation_input_tokens,
+              };
+            }
           }
 
           // Finalize background tasks
-          finalizeObservability(obsPort, traceId, finalState, fullContent, finalUsage, systemPrompt.length);
+          finalizeObservability(obsPort, traceId, finalState, fullContent, finalUsage, systemPrompt.length, logger);
           emitTotalTokens(finalState, finalUsage, emit);
 
           if (internalUserId) {
@@ -155,22 +169,25 @@ export async function POST(req: Request) {
 
           controller.close();
         } catch (error: any) {
-          console.error('[Chat API] Loop Error:', error);
+          logger.error('[Chat API] Loop Error', error);
           controller.close();
         }
       },
     });
 
     return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson' } });
-  } catch (error) {
-    console.error('[Chat API] Fatal Error:', error);
+  } catch (error: any) {
+    logger.error('[Chat API] Fatal Error', error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
   }
 }
 
-function buildSystemPrompt(state: any, userMemories: string, lastUserMessage: string): string {
-  const evidence = state.evidence as RetrievalEvidence;
-  const contextSummary = state.context_summary as string;
+import { AgentStateType } from '@core/agent/state';
+import { ILoggerProvider } from '@core/application/ports/logger.port';
+
+function buildSystemPrompt(state: AgentStateType, userMemories: string, lastUserMessage: string): string {
+  const evidence = state.evidence;
+  const contextSummary = state.context_summary;
   const isChitChat = !!state.isChitChat;
 
   let knowledgeBlock = '';
@@ -217,10 +234,11 @@ import { IObservabilityPort } from '@core/application/ports/observability.port';
 function finalizeObservability(
   obsPort: IObservabilityPort,
   traceId: string | null, 
-  finalState: any, 
+  finalState: AgentStateType, 
   content: string, 
-  usage: any, 
-  promptLen: number
+  usage: TokenUsage | null, 
+  promptLen: number,
+  logger: ILoggerProvider
 ) {
   if (!traceId) return;
   const { model } = getGenerationProvider();
@@ -233,17 +251,21 @@ function finalizeObservability(
         output: content,
         promptTokens: usage.prompt_tokens || 0,
         completionTokens: usage.completion_tokens || 0,
-        cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
-        cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        cachedTokens: usage.cached_tokens || 0,
+        cacheCreationTokens: usage.cache_creation_tokens || 0,
         latencyMs: 0
-      }).catch(console.error);
+      }).catch(err => logger.error('Failed to emit final_generation span', err, { traceId }));
     }
-    await obsPort.finalizeTrace(traceId).catch(console.error);
+    await obsPort.finalizeTrace(traceId).catch(err => logger.error('Failed to finalize trace', err, { traceId }));
   })());
 }
 
 
-function emitTotalTokens(finalState: any, usage: any, emit: (obj: any) => void) {
+function emitTotalTokens(
+  finalState: AgentStateType, 
+  usage: TokenUsage | null, 
+  emit: (obj: { type: string; value: any }) => void
+) {
   const graphUsage = finalState.totalUsage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   const finalUsage = usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   emit({
@@ -256,7 +278,7 @@ function emitTotalTokens(finalState: any, usage: any, emit: (obj: any) => void) 
   });
 }
 
-function buildRetrievedContext(evidence: RetrievalEvidence): string {
+function buildRetrievedContext(evidence: { docs: DocumentChunk[] }): string {
   const lines = ['<retrieved_context>'];
   evidence.docs.forEach((doc, i) => {
     lines.push(`  <document index="${i}">`);

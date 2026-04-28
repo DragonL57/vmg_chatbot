@@ -6,10 +6,26 @@ import { z } from 'zod';
 const upsertSchema = z.object({
   id: z.string().uuid(),
   title: z.string().optional(),
-  messages: z.array(z.any()),
-  locationCoords: z.any().optional(),
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string(),
+    timestamp: z.string().or(z.date()).optional(),
+    citations: z.record(z.string()).optional(),
+    reasoningTrace: z.array(z.string()).optional(),
+    traceId: z.string().optional(),
+  })),
+  locationCoords: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+  }).optional(),
   locationAddress: z.string().optional(),
-  tokenUsage: z.any().optional(),
+  tokenUsage: z.object({
+    prompt_tokens: z.number(),
+    completion_tokens: z.number(),
+    total_tokens: z.number(),
+    cached_tokens: z.number().optional(),
+    cache_creation_tokens: z.number().optional(),
+  }).optional(),
   messageCount: z.number().optional(),
   updated_at: z.string().or(z.number()).optional(),
 });

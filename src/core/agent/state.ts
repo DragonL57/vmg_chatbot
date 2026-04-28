@@ -1,6 +1,7 @@
 import { Annotation } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
 import { DocumentChunk } from "@core/domain/entities/indexing";
+import { KnowledgeCollection } from "@core/application/ports/knowledge-repository.port";
 
 export const AgentState = Annotation.Root({
   /** Flag to indicate if the question is clear */
@@ -55,7 +56,7 @@ export const AgentState = Annotation.Root({
     default: () => [],
   }),
   /** Metadata of all available collections for routing decisions */
-  allCollections: Annotation<any[]>({
+  allCollections: Annotation<KnowledgeCollection[]>({
     reducer: (x, y) => y,
     default: () => [],
   }),

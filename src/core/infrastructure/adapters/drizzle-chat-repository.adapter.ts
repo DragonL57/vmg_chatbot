@@ -1,7 +1,8 @@
-import { IChatRepository, Conversation } from "../../application/ports/chat-repository.port";
+import { IChatRepository, Conversation, ConversationPayload } from "../../application/ports/chat-repository.port";
 import { db } from "../../db";
 import { conversations, users } from "../../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { ChatSession, Message } from "../../types/chat";
 
 export class DrizzleChatRepositoryAdapter implements IChatRepository {
   async listByUser(userId: string): Promise<Conversation[]> {
@@ -24,17 +25,22 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
     }));
   }
 
-  async getById(id: string, userId: string): Promise<any> {
+  async getById(id: string, userId: string): Promise<ChatSession | null> {
     const [result] = await db
       .select()
       .from(conversations)
       .where(eq(conversations.id, id));
 
     if (!result || result.userId !== userId) return null;
-    return result;
+    return {
+      id: result.id,
+      messages: (result.messages as Message[]) || [],
+      createdAt: result.createdAt || new Date(),
+      updatedAt: result.updatedAt || new Date()
+    };
   }
 
-  async upsert(payload: any): Promise<void> {
+  async upsert(payload: ConversationPayload): Promise<void> {
     const firstMessageContent = payload.messages[0]?.content || '';
     const fallbackTitle = firstMessageContent 
       ? (firstMessageContent.slice(0, 40) + (firstMessageContent.length > 40 ? '...' : ''))
