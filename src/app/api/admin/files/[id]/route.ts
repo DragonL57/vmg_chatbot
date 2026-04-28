@@ -1,42 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteKnowledgeFile, updateKnowledgeFileRecord, listKnowledgeFiles, listCollections } from '@core/services/supabase.service';
-import { deleteBySource } from '@core/services/qdrant.service';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { isAdmin } from '@/core/services/auth.service';
+import { 
+  DrizzleAuthRepositoryAdapter, 
+  DrizzleKnowledgeRepositoryAdapter,
+  QdrantVectorStoreAdapter
+} from '@core/infrastructure/adapters';
+import { DeleteKnowledgeFileUseCase } from '@core/application/use-cases/delete-knowledge-file.use-case';
+import { z } from 'zod';
+
+const patchSchema = z.object({
+  filename: z.string().trim().min(1).optional(),
+  mode: z.string().trim().min(1).optional(),
+  folder: z.string().trim().optional(),
+  status: z.enum(['pending', 'indexing', 'completed', 'failed']).optional(),
+  progress: z.number().min(0).max(100).optional(),
+  summary: z.string().optional(),
+  logs: z.array(z.string()).optional(),
+});
 
 export async function DELETE(
-  req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isUserAdmin = await isAdmin(user.id);
-    if (!isUserAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
-    const files = await listKnowledgeFiles();
-    const file = files.find(f => f.id === id);
-    if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
-
-    const collections = await listCollections();
-    const col = collections.find(c => c.qdrantName === file.mode);
-    if (col) {
-      await deleteBySource(file.filename, col.qdrantName);
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    const allFiles = await knowledgeRepo.listFiles();
+    const file = allFiles.find(f => f.id === id);
+    
+    if (!file) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    await deleteKnowledgeFile(id);
+    const vectorStore = new QdrantVectorStoreAdapter();
+    const deleteUseCase = new DeleteKnowledgeFileUseCase(vectorStore, knowledgeRepo);
+
+    await deleteUseCase.execute(id, file.filename, file.mode);
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Delete file error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin File Delete API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -45,24 +60,32 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isUserAdmin = await isAdmin(user.id);
-    if (!isUserAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
     const body = await req.json();
-    await updateKnowledgeFileRecord(id, body);
+    const result = patchSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Invalid input', details: result.error.flatten() }, { status: 400 });
+    }
+
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    await knowledgeRepo.upsertFile({
+      id,
+      ...result.data
+    });
+
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Update file error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Admin File Patch API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

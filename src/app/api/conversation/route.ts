@@ -1,17 +1,33 @@
 import { NextResponse } from 'next/server';
-import { upsertConversation } from '@core/services/supabase.service';
 import { createServerSupabase } from '@/core/lib/supabase-server';
+import { DrizzleAuthRepositoryAdapter, DrizzleChatRepositoryAdapter } from '@core/infrastructure/adapters';
+import { z } from 'zod';
+
+const upsertSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().optional(),
+  messages: z.array(z.any()),
+  locationCoords: z.any().optional(),
+  locationAddress: z.string().optional(),
+  tokenUsage: z.any().optional(),
+  messageCount: z.number().optional(),
+  updated_at: z.string().or(z.number()).optional(),
+});
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { sessionId, id, messages, location, tokenUsage, title } = body;
-    const finalSessionId = sessionId || id;
-
-    if (!finalSessionId || !messages) {
-      return NextResponse.json({ error: 'Missing required fields', received: Object.keys(body) }, { status: 400 });
+    
+    // Validate input
+    const result = upsertSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid input', 
+        details: result.error.flatten().fieldErrors 
+      }, { status: 400 });
     }
 
+    const payload = result.data;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,35 +35,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Use IP-provided city/region if available
-    let locationAddress: string | null = null;
-    if (location?.city) {
-      locationAddress = [location.city, location.region, location.country].filter(Boolean).join(', ');
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId) {
+      return NextResponse.json({ error: 'User not synced' }, { status: 403 });
     }
 
-    const payload = {
-      id: finalSessionId,
-      userId: user.id, // Link to supabase user ID (upsertConversation will handle internal mapping)
-      title,
-      messages,
-      message_count: messages.filter((m: { role: string }) => m.role !== 'system').length,
-      updated_at: new Date().toISOString(),
-      ...(location ? {
-        location_coords: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          accuracy: location.accuracy ?? null,
-        },
-      } : {}),
-      ...(locationAddress ? { location_address: locationAddress } : {}),
-      ...(tokenUsage ? { token_usage: tokenUsage } : {}),
-    };
-
-    await upsertConversation(payload);
+    const chatRepo = new DrizzleChatRepositoryAdapter();
+    await chatRepo.upsert({
+      ...payload,
+      userId: internalUserId,
+      updatedAt: new Date(payload.updated_at || Date.now())
+    });
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error('[Conversation] Error saving to DB:', err);
-    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('[Conversation API] Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Compass, Database, Search, ArrowRight } from 'lucide-react';
-import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface SiloGridProps {
   collections: KnowledgeCollection[];

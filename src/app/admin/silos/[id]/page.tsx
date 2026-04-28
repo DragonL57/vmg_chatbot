@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, use } from 'react';
 import { Search, ChevronLeft, HardDrive, Check, Loader2, Database, Trash2, Sparkles } from 'lucide-react';
-import { type KnowledgeFile, type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeFile, type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { FileTable } from '@/components/admin/file-table';
 import { UploadPanel } from '@/components/admin/upload-panel';
@@ -53,15 +53,20 @@ export default function SiloDetailPage({ params }: SiloDetailPageProps) {
         fetch('/api/admin/collections'),
         fetch('/api/admin/files')
       ]);
-      const cols = await colRes.json();
-      const allFiles = await fileRes.json();
+      const colData = await colRes.json();
+      const fileData = await fileRes.json();
       
-      const currentSilo = cols.find((c: any) => c.id === id);
-      if (currentSilo) {
-        setActiveSilo(currentSilo);
-        setSiloName(currentSilo.name);
-        setSiloDesc(currentSilo.description || '');
-        setFiles(allFiles.filter((f: any) => f.mode === currentSilo.qdrantName));
+      if (colData && Array.isArray(colData.collections)) {
+        const currentSilo = colData.collections.find((c: any) => c.id === id);
+        if (currentSilo) {
+          setActiveSilo(currentSilo);
+          setSiloName(currentSilo.name);
+          setSiloDesc(currentSilo.description || '');
+          
+          if (fileData && Array.isArray(fileData.files)) {
+            setFiles(fileData.files.filter((f: any) => f.mode === currentSilo.qdrantName));
+          }
+        }
       }
     } catch (err) {}
     finally { setLoading(false); }

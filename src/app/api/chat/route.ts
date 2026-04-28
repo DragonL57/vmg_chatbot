@@ -3,14 +3,30 @@ import { AGENT_ORCHESTRATOR_PROMPT } from '@core/prompts/rag-agents';
 import { MASTER_AGENT_IDENTITY, MASTER_OUTPUT_CONSTRAINTS } from '@core/prompts/master';
 import { ragGraph } from '@core/agent/rag-graph';
 import { HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
-import type { RetrievalEvidence } from '@core/services/manager.service';
-import { listCollections } from '@core/services/supabase.service';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { MemoryService } from '@core/services/memory.service';
-import { getInternalUserId } from '@core/services/auth.service';
 import { estimateTokens } from '@core/lib/utils';
-import { ObservabilityService } from '@core/services/observability.service';
 import { waitUntil } from '@vercel/functions';
+
+// Clean Architecture Imports
+import { 
+  DrizzleMemoryRepository, 
+  LLMProviderAdapter, 
+  DrizzleObservabilityAdapter,
+  QdrantVectorStoreAdapter,
+  DrizzleAuthRepositoryAdapter,
+  DrizzleKnowledgeRepositoryAdapter,
+  ConsoleLoggerAdapter
+} from '@core/infrastructure/adapters';
+import { 
+  ExtractUserMemoriesUseCase, 
+  GetRecentMemoriesUseCase,
+  GetInternalUserIdUseCase
+} from '@core/application/use-cases';
+import { DocumentChunk } from '@core/domain/entities/indexing';
+
+export interface RetrievalEvidence {
+  docs: DocumentChunk[];
+}
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; 
@@ -27,19 +43,33 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-    const internalUserId = await getInternalUserId(user.id);
+    // Composition Root for this request
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const memoryRepo = new DrizzleMemoryRepository();
+    const llmProvider = new LLMProviderAdapter();
+    const obsPort = new DrizzleObservabilityAdapter();
+    const vectorStore = new QdrantVectorStoreAdapter();
+    const logger = new ConsoleLoggerAdapter();
+    
+    const getInternalUserId = new GetInternalUserIdUseCase(authRepo);
+    const internalUserId = await getInternalUserId.execute(user.id);
     if (!internalUserId) return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
+
+    const getRecentMemories = new GetRecentMemoriesUseCase(memoryRepo);
+    const extractUserMemories = new ExtractUserMemoriesUseCase(llmProvider, memoryRepo, obsPort, logger);
 
     const stream = new ReadableStream({
       async start(controller) {
         const emit = (obj: any) => controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
 
         try {
+          const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
           const [allCollections, memories] = await Promise.all([
-            listCollections().catch(() => []),
-            MemoryService.getUserMemories(internalUserId, 20)
+            knowledgeRepo.listCollections().catch(() => []),
+            getRecentMemories.execute(internalUserId, 20)
           ]);
-          const traceId = await ObservabilityService.startTrace(internalUserId, conversationId).catch(() => null);
+          
+          const traceId = await obsPort.startTrace(internalUserId, conversationId).catch(() => null);
           if (traceId) emit({ type: 'trace_id', value: traceId });
 
           // Phase 1: Reasoning
@@ -54,6 +84,12 @@ export async function POST(req: Request) {
             allCollections,
             userMemories: memories.map(m => m.fact),
             traceId,
+          }, {
+            configurable: {
+              llmProvider,
+              vectorStore,
+              obsPort
+            }
           });
 
           for await (const step of graphStream) {
@@ -61,6 +97,20 @@ export async function POST(req: Request) {
             const state = (step as Record<string, any>)[nodeName];
             finalState = { ...finalState, ...state };
             if (state.reflection) emit({ type: 'phase', value: nodeName, reflection: state.reflection });
+            
+            // Handle Clarification
+            if (nodeName === 'analyze_query' && state.questionIsClear === false) {
+              const clarificationMsg = state.reflection || "Yêu cầu chưa rõ ràng, bạn có thể giải thích thêm được không?";
+              emit({ type: 'content', value: clarificationMsg });
+              emitTotalTokens(finalState, null, emit);
+              
+              if (traceId) {
+                waitUntil(obsPort.finalizeTrace(traceId, 'clarification_requested').catch(console.error));
+              }
+              
+              controller.close();
+              return;
+            }
           }
 
           // Phase 2: Generation
@@ -91,11 +141,15 @@ export async function POST(req: Request) {
           }
 
           // Finalize background tasks
-          finalizeObservability(traceId, finalState, fullContent, finalUsage, systemPrompt.length);
+          finalizeObservability(obsPort, traceId, finalState, fullContent, finalUsage, systemPrompt.length);
           emitTotalTokens(finalState, finalUsage, emit);
 
           if (internalUserId) {
-            const count = await MemoryService.extractAndSaveMemories(internalUserId, messages, traceId);
+            const count = await extractUserMemories.execute({ 
+              userId: internalUserId, 
+              messages, 
+              traceId 
+            });
             if (count > 0) emit({ type: 'memory_update', count });
           }
 
@@ -158,12 +212,21 @@ ${reInjection}
   `.trim();
 }
 
-function finalizeObservability(traceId: string | null, finalState: any, content: string, usage: any, promptLen: number) {
+import { IObservabilityPort } from '@core/application/ports/observability.port';
+
+function finalizeObservability(
+  obsPort: IObservabilityPort,
+  traceId: string | null, 
+  finalState: any, 
+  content: string, 
+  usage: any, 
+  promptLen: number
+) {
   if (!traceId) return;
   const { model } = getGenerationProvider();
   waitUntil((async () => {
     if (usage) {
-      await ObservabilityService.emitSpan(traceId, {
+      await obsPort.emitSpan(traceId, {
         nodeName: 'final_generation',
         model,
         input: { promptChars: promptLen },
@@ -175,9 +238,10 @@ function finalizeObservability(traceId: string | null, finalState: any, content:
         latencyMs: 0
       }).catch(console.error);
     }
-    await ObservabilityService.finalizeTrace(traceId).catch(console.error);
+    await obsPort.finalizeTrace(traceId).catch(console.error);
   })());
 }
+
 
 function emitTotalTokens(finalState: any, usage: any, emit: (obj: any) => void) {
   const graphUsage = finalState.totalUsage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };

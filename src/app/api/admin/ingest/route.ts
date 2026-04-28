@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { indexKnowledgeFile } from '@core/services/indexing.service';
-import { upsertKnowledgeFile } from '@core/services/supabase.service';
 import { createRequire } from 'module';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
 import { createServerSupabase } from '@/core/lib/supabase-server';
-import { isAdmin } from '@/core/services/auth.service';
+
+// Clean Architecture Imports
+import { 
+  LLMProviderAdapter, 
+  QdrantVectorStoreAdapter, 
+  DrizzleKnowledgeRepositoryAdapter,
+  DrizzleAuthRepositoryAdapter
+} from '@core/infrastructure/adapters';
+import { IndexKnowledgeFileUseCase } from '@core/application/use-cases';
 
 // Initialize backend Supabase client
 const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -22,12 +28,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const isUserAdmin = await isAdmin(user.id);
-    if (!isUserAdmin) {
+    const authRepo = new DrizzleAuthRepositoryAdapter();
+    const internalUserId = await authRepo.getInternalId(user.id);
+    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { storagePath, filename, mode, folder } = await req.json();
+    const { storagePath, filename, mode, folder, fileId } = await req.json();
 
     if (!storagePath || !filename || !mode) {
       return NextResponse.json({ error: 'Missing storagePath, filename or collection' }, { status: 400 });
@@ -47,7 +54,6 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     if (filename.toLowerCase().endsWith('.pdf')) {
-      // Lazy load pdf-extraction (The serverless-safe replacement for pdf-parse)
       const require = createRequire(import.meta.url);
       const pdf = require('pdf-extraction');
       const data = await pdf(buffer);
@@ -60,8 +66,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Downloaded content is too short' }, { status: 400 });
     }
 
-    // 2. Create record immediately as 'indexing'
-    const record = await upsertKnowledgeFile({
+    // 2. Composition Root for indexing
+    const llmProvider = new LLMProviderAdapter();
+    const vectorStore = new QdrantVectorStoreAdapter();
+    const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    const indexUseCase = new IndexKnowledgeFileUseCase(llmProvider, vectorStore, knowledgeRepo);
+
+    // Ensure we have a valid fileId, reuse existing if filename matches
+    let finalFileId = fileId;
+    if (!finalFileId) {
+      const existing = await knowledgeRepo.getFileByFilename(filename);
+      finalFileId = existing ? existing.id : crypto.randomUUID();
+    }
+
+    // 3. Initialize record
+    await knowledgeRepo.upsertFile({
+      id: finalFileId,
       filename,
       mode,
       folder: folder || 'root',
@@ -70,32 +90,17 @@ export async function POST(req: NextRequest) {
       logs: [`[${new Date().toLocaleTimeString('vi-VN')}] Đã tải file từ Storage...`]
     });
 
-    // 3. RUN IN BACKGROUND
+    // 4. RUN IN BACKGROUND
     const runIndexing = async () => {
       try {
-        await indexKnowledgeFile(content, filename, mode, record.id);
-        
-        await upsertKnowledgeFile({
-          id: record.id,
-          filename,
-          mode,
-          status: 'completed',
-          progress: 100,
-          updatedAt: new Date(),
+        await indexUseCase.execute({
+          markdown: content,
+          sourceFile: filename,
+          collectionName: mode,
+          fileId: finalFileId
         });
-
-        // NOTE: We no longer remove the file from Storage as per user request
-        
       } catch (err: any) {
         console.error('[Background Indexing Failed]', err);
-        await upsertKnowledgeFile({
-          id: record.id,
-          filename,
-          mode,
-          status: 'failed',
-          errorMessage: err.message,
-          updatedAt: new Date(),
-        });
       }
     };
 
@@ -106,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      id: record.id, 
+      id: finalFileId, 
       message: 'Ingestion started from storage' 
     }, { status: 202 });
 

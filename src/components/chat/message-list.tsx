@@ -3,7 +3,7 @@ import { Message } from '@core/types/chat';
 import { MessageItem } from './message-item';
 import { AgentSteps } from './agent-steps';
 import { HubView } from './hub-view';
-import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface MessageListProps {
   messages: Message[];
@@ -24,13 +24,14 @@ export const MessageList = memo(({
   collections = [], onCollectionSelect, onSuggestionClick 
 }: MessageListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom on every content change
   useEffect(() => { 
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
-  }, [messages.length, isLoading, loadingPhase]);
+  }, [messages, isLoading, loadingPhase]);
 
   const renderedMessages = useMemo(() => {
     return messages.map((msg, idx) => {
@@ -87,6 +88,7 @@ export const MessageList = memo(({
       <div className="w-full space-y-10 max-w-4xl mx-auto">
         {renderedMessages}
       </div>
+      <div ref={bottomRef} className="h-4" />
     </div>
   );
 });

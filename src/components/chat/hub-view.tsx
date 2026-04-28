@@ -1,7 +1,7 @@
 import React from 'react';
 import { SiloGrid } from './silo-grid';
 import { HubSkeleton } from './hub-skeleton';
-import { type KnowledgeCollection } from '@core/services/supabase.service';
+import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface HubViewProps {
   collections: KnowledgeCollection[];

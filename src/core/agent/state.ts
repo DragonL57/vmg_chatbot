@@ -1,8 +1,18 @@
 import { Annotation } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
-import { DocumentEvidence } from "@core/services/vector-search.service";
+import { DocumentChunk } from "@core/domain/entities/indexing";
 
 export const AgentState = Annotation.Root({
+  /** Flag to indicate if the question is clear */
+  questionIsClear: Annotation<boolean>({
+    reducer: (x, y) => y,
+    default: () => true,
+  }),
+  /** List of rewritten, self-contained questions */
+  rewrittenQuestions: Annotation<string[]>({
+    reducer: (x, y) => y,
+    default: () => [],
+  }),
   /** Original chat history */
   messages: Annotation<BaseMessage[]>({
     reducer: (x, y) => x.concat(y),
@@ -13,7 +23,7 @@ export const AgentState = Annotation.Root({
     default: () => null,
   }),
   /** Current evidence pool */
-  evidence: Annotation<{ docs: DocumentEvidence[] }>({
+  evidence: Annotation<{ docs: DocumentChunk[] }>({
     reducer: (x, y) => ({
       docs: [...x.docs, ...y.docs],
     }),

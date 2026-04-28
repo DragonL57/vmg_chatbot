@@ -1,25 +1,39 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { AgentState, type AgentStateType } from "./state";
-import { VectorSearchService } from "@core/services/vector-search.service";
-import { getFastProvider, getGenerationProvider } from "@core/lib/providers";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { estimateTokens } from "@core/lib/utils";
 import { 
   SEARCH_OPTIMIZATION_PROMPT, 
   META_GRADER_PROMPT, 
   META_COMPRESSOR_PROMPT,
   GATEWAY_AGENT_PROMPT,
-  STRUCTURED_COMPACTION_PROMPT
+  STRUCTURED_COMPACTION_PROMPT,
+  QUERY_ANALYZER_PROMPT
 } from "@core/prompts/rag-agents";
 import { z } from "zod";
-import { ObservabilityService } from "@core/services/observability.service";
+import { CHAT_POLICIES } from "@core/domain/entities/chat";
+import { RunnableConfig } from "@langchain/core/runnables";
+import { queryAnalysisSchema } from "@core/domain/entities/query-analysis";
 
-const TOKEN_COMPRESSION_THRESHOLD = 3000;
+// Port Interfaces
+import { ILLMProvider } from "../application/ports/llm-provider.port";
+import { IVectorStorePort } from "../application/ports/vector-store.port";
+import { IObservabilityPort } from "../application/ports/observability.port";
+
+const TOKEN_COMPRESSION_THRESHOLD = CHAT_POLICIES.TOKEN_COMPRESSION_THRESHOLD;
 
 function logPayload(node: string, input: any, output: any) {
   const inputChars = JSON.stringify(input).length;
   const outputChars = JSON.stringify(output).length;
   console.log(`[PAYLOAD] ${node.padEnd(12)} | In: ${inputChars.toLocaleString().padStart(6)} chars | Out: ${outputChars.toLocaleString().padStart(5)} chars`);
+}
+
+function safeParseJson<T>(nodeName: string, json: string, fallback: T): T {
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    console.error(`[${nodeName}] JSON parse error:`, e, "Raw output:", json);
+    return fallback;
+  }
 }
 
 const graderSchema = z.object({
@@ -28,44 +42,117 @@ const graderSchema = z.object({
 });
 
 /**
- * Node 0+2: Semantic Router & Intent Expansion (Merged)
+ * Node: Analyze Query Clarity & Decompose
  */
-async function routerExpandNode(state: AgentStateType) {
+async function analyzeQueryNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { mode, allCollections, messages, traceId } = state;
-  const lastQuery = messages[messages.length - 1].content as string;
-  const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
-  const { client, model, extraBody } = getFastProvider();
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const lastMessage = state.messages[state.messages.length - 1];
+  const conversationSummary = state.context_summary || "";
   
-  const res = await client.chat.completions.create({
-    model,
-    response_format: { type: "json_object" },
+  // Get recent messages for local context
+  const recentMessages = state.messages.slice(-4).map(m => 
+    `${m._getType() === 'human' ? 'User' : 'Assistant'}: ${m.content}`
+  ).join('\n');
+
+  const res = await llmProvider.completion({
     messages: [
-      { role: "system", content: GATEWAY_AGENT_PROMPT(siloList) },
-      { role: "user", content: `Mode: ${mode} | Query: ${lastQuery}` }
+      { role: "system", content: QUERY_ANALYZER_PROMPT },
+      { role: "user", content: `Global Context Summary: ${conversationSummary}\n\nRecent Conversation:\n${recentMessages}\n\nLatest Query to Analyze: ${lastMessage.content}` }
     ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    jsonMode: true,
+    effort: 'instant'
   });
 
-  const output = res.choices[0].message.content || "{}";
-  logPayload("RouterExpand", { siloList, lastQuery }, output);
+  const output = res.content || "{}";
+  logPayload("QueryAnalyzer", { query: lastMessage.content }, output);
 
-  if (traceId) {
-    ObservabilityService.emitSpan(traceId, {
-      nodeName: 'router_expand',
-      model,
-      input: { mode, query: lastQuery },
+  if (state.traceId) {
+    await obsPort.emitSpan(state.traceId, {
+      nodeName: 'analyze_query',
+      model: res.model,
+      input: { query: lastMessage.content },
       output: output,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      latencyMs: Date.now() - startTime
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
     }).catch(console.error);
   }
 
-  let parsed = { is_chit_chat: false, selected: [] as string[], queries: [lastQuery], reasoning: "" };
-  try { parsed = JSON.parse(output); } catch (e) {}
+  let parsed: { is_clear: boolean, questions: string[], clarification_needed: string } = { 
+    is_clear: true, 
+    questions: [lastMessage.content as string], 
+    clarification_needed: "" 
+  };
+
+  try { 
+    const rawParsed = JSON.parse(output);
+    const result = queryAnalysisSchema.safeParse(rawParsed);
+    if (result.success) {
+      parsed = {
+        is_clear: result.data.is_clear,
+        questions: result.data.questions,
+        clarification_needed: result.data.clarification_needed || ""
+      };
+    } else {
+      console.error("[analyze_query] Validation failed:", result.error.format());
+    }
+  } catch (e) {
+    console.error("[analyze_query] JSON parse error:", e, "Raw output:", output);
+  }
+
+  return {
+    questionIsClear: parsed.is_clear,
+    rewrittenQuestions: parsed.questions,
+    reflection: parsed.is_clear ? "Query analyzed and clarified." : (parsed.clarification_needed || "The request is unclear, more information is needed."),
+    subQueries: parsed.questions,
+    totalUsage: res.usage
+  };
+}
+
+/**
+ * Node 0+2: Semantic Router & Intent Expansion (Merged)
+ */
+async function routerExpandNode(state: AgentStateType, config: RunnableConfig) {
+  const startTime = Date.now();
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { mode, allCollections, messages, traceId, subQueries } = state;
+  const queries = subQueries && subQueries.length > 0 ? subQueries : [messages[messages.length - 1].content as string];
+  const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
+
+  const res = await llmProvider.completion({
+    messages: [
+      { role: "system", content: GATEWAY_AGENT_PROMPT(siloList) },
+      { role: "user", content: `Mode: ${mode} | Queries: ${queries.join(" | ")}` }
+    ],
+    jsonMode: true,
+    effort: 'instant'
+  });
+
+  const output = res.content || "{}";
+  logPayload("RouterExpand", { siloList, queries }, output);
+
+  if (traceId) {
+    await obsPort.emitSpan(traceId, {
+      nodeName: 'router_expand',
+      model: res.model,
+      input: { mode, queries },
+      output: output,
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
+    }).catch(console.error);
+  }
+
+  let parsed = { is_chit_chat: false, selected: [] as string[], queries: queries, reasoning: "" };
+  const rawParsed = safeParseJson("router_expand", output, parsed);
+  parsed = { ...parsed, ...rawParsed };
 
   let finalSilos = mode === 'auto' || mode === 'discovery' ? parsed.selected : [mode];
   if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
@@ -73,8 +160,8 @@ async function routerExpandNode(state: AgentStateType) {
   return { 
     isChitChat: !!parsed.is_chit_chat,
     targetCollections: finalSilos,
-    subQueries: Array.isArray(parsed.queries) ? parsed.queries : [lastQuery],
-    reflection: parsed.is_chit_chat ? "Đang xử lý hội thoại trực tiếp..." : (parsed.reasoning || "Đang xác định chiến lược tra cứu..."),
+    subQueries: Array.isArray(parsed.queries) ? parsed.queries : queries,
+    reflection: parsed.is_chit_chat ? "Processing direct conversation..." : (parsed.reasoning || "Determining search strategy..."),
     totalUsage: res.usage
   };
 }
@@ -82,47 +169,46 @@ async function routerExpandNode(state: AgentStateType) {
 /**
  * Node 1: Summarize History
  */
-async function summarizeHistoryNode(state: AgentStateType) {
+async function summarizeHistoryNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  // Aggressive Early Compaction: Trigger at 6 messages to stay in 40-60% sweet spot
-  if (state.messages.length < 6) return { reflection: "" };
-  
-  const { client, model, extraBody } = getFastProvider();
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  if (state.messages.length < CHAT_POLICIES.CONTEXT_COMPACTION_THRESHOLD) return { reflection: "" };
+
   const { traceId } = state;
   const history = state.messages.map(m => ({ 
     role: (m._getType() === 'human' ? 'user' : 'assistant') as 'user' | 'assistant', 
     content: m.content as string 
   }));
 
-  const res = await client.chat.completions.create({
-    model,
+  const res = await llmProvider.completion({
     messages: [
       { role: "system", content: STRUCTURED_COMPACTION_PROMPT },
       ...history
     ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    effort: 'instant'
   });
 
-  const summary = res.choices[0].message.content || "";
+  const summary = res.content || "";
   logPayload("Summarize", history, summary);
 
   if (traceId) {
-    ObservabilityService.emitSpan(traceId, {
+    await obsPort.emitSpan(traceId, {
       nodeName: 'summarize',
-      model,
+      model: res.model,
       input: { historyLength: history.length },
       output: summary,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      latencyMs: Date.now() - startTime
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
     }).catch(console.error);
   }
 
   return { 
     context_summary: summary,
-    reflection: "Đã tối ưu hóa bối cảnh hội thoại (Structured Compaction).",
+    reflection: "Conversation context optimized (Structured Compaction).",
     totalUsage: res.usage
   };
 }
@@ -130,81 +216,84 @@ async function summarizeHistoryNode(state: AgentStateType) {
 /**
  * Node 3: Retrieve evidence
  */
-async function retrieveNode(state: AgentStateType) {
+async function retrieveNode(state: AgentStateType, config: RunnableConfig) {
+  const { vectorStore } = config.configurable as { vectorStore: IVectorStorePort };
   const { subQueries, targetCollections } = state;
   const queries = (subQueries && subQueries.length > 0) ? subQueries : [state.messages[state.messages.length - 1].content as string];
 
   const allResults = await Promise.all(
     targetCollections.map(col => 
-      Promise.all(queries.map(q => VectorSearchService.search(q, col as any, 5).catch(() => [])))
+      Promise.all(queries.map(q => vectorStore.search(q, col as any, 5).catch(() => [])))
     )
   );
 
   const rawDocs = allResults.flat(2);
-  const seenContent = new Set<string>();
+  const seenParents = new Set<string>();
   const deduplicated = rawDocs.filter(doc => {
-    const isDuplicate = seenContent.has(doc.content);
-    seenContent.add(doc.content);
-    return !isDuplicate;
+    const pid = doc.parentId || doc.content;
+    if (seenParents.has(pid)) return false;
+    seenParents.add(pid);
+    return true;
   });
 
-  const rankedDocs = deduplicated.sort((a, b) => b.score - a.score).slice(0, 5);
+  const rankedDocs = deduplicated.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
 
   return { 
     evidence: { docs: rankedDocs },
-    reflection: `Đang quét ${targetCollections.length} kho dữ liệu với ${queries.length} hướng truy vấn...` 
+    reflection: `Scanning ${targetCollections.length} silos with ${queries.length} query variations...` 
   };
 }
 
 /**
  * Node 4: Grade evidence
  */
-async function gradeNode(state: AgentStateType) {
+async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
   const { evidence, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  if (!evidence.docs.length) return { isRelevant: false, reflection: "Không tìm thấy tài liệu liên quan." };
+  if (!evidence.docs.length) return { isRelevant: false, reflection: "No relevant documents found." };
 
-  const { client, model, extraBody } = getFastProvider();
   const context = evidence.docs.slice(0, 8).map(d => d.parentContent || d.content).join("\n\n");
-  
-  const res = await client.chat.completions.create({
-    model,
-    response_format: { type: "json_object" },
+
+  const res = await llmProvider.completion({
     messages: [
       { role: "system", content: META_GRADER_PROMPT },
       { role: "user", content: `Question: ${lastQuery}\n\nContext:\n${context.slice(0, 4000)}` }
     ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    jsonMode: true,
+    effort: 'instant'
   });
 
-  const rawOut = res.choices[0].message.content || "{}";
+  const rawOut = res.content || "{}";
   logPayload("Grader", { lastQuery, context: context.slice(0, 500) }, rawOut);
 
   if (traceId) {
-    ObservabilityService.emitSpan(traceId, {
+    await obsPort.emitSpan(traceId, {
       nodeName: 'grade',
-      model,
+      model: res.model,
       input: { query: lastQuery },
       output: rawOut,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      latencyMs: Date.now() - startTime
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
     }).catch(console.error);
   }
 
   let grade = false;
-  let reason = "Tài liệu chưa đủ thông tin.";
-  try {
-    const parsed = JSON.parse(rawOut);
-    const result = graderSchema.safeParse(parsed);
-    if (result.success) {
-      grade = result.data.is_relevant.toUpperCase() === "YES";
-      reason = result.data.reasoning || (grade ? "Đã tìm thấy thông tin phù hợp." : "Tài liệu chưa đủ thông tin.");
-    }
-  } catch (e) {}
+  let reason = "Documents provide insufficient information.";
+  const parsed = safeParseJson("grade", rawOut, {});
+  const result = graderSchema.safeParse(parsed);
+  
+  if (result.success) {
+    grade = result.data.is_relevant.toUpperCase() === "YES";
+    reason = result.data.reasoning || (grade ? "Relevant information found." : "Documents provide insufficient information.");
+  } else if (Object.keys(parsed).length > 0) {
+    console.error("[grade] Validation failed:", result.error.format());
+  }
 
   return { isRelevant: grade, reflection: reason, totalUsage: res.usage };
 }
@@ -212,46 +301,47 @@ async function gradeNode(state: AgentStateType) {
 /**
  * Node 5: Rewrite query
  */
-async function rewriteNode(state: AgentStateType) {
+async function rewriteNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { messages, traceId, subQueries } = state;
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
-  const { client, model, extraBody } = getFastProvider();
-  
-  const res = await client.chat.completions.create({
-    model,
-    response_format: { type: "json_object" },
+
+  const res = await llmProvider.completion({
     messages: [
       { role: "system", content: SEARCH_OPTIMIZATION_PROMPT },
       { role: "user", content: `Query: ${lastQuery}` }
     ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    jsonMode: true,
+    effort: 'instant'
   });
 
-  const output = res.choices[0].message.content || "{}";
+  const output = res.content || "{}";
   logPayload("Rewriter", { lastQuery }, output);
 
   if (traceId) {
-    ObservabilityService.emitSpan(traceId, {
+    await obsPort.emitSpan(traceId, {
       nodeName: 'rewrite',
-      model,
+      model: res.model,
       input: { query: lastQuery },
       output: output,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      latencyMs: Date.now() - startTime
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
     }).catch(console.error);
   }
 
   let parsed = { queries: [] as string[], reasoning: "" };
-  try { parsed = JSON.parse(output); } catch (e) {}
+  const rawParsed = safeParseJson("rewrite", output, parsed);
+  parsed = { ...parsed, ...rawParsed };
 
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],
     iterations: (state.iterations || 0) + 1,
-    reflection: "Đang mở rộng phạm vi tìm kiếm tài liệu...",
+    reflection: "Expanding search scope for better evidence...",
     totalUsage: res.usage
   };
 }
@@ -259,48 +349,50 @@ async function rewriteNode(state: AgentStateType) {
 /**
  * Node 6: Compress Facts
  */
-async function compressNode(state: AgentStateType) {
+async function compressNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
+  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
   const { evidence, traceId, isChitChat } = state;
   if (!evidence.docs.length || isChitChat) return { reflection: "" };
-  
-  const { client, model, extraBody } = getGenerationProvider();
+
   const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
-  
-  const res = await client.chat.completions.create({
-    model,
+
+  const res = await llmProvider.completion({
     messages: [
       { role: "system", content: META_COMPRESSOR_PROMPT },
       { role: "user", content: `Raw Data:\n${rawTextWithSources.slice(0, 6000)}` }
     ],
-    ...(extraBody ? { extra_body: extraBody } : {}),
+    effort: 'high'
   });
-  
-  const summary = res.choices[0].message.content || "";
+
+  const summary = res.content || "";
   logPayload("Compressor", { docCount: evidence.docs.length }, summary);
 
   if (traceId) {
-    ObservabilityService.emitSpan(traceId, {
+    await obsPort.emitSpan(traceId, {
       nodeName: 'compress',
-      model,
+      model: res.model,
       input: { docCount: evidence.docs.length },
       output: summary,
-      promptTokens: res.usage?.prompt_tokens || 0,
-      completionTokens: res.usage?.completion_tokens || 0,
-      cachedTokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      latencyMs: Date.now() - startTime
+      promptTokens: res.usage.prompt_tokens,
+      completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0,
+      cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - startTime,
+      isBatch: res.isBatch
     }).catch(console.error);
   }
-  
+
   return { 
     context_summary: summary,
-    reflection: "Đã tổng hợp các sự thật cốt lõi từ tài liệu.",
+    reflection: "Synthesized core facts from retrieved documents.",
     totalUsage: res.usage
   };
 }
 
+
 const workflow = new StateGraph(AgentState)
+  .addNode("analyze_query", analyzeQueryNode)
   .addNode("router_expand", routerExpandNode)
   .addNode("summarize", summarizeHistoryNode)
   .addNode("retrieve", retrieveNode)
@@ -309,7 +401,13 @@ const workflow = new StateGraph(AgentState)
   .addNode("compress", compressNode);
 
 workflow.addEdge(START, "summarize");
-workflow.addEdge("summarize", "router_expand");
+workflow.addEdge("summarize", "analyze_query");
+
+workflow.addConditionalEdges(
+  "analyze_query",
+  (state) => state.questionIsClear ? "router_expand" : "end",
+  { router_expand: "router_expand", end: END }
+);
 
 workflow.addConditionalEdges(
   "router_expand",
@@ -328,7 +426,7 @@ workflow.addConditionalEdges(
 
 workflow.addConditionalEdges(
   "grade",
-  (state) => (state.isRelevant || state.iterations >= 3) ? "compress" : "rewrite",
+  (state) => (state.isRelevant || state.iterations >= CHAT_POLICIES.MAX_ITERATIONS) ? "compress" : "rewrite",
   { compress: "compress", rewrite: "rewrite" }
 );
 
