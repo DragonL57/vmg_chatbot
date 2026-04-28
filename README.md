@@ -54,5 +54,18 @@ We evaluate **Process, not just Outcomes**.
 - **Cost & Token Tracking**: Granular monitoring of token consumption per reasoning node.
 
 ---
+
+## 🛠️ Technical Documentation
+
+For detailed implementation specifics, architectural boundaries, and layer-by-layer analysis, refer to the following:
+
+- **[Architecture Overview](./docs/ARCHITECTURE.md)**: High-level design and agentic taxonomy.
+- **[Domain Layer](./docs/DOMAIN.md)**: Pure entities, business policies, and chunking services.
+- **[Application Layer](./docs/APPLICATION.md)**: Use cases, port interfaces, and orchestration logic.
+- **[Agentic RAG Layer](./docs/AGENT.md)**: LangGraph state, node topology, and routing logic.
+- **[Infrastructure Layer](./docs/INFRASTRUCTURE.md)**: Persistence (Drizzle), Vector Store (Qdrant), and LLM adapters.
+- **[UI & API Layer](./docs/UI_API.md)**: Next.js App Router, streaming API, and React components.
+
+---
 **VMG MATE** — *State-of-the-Art Agentic Intelligence for the Enterprise.*
 Copyright 2026 VMG English Center.

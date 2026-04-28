@@ -122,5 +122,15 @@ We evaluate the **Process, not just the Outcome**.
 - **Cost Calculation**: Tiered pricing with 90% discounts for Context Caching.
 - **Trace Integrity**: Spans are finalized even on early exits (Clarification/Error) to ensure log-integrity.
 
+## 5. Technical Reference (Layer Details)
+
+For deep-dives into the specific implementations, schemas, and logic of each layer, refer to the following:
+
+- **[Domain Layer](./DOMAIN.md)**: Core entities, Zod schemas, and pure services.
+- **[Application Layer](./APPLICATION.md)**: Use cases and orchestration ports.
+- **[Agentic RAG Layer](./AGENT.md)**: LangGraph state, nodes, and routing logic.
+- **[Infrastructure Layer](./INFRASTRUCTURE.md)**: Database, vector store, and LLM adapters.
+- **[UI & API Layer](./UI_API.md)**: Next.js routes and React component orchestration.
+
 ---
-*Document Updated: April 2026 (RECAP & Agentic Survey Integration)*
+*Document Updated: April 2026 (Detailed Layer Documentation Integration)*
