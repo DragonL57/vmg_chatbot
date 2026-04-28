@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { DrizzleAuthRepositoryAdapter, DrizzleKnowledgeRepositoryAdapter } from '@core/infrastructure/adapters';
+import { z } from 'zod';
+
+const collectionSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100),
+  qdrantName: z.string().trim().min(1, 'qdrantName is required').regex(/^[a-zA-Z0-9_-]+$/, 'Invalid qdrantName format'),
+  description: z.string().optional(),
+});
 
 export async function GET() {
   try {
@@ -26,7 +33,17 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { name, qdrantName, description } = await req.json();
+    const body = await req.json();
+    const result = collectionSchema.safeParse(body);
+    
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid input', 
+        details: result.error.flatten().fieldErrors 
+      }, { status: 400 });
+    }
+
+    const { name, qdrantName, description } = result.data;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

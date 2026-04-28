@@ -47,7 +47,7 @@ export default function SilosPage() {
       const res = await fetch('/api/admin/collections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newColName, qdrant_name: safeId, description: newColDesc }),
+        body: JSON.stringify({ name: newColName, qdrantName: safeId, description: newColDesc }),
       });
       if (res.ok) {
         setNewColName(''); setNewColQName(''); setNewColDesc('');

@@ -103,6 +103,11 @@ export async function POST(req: Request) {
               const clarificationMsg = state.reflection || "Yêu cầu chưa rõ ràng, bạn có thể giải thích thêm được không?";
               emit({ type: 'content', value: clarificationMsg });
               emitTotalTokens(finalState, null, emit);
+              
+              if (traceId) {
+                waitUntil(obsPort.finalizeTrace(traceId, 'clarification_requested').catch(console.error));
+              }
+              
               controller.close();
               return;
             }
