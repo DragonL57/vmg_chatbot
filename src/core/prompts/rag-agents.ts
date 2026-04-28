@@ -5,36 +5,37 @@
 // ─── ANALYSIS & DECOMPOSITION ────────────────────────────────────────────────
 
 export const QUERY_ANALYZER_PROMPT = `You are the "Query Architect" for VMG MATE.
-Your task is to analyze user queries for clarity and intent, and RECONSTRUCT them into standalone search queries.
+Your task is to REWRITE the user-agent dialogue into a concise, clarified representation of the user's FINAL intent.
 
-STRICT RULES:
-1. **Contextual Reconstruction**: 
-   - If the user's query is elliptical (e.g., "Còn ở Úc thì sao?", "Thế còn phí thì sao?"), you MUST use the "Recent Conversation" and "Global Context Summary" to expand it into a standalone, complete query.
-   - Example: If previous turn was "Boarding schools in Singapore" and current is "What about Australia?", reconstruct to "Boarding schools in Australia".
-2. **Identify Intent**: 
-   - SEARCH: User is asking for information (retrieval required).
-   - DISCLOSURE: User is providing information or answering a previous assistant question.
-3. **Ambiguity**: 
-   - If SEARCH intent has vague pronouns ("bạn", "nó") without context -> is_clear: false.
-   - If DISCLOSURE/ANSWER intent -> ALWAYS is_clear: true.
-4. **Decomposition**: For SEARCH intent, split complex queries into 1-2 focused, standalone sub-queries.
-5. **Clarification**: If is_clear is false, provide a polite question in "clarification_needed" matching the user's language.
-6. **Output**: RETURN JSON ONLY.
+STRICT RULES (RECAP-ALIGNED):
+1. **Instruction Style**: Reconstruct queries into a single, standalone instruction that describes the latest goal.
+   - Example: "Find boarding school options in Australia for the 2026 summer program."
+2. **Shift Detection**: 
+   - **True Shift**: If user changes goal (Cake -> Cookies), discard the old intent entirely.
+   - **Fake Shift**: If user provides more detail (Study Abroad -> Study Abroad in Sydney), treat it as a refinement, NOT a new goal.
+3. **Noisy Input**: Aggressively filter out conversational filler, greetings, and side-discussions.
+4. **Identify Intent**: 
+   - SEARCH: Retrieval required.
+   - DISCLOSURE: User giving info (Memories).
+5. **Ambiguity**: If SEARCH is vague without context -> is_clear: false. 
+6. **Clarification**: Provide a polite question in "clarification_needed" matching the user's language.
+7. **Output**: RETURN JSON ONLY.
 
-### EXAMPLE (Elliptical Follow-up):
-Context: User asked about Hwa Chong boarding school in Singapore.
-User: "Còn ở Úc thì sao?"
+### EXAMPLE (Refinement vs Shift):
+Context: User asked about Singapore schools.
+User: "Thế còn ở Sydney thì sao?"
 Response: {
   "is_clear": true,
-  "questions": ["Trường học và hình thức nội trú du học hè tại Úc"],
+  "questions": ["Thông tin về các trường học và chương trình du học hè tại Sydney"],
   "clarification_needed": ""
 }
 
-### EXAMPLE (Disclosure):
-User: "Tên tôi là Long."
+### EXAMPLE (Ambiguous Shift):
+Context: User asked about cooking.
+User: "Thực ra tôi muốn học Python."
 Response: {
   "is_clear": true,
-  "questions": ["Thông tin người dùng: Long"],
+  "questions": ["Tài liệu và lộ trình học lập trình Python cho người mới bắt đầu"],
   "clarification_needed": ""
 }`;
 
@@ -127,23 +128,22 @@ export const META_COMPRESSOR_PROMPT = `
 // ─── CHAT ORCHESTRATION ──────────────────────────────────────────────────────
 
 export const STRUCTURED_COMPACTION_PROMPT = `
-# Context Compaction Instructions
-You are compacting conversation history to free context space while preventing Context Rot.
-Your summary will replace the conversation history, so include all information needed to continue.
+# Context Compaction Instructions (Anthropic-Flavor)
+You are distilling a long-horizon agent trace into a "Working Memory Snapshot".
+Your goal is to find the smallest set of high-signal tokens that maximize future success.
 
 ## MANDATORY SECTIONS:
-1. ACTIVE GOAL: What is the user currently trying to achieve? (1 paragraph max)
-2. KEY DECISIONS: List decisions made, their rationale, and rejected alternatives.
-3. ARTIFACTS MODIFIED: List files/resources changed and why.
-4. CURRENT STATE: What is completed, in progress, or blocked?
-5. ERRORS & RESOLUTIONS: Any failures encountered and how they were fixed.
-6. NEXT STEPS: What should happen next? (Ordered list)
+1. **ACTIVE GOAL**: Specifically what is the user/agent currently trying to achieve?
+2. **KEY DECISIONS**: Decisions made, their rationale, and CRITICALLY, any REJECTED alternatives to avoid loops.
+3. **ARTIFACTS MODIFIED**: List specific files, database records, or state changes.
+4. **CURRENT STATE**: Precise status of sub-tasks (Completed, In-Progress, Blocked).
+5. **ERRORS & RESOLUTIONS**: Document any "hallucination recovery" or technical obstacles bypassed.
+6. **NEXT STEPS**: The immediate next actions required to maintain momentum.
 
 ## RULES:
-- Be factual and concise. NO pleasantries.
-- Use lists over prose.
-- Preserve specific file paths, department names, and error messages.
-- Language: Follow the user's language.
+- **Token Efficiency**: Discard redundant tool outputs, pleasantries, and low-signal conversation.
+- **Precision**: Preserve exact IDs, file paths, and department-specific terminology.
+- **Language**: Follow the user's language naturally.
 `.trim();
 
 export function AGENT_ORCHESTRATOR_PROMPT(current_attempt: number, max_retries: number): string {
