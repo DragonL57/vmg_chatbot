@@ -12,21 +12,24 @@ interface AgentStepsProps {
  */
 export const AgentSteps: React.FC<AgentStepsProps> = ({ phase, reflections = [], detail: _detail }) => {
   const isComplete = phase === 'complete';
-  const isGenerating = phase === 'generate';
-  
-  const [prevPhase, setPrevPhase] = React.useState(phase);
-  const [isCollapsed, setIsCollapsed] = React.useState(isGenerating || isComplete);
+  const isAutoCollapsed = phase === 'generate' || isComplete;
 
-  // Sync state when phase changes without using useEffect to satisfy strict linting
-  if (phase !== prevPhase) {
-    setPrevPhase(phase);
-    setIsCollapsed(isGenerating || isComplete);
-  }
+  // Track manual toggle state for the CURRENT phase.
+  // If the phase changes, this setting naturally resets because the phase won't match.
+  const [manualToggle, setManualToggle] = React.useState<{ phase: string; isCollapsed: boolean } | null>(null);
+
+  const isCollapsed = (manualToggle?.phase === phase) 
+    ? manualToggle.isCollapsed 
+    : isAutoCollapsed;
+
+  const handleToggle = () => {
+    setManualToggle({ phase, isCollapsed: !isCollapsed });
+  };
 
   return (
     <div className={`mb-4 w-full flex flex-col bg-white border border-black/[0.08] rounded-[10px] overflow-hidden transition-all duration-300 ${!isComplete ? 'animate-in fade-in' : ''}`}>
       <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={handleToggle}
         className="flex items-center gap-3 px-4 py-2.5 hover:bg-black/[0.01] transition-colors w-full text-left"
       >
         <div className="flex items-center gap-2.5">

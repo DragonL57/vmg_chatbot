@@ -85,18 +85,35 @@ export const streamChatResponse = async (response: Response, handler: StreamHand
 
   const decoder = new TextDecoder();
   const state = { fullContent: '', activeTraceId: '' };
+  let buffer = '';
 
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value);
-    const lines = chunk.split('\n').filter(Boolean);
+    
+    // Use { stream: true } to handle multi-byte characters split across chunks
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    
+    // Keep the last part (could be a partial JSON line) in the buffer
+    buffer = lines.pop() || '';
+
     for (const line of lines) {
+      if (!line.trim()) continue;
       try {
         parseStreamLine(line, state, handler);
-      } catch {
-        // Ignore parse errors for partial chunks
+      } catch (err) {
+        console.warn('[Stream] Parse error for line:', line, err);
       }
+    }
+  }
+
+  // Handle any remaining content in the buffer after the stream ends
+  if (buffer.trim()) {
+    try {
+      parseStreamLine(buffer, state, handler);
+    } catch (err) {
+      console.warn('[Stream] Final parse error:', buffer, err);
     }
   }
 };

@@ -54,5 +54,14 @@ export default tseslint.config(
   },
   {
     ignores: [".next/**", "node_modules/**", "build/**", "out/**"],
+  },
+  {
+    files: [
+      "src/core/infrastructure/adapters/console-logger.adapter.ts",
+      "scripts/**/*.ts"
+    ],
+    rules: {
+      "no-console": "off",
+    }
   }
 );

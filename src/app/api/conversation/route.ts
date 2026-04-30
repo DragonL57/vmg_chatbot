@@ -25,7 +25,7 @@ const upsertSchema = z.object({
     total_tokens: z.number(),
     cached_tokens: z.number().optional(),
     cache_creation_tokens: z.number().optional(),
-  }).optional(),
+  }).optional().nullable(),
   messageCount: z.number().optional(),
   updated_at: z.string().or(z.number()).optional(),
 });
