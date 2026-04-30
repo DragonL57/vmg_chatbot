@@ -8,7 +8,7 @@ export class GenerateCollectionDescriptionUseCase {
     private readonly knowledgeRepo: IKnowledgeRepositoryPort
   ) {}
 
-  async execute(collectionId: string, collectionName: string): Promise<string> {
+  public async execute(collectionId: string, collectionName: string): Promise<string> {
     const allFiles = await this.knowledgeRepo.listFiles();
     const collectionFiles = allFiles.filter(f => f.mode === collectionName && f.status === 'completed');
     

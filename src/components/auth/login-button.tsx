@@ -22,8 +22,9 @@ export const LoginButton = () => {
         }
       });
       if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || 'Lỗi đăng nhập Google');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Lỗi đăng nhập Google';
+      toast.error(message);
       setIsLoading(false);
     }
   };

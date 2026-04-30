@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:push": "drizzle-kit push --force && next build",
+    "build": "pnpm lint:strict && next build",
+    "build:push": "drizzle-kit push --force && pnpm lint:strict && next build",
     "start": "next start",
     "lint": "eslint .",
+    "lint:strict": "eslint . --max-warnings 0",
     "test": "vitest",
     "type-check": "tsc --noEmit",
     "index-knowledge": "dotenv -e .env.local --override -- tsx scripts/index-knowledge.ts",
@@ -58,6 +59,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.2.4",
     "@tailwindcss/postcss": "^4",
     "@types/katex": "^0.16.8",
     "@types/node": "^20",
@@ -70,10 +73,14 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "eslint-plugin-boundaries": "^6.0.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^29.0.2",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
+    "typescript-eslint": "^8.59.1",
     "vitest": "^4.1.5"
   }
 }

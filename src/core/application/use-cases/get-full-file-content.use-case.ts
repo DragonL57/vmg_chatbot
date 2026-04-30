@@ -3,7 +3,7 @@ import { IVectorStorePort } from "../ports/vector-store.port";
 export class GetFullFileContentUseCase {
   constructor(private readonly vectorStore: IVectorStorePort) {}
 
-  async execute(filename: string, collectionName: string): Promise<string> {
+  public async execute(filename: string, collectionName: string): Promise<string> {
     const results = await this.vectorStore.listBySource(filename, collectionName);
     const parents = new Set<string>();
     results.forEach(r => {

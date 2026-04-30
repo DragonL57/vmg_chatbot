@@ -16,11 +16,11 @@ const runMigration = async () => {
   const sql = postgres(dbUrl, { max: 1 });
   const db = drizzle(sql);
 
-  console.log("⏳ Running migrations...");
-
+  console.warn("⏳ Running migrations...");
   try {
     await migrate(db, { migrationsFolder: "drizzle" });
-    console.log("✅ Migrations completed successfully!");
+    console.warn("✅ Migrations completed successfully!");
+
   } catch (error) {
     console.error("❌ Migration failed:", error);
     process.exit(1);

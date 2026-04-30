@@ -4,10 +4,9 @@ export interface Message {
   readonly content: string;
   readonly timestamp: Date;
   readonly isToolCall?: boolean;
-  readonly leadData?: any;
+  readonly leadData?: unknown;
   readonly mode?: string;
   readonly isAmbiguous?: boolean;
-  readonly citations?: Record<string, string>;
   readonly reasoningTrace?: ReadonlyArray<string>;
   readonly memoryUpdated?: boolean;
   readonly traceId?: string;

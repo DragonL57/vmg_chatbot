@@ -3,15 +3,18 @@ import { createRequire } from 'module';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '@/env';
 import { createServerSupabase } from '@/core/lib/supabase-server';
+import { waitUntil } from '@vercel/functions';
 
 // Clean Architecture Imports
 import { 
   LLMProviderAdapter, 
   QdrantVectorStoreAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
-  DrizzleAuthRepositoryAdapter
+  DrizzleAuthRepositoryAdapter,
+  ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { IndexKnowledgeFileUseCase } from '@core/application/use-cases';
+import { ingestRequestSchema } from '@core/domain/entities/ingest-request';
 
 // Initialize backend Supabase client
 const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -19,26 +22,49 @@ const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 export const runtime = 'nodejs';
 export const maxDuration = 300; 
 
+async function validateAdmin() {
+  const supabase = await createServerSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const authRepo = new DrizzleAuthRepositoryAdapter();
+  const internalUserId = await authRepo.getInternalId(user.id);
+  if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
+    return null;
+  }
+  return user;
+}
+
+async function extractContent(buffer: Buffer, filename: string): Promise<string> {
+  if (filename.toLowerCase().endsWith('.pdf')) {
+    const require = createRequire(import.meta.url);
+    const pdf = require('pdf-extraction');
+    const data = await pdf(buffer);
+    return data.text;
+  }
+  return buffer.toString('utf-8');
+}
+
 export async function POST(req: NextRequest) {
+  const logger = new ConsoleLoggerAdapter();
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    const user = await validateAdmin();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized or Forbidden' }, { status: 403 });
     }
 
-    const authRepo = new DrizzleAuthRepositoryAdapter();
-    const internalUserId = await authRepo.getInternalId(user.id);
-    if (!internalUserId || !(await authRepo.isAdmin(internalUserId))) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const json = await req.json();
+    const result = ingestRequestSchema.safeParse(json);
+
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid request payload', 
+        details: result.error.format() 
+      }, { status: 400 });
     }
 
-    const { storagePath, filename, mode, folder, fileId } = await req.json();
-
-    if (!storagePath || !filename || !mode) {
-      return NextResponse.json({ error: 'Missing storagePath, filename or collection' }, { status: 400 });
-    }
+    const { storagePath, filename, mode, folder, fileId } = result.data;
 
     // 1. Download file from Supabase Storage
     const { data: fileData, error: downloadError } = await supabaseBackend.storage
@@ -49,18 +75,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to download source: ${downloadError?.message}` }, { status: 400 });
     }
 
-    let content = "";
     const arrayBuffer = await fileData.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    if (filename.toLowerCase().endsWith('.pdf')) {
-      const require = createRequire(import.meta.url);
-      const pdf = require('pdf-extraction');
-      const data = await pdf(buffer);
-      content = data.text;
-    } else {
-      content = buffer.toString('utf-8');
-    }
+    const content = await extractContent(Buffer.from(arrayBuffer), filename);
 
     if (!content || content.trim().length < 10) {
       return NextResponse.json({ error: 'Downloaded content is too short' }, { status: 400 });
@@ -97,17 +113,14 @@ export async function POST(req: NextRequest) {
           markdown: content,
           sourceFile: filename,
           collectionName: mode,
-          fileId: finalFileId
+          fileId: finalFileId!
         });
-      } catch (err: any) {
-        console.error('[Background Indexing Failed]', err);
+      } catch (err: unknown) {
+        logger.error('Background Indexing Failed', err);
       }
     };
 
-    (req as any).waitUntil?.(runIndexing());
-    if (!(req as any).waitUntil) {
-       runIndexing(); 
-    }
+    waitUntil(runIndexing());
 
     return NextResponse.json({ 
       success: true, 
@@ -115,8 +128,8 @@ export async function POST(req: NextRequest) {
       message: 'Ingestion started from storage' 
     }, { status: 202 });
 
-  } catch (error: any) {
-    console.error('Ingest error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    logger.error('Ingest error', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

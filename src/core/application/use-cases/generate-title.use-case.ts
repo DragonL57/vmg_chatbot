@@ -8,7 +8,7 @@ export class GenerateTitleUseCase {
     private readonly chatRepo: IChatRepository
   ) {}
 
-  async execute(conversationId: string, userId: string, firstMessage: string): Promise<string> {
+  public async execute(conversationId: string, userId: string, firstMessage: string): Promise<string> {
     const res = await this.llmProvider.completion({
       messages: [
         { role: 'system', content: CONVERSATION_TITLE_PROMPT },

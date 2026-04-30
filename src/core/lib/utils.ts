@@ -35,7 +35,7 @@ export function estimateTokens(text: string): number {
   if (!text) return 0;
   try {
     return countTokens(text);
-  } catch (e) {
+  } catch {
     return Math.ceil(text.length / 4);
   }
 }

@@ -1,10 +1,11 @@
-import { IChatRepository, Conversation } from "../../application/ports/chat-repository.port";
+import { IChatRepository, Conversation, ConversationPayload } from "../../application/ports/chat-repository.port";
 import { db } from "../../db";
-import { conversations, users } from "../../db/schema";
+import { conversations } from "../../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { ChatSession, Message } from "../../types/chat";
 
 export class DrizzleChatRepositoryAdapter implements IChatRepository {
-  async listByUser(userId: string): Promise<Conversation[]> {
+  public async listByUser(userId: string): Promise<Conversation[]> {
     const results = await db
       .select({
         id: conversations.id,
@@ -24,17 +25,34 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
     }));
   }
 
-  async getById(id: string, userId: string): Promise<any> {
+  public async getById(id: string, userId: string): Promise<ChatSession | null> {
     const [result] = await db
       .select()
       .from(conversations)
       .where(eq(conversations.id, id));
 
     if (!result || result.userId !== userId) return null;
-    return result;
+    return {
+      id: result.id,
+      messages: (result.messages as Message[]) || [],
+      createdAt: result.createdAt || new Date(),
+      updatedAt: result.updatedAt || new Date()
+    };
   }
 
-  async upsert(payload: any): Promise<void> {
+  public async ensureExists(id: string, userId: string): Promise<void> {
+    await db.insert(conversations)
+      .values({
+        id,
+        userId,
+        title: 'Cuộc hội thoại mới',
+        messages: [],
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing();
+  }
+
+  public async upsert(payload: ConversationPayload): Promise<void> {
     const firstMessageContent = payload.messages[0]?.content || '';
     const fallbackTitle = firstMessageContent 
       ? (firstMessageContent.slice(0, 40) + (firstMessageContent.length > 40 ? '...' : ''))
@@ -70,19 +88,19 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
       });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  public async delete(id: string, userId: string): Promise<void> {
     await db.delete(conversations).where(
       sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`
     );
   }
 
-  async star(id: string, userId: string, isStarred: boolean): Promise<void> {
+  public async star(id: string, userId: string, isStarred: boolean): Promise<void> {
     await db.update(conversations)
       .set({ isStarred: isStarred ? 1 : 0, updatedAt: new Date() })
       .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`);
   }
 
-  async rename(id: string, userId: string, title: string): Promise<void> {
+  public async rename(id: string, userId: string, title: string): Promise<void> {
     await db.update(conversations)
       .set({ title })
       .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`);

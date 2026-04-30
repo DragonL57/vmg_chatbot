@@ -11,6 +11,14 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 | **Purity** | `ChatInterface` logic is complex; could benefit from custom hook extraction. | Complex state management risks bugs. | Low |
 | **Build Tooling** | `drizzle-kit` introspect bug requires manual schema sync script. | Friction during schema migrations. | Medium |
 
+## Resolved Debt (2026-04-30)
+- [x] **Trace Integrity**: Fixed foreign key race condition by ensuring conversation exists before trace initiation (See `docs/exec-plans/active/2026-04-30-comprehensive-hardening.md`).
+- [x] **Observability Accuracy**: Implemented real-time latency tracking for the generation phase.
+- [x] **UI Performance**: Fixed cascading renders in `AgentSteps` and `MessageList` by refactoring state sync logic.
+- [x] **Code Health**: Removed all legacy citation logic and dead `any` types from API routes.
+- [x] **Boundary Security**: Implemented strict Zod validation for Chat and Ingest APIs.
+- [x] **Accessibility Compliance**: Added ARIA labels to icon-only buttons across the platform.
+
 ## Resolved Debt (2026-04-27)
 - [x] **Architectural Drift**: Refactored the entire system from Service-Oriented to a strict 3-layer Clean Architecture (Domain -> Application -> Infrastructure).
 - [x] **God Services**: Decoupled `MemoryService` and `IndexingService` into Use Cases and Ports.

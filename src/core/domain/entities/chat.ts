@@ -5,6 +5,14 @@ export const CHAT_POLICIES = {
   MAX_ITERATIONS: 3
 };
 
+export interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cached_tokens?: number;
+  cache_creation_tokens?: number;
+}
+
 export interface ChatTrace {
   id: string;
   userId: string;
@@ -20,8 +28,8 @@ export interface ChatSpan {
   traceId: string;
   nodeName: string;
   model: string;
-  input?: any;
-  output?: any;
+  input?: unknown;
+  output?: unknown;
   promptTokens: number;
   completionTokens: number;
   cachedTokens: number;

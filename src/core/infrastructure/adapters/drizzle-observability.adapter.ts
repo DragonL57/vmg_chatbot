@@ -4,7 +4,7 @@ import { agentTraces, agentSpans } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 export class DrizzleObservabilityAdapter implements IObservabilityPort {
-  async startTrace(userId: string, conversationId: string): Promise<string> {
+  public async startTrace(userId: string, conversationId: string): Promise<string> {
     const result = await db.insert(agentTraces).values({
       userId,
       conversationId,
@@ -13,7 +13,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
     return result[0].id;
   }
 
-  async emitSpan(traceId: string, data: SpanData): Promise<void> {
+  public async emitSpan(traceId: string, data: SpanData): Promise<void> {
     const cost = this.calculateCost(
       data.model, 
       data.promptTokens, 
@@ -38,7 +38,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
     });
   }
 
-  async finalizeTrace(traceId: string, error?: string): Promise<void> {
+  public async finalizeTrace(traceId: string, error?: string): Promise<void> {
     const spans = await db.select().from(agentSpans).where(eq(agentSpans.traceId, traceId));
     
     const totalTokens = spans.reduce((sum, s) => sum + s.promptTokens + s.completionTokens, 0);
@@ -53,7 +53,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
     }).where(eq(agentTraces.id, traceId));
   }
 
-  private calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, isBatch = false): number {
+  private calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, _isBatch = false): number {
     const INPUT_BASE_1M = 0.25;
     const OUTPUT_BASE_1M = 0.75;
     const CACHE_HIT_1M = 0.025;

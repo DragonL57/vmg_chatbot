@@ -8,7 +8,7 @@ export class GenerateFileSummaryUseCase {
     private readonly knowledgeRepo: IKnowledgeRepositoryPort
   ) {}
 
-  async execute(fileId: string, content: string): Promise<string> {
+  public async execute(fileId: string, content: string): Promise<string> {
     const headings = content.match(/^#{1,3}\s.*$/gm) || [];
     const structure = headings.slice(0, 20).join("\n");
     const sampleSize = 600;
