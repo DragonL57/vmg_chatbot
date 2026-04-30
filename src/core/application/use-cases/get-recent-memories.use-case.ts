@@ -4,7 +4,7 @@ import { UserMemory } from "../../domain/entities/memory";
 export class GetRecentMemoriesUseCase {
   constructor(private readonly memoryRepository: IMemoryRepository) {}
 
-  async execute(userId: string, limit = 20): Promise<UserMemory[]> {
+  public async execute(userId: string, limit = 20): Promise<UserMemory[]> {
     return this.memoryRepository.getByUserId(userId, limit);
   }
 }

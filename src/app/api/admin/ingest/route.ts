@@ -10,23 +10,17 @@ import {
   LLMProviderAdapter, 
   QdrantVectorStoreAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
-  DrizzleAuthRepositoryAdapter
+  DrizzleAuthRepositoryAdapter,
+  ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { IndexKnowledgeFileUseCase } from '@core/application/use-cases';
+import { ingestRequestSchema } from '@core/domain/entities/ingest-request';
 
 // Initialize backend Supabase client
 const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; 
-
-interface IngestRequest {
-  storagePath: string;
-  filename: string;
-  mode: string;
-  folder?: string;
-  fileId?: string;
-}
 
 async function validateAdmin() {
   const supabase = await createServerSupabase();
@@ -53,17 +47,24 @@ async function extractContent(buffer: Buffer, filename: string): Promise<string>
 }
 
 export async function POST(req: NextRequest) {
+  const logger = new ConsoleLoggerAdapter();
   try {
     const user = await validateAdmin();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized or Forbidden' }, { status: 403 });
     }
 
-    const { storagePath, filename, mode, folder, fileId }: IngestRequest = await req.json();
+    const json = await req.json();
+    const result = ingestRequestSchema.safeParse(json);
 
-    if (!storagePath || !filename || !mode) {
-      return NextResponse.json({ error: 'Missing storagePath, filename or collection' }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json({ 
+        error: 'Invalid request payload', 
+        details: result.error.format() 
+      }, { status: 400 });
     }
+
+    const { storagePath, filename, mode, folder, fileId } = result.data;
 
     // 1. Download file from Supabase Storage
     const { data: fileData, error: downloadError } = await supabaseBackend.storage
@@ -115,8 +116,7 @@ export async function POST(req: NextRequest) {
           fileId: finalFileId!
         });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error('[Background Indexing Failed]', message);
+        logger.error('Background Indexing Failed', err);
       }
     };
 
@@ -129,8 +129,7 @@ export async function POST(req: NextRequest) {
     }, { status: 202 });
 
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Ingest error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: message }, { status: 500 });
+    logger.error('Ingest error', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

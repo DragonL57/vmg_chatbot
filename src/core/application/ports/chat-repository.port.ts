@@ -22,6 +22,7 @@ export interface ConversationPayload {
 export interface IChatRepository {
   listByUser(userId: string): Promise<Conversation[]>;
   getById(id: string, userId: string): Promise<ChatSession | null>;
+  ensureExists(id: string, userId: string): Promise<void>;
   upsert(conversation: ConversationPayload): Promise<void>;
   delete(id: string, userId: string): Promise<void>;
   star(id: string, userId: string, isStarred: boolean): Promise<void>;

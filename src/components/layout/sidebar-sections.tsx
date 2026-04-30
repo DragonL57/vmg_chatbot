@@ -109,7 +109,11 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({ onClose, onHomeCli
       </div>
       <h2 className="text-[14px] font-bold text-black/80 truncate">MATE</h2>
     </Link>
-    <button onClick={onClose} className="p-1.5 text-black/40 hover:text-black/60 md:hidden hover:bg-black/5 rounded">
+    <button 
+      onClick={onClose} 
+      className="p-1.5 text-black/40 hover:text-black/60 md:hidden hover:bg-black/5 rounded"
+      aria-label="Đóng thanh bên"
+    >
       <X className="w-4 h-4" />
     </button>
   </div>

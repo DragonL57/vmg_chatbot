@@ -57,6 +57,7 @@ export const ChatInput = memo(({ input, handleInputChange, handleSubmit, isLoadi
             type="button"
             className="p-1.5 text-black/40 hover:bg-black/5 rounded transition-colors"
             title="Thêm tài liệu"
+            aria-label="Đính kèm tài liệu"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -65,6 +66,7 @@ export const ChatInput = memo(({ input, handleInputChange, handleSubmit, isLoadi
         <button
           type="submit"
           disabled={!input.trim() || isLoading}
+          aria-label="Gửi tin nhắn"
           className={`w-8 h-8 flex items-center justify-center rounded-[4px] transition-all ${
             !input.trim() || isLoading 
               ? 'text-black/20 bg-black/[0.03]' 

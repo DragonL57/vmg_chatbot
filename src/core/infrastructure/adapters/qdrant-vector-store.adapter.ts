@@ -4,7 +4,7 @@ import { DocumentChunk } from "../../domain/entities/indexing";
 import { env } from "@/env";
 
 export class QdrantVectorStoreAdapter implements IVectorStorePort {
-  async ensureCollection(collectionName: string): Promise<void> {
+  public async ensureCollection(collectionName: string): Promise<void> {
     try {
       const info = await qdrantClient.getCollection(collectionName);
       const existingDim = (info.config?.params?.vectors as { size?: number } | undefined)?.size;
@@ -28,7 +28,7 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
 
   }
 
-  async upsert(chunks: DocumentChunk[], collectionName: string): Promise<void> {
+  public async upsert(chunks: DocumentChunk[], collectionName: string): Promise<void> {
     const BATCH = 50;
     for (let i = 0; i < chunks.length; i += BATCH) {
       const batch = chunks.slice(i, i + BATCH);
@@ -47,7 +47,7 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     }
   }
 
-  async search(query: string, collectionName: string, limit = 5): Promise<DocumentChunk[]> {
+  public async search(query: string, collectionName: string, limit = 5): Promise<DocumentChunk[]> {
     const response = await qdrantClient.query(collectionName, {
       query: { text: query, model: INFERENCE_MODEL },
       limit,
@@ -66,7 +66,7 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     }));
   }
 
-  async listBySource(source: string, collectionName: string): Promise<DocumentChunk[]> {
+  public async listBySource(source: string, collectionName: string): Promise<DocumentChunk[]> {
     const response = await qdrantClient.scroll(collectionName, {
       filter: {
         must: [{ key: 'source', match: { value: source } }]
@@ -86,7 +86,7 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     }));
   }
 
-  async deleteBySource(source: string, collectionName: string): Promise<void> {
+  public async deleteBySource(source: string, collectionName: string): Promise<void> {
     await qdrantClient.delete(collectionName, {
       filter: {
         must: [{ key: 'source', match: { value: source } }]
@@ -95,7 +95,7 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     });
   }
 
-  async isIndexed(collectionName: string): Promise<boolean> {
+  public async isIndexed(collectionName: string): Promise<boolean> {
     const base = env.QDRANT_URL.replace(/\/$/, '');
     const url = `${base}/collections/${encodeURIComponent(collectionName)}`;
     try {

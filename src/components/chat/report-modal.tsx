@@ -28,7 +28,11 @@ const ReportHeader = ({ onClose }: { onClose: () => void }) => (
       <Flag className="w-5 h-5 text-[#D32F2F]" strokeWidth={2} />
       <h3 className="text-[17px] font-semibold text-[#000000]">Báo cáo nội dung</h3>
     </div>
-    <button onClick={onClose} className="p-1 text-[#999999] hover:text-[#000000]">
+    <button 
+      onClick={onClose} 
+      className="p-1 text-[#999999] hover:text-[#000000]"
+      aria-label="Đóng"
+    >
       <X className="w-5 h-5" strokeWidth={1.5} />
     </button>
   </div>

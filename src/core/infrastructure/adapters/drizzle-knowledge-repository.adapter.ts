@@ -4,7 +4,7 @@ import { knowledgeFiles, knowledgeCollections } from "../../db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 
 export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPort {
-  async listFiles(): Promise<KnowledgeFile[]> {
+  public async listFiles(): Promise<KnowledgeFile[]> {
     const results = await db.select().from(knowledgeFiles).orderBy(desc(knowledgeFiles.createdAt));
     return results.map(r => ({
       id: r.id,
@@ -18,7 +18,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     }));
   }
 
-  async getFileByFilename(filename: string): Promise<KnowledgeFile | null> {
+  public async getFileByFilename(filename: string): Promise<KnowledgeFile | null> {
     const [result] = await db.select().from(knowledgeFiles).where(eq(knowledgeFiles.filename, filename));
     if (!result) return null;
     return {
@@ -33,7 +33,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     };
   }
 
-  async upsertFile(file: Partial<KnowledgeFile> & { id: string }): Promise<void> {
+  public async upsertFile(file: Partial<KnowledgeFile> & { id: string }): Promise<void> {
     const updateData: Partial<typeof knowledgeFiles.$inferInsert> = {
       updatedAt: new Date(),
     };
@@ -68,11 +68,11 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     }
   }
 
-  async deleteFile(id: string): Promise<void> {
+  public async deleteFile(id: string): Promise<void> {
     await db.delete(knowledgeFiles).where(eq(knowledgeFiles.id, id));
   }
 
-  async listCollections(): Promise<KnowledgeCollection[]> {
+  public async listCollections(): Promise<KnowledgeCollection[]> {
     const results = await db.select().from(knowledgeCollections).orderBy(asc(knowledgeCollections.createdAt));
     return results.map(r => ({
       id: r.id,
@@ -82,7 +82,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     }));
   }
 
-  async createCollection(data: Omit<KnowledgeCollection, 'id'>): Promise<KnowledgeCollection> {
+  public async createCollection(data: Omit<KnowledgeCollection, 'id'>): Promise<KnowledgeCollection> {
     const [result] = await db.insert(knowledgeCollections).values({
       name: data.name,
       qdrantName: data.qdrantName,
@@ -103,11 +103,11 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     };
   }
 
-  async updateCollection(id: string, data: Partial<KnowledgeCollection>): Promise<void> {
+  public async updateCollection(id: string, data: Partial<KnowledgeCollection>): Promise<void> {
     await db.update(knowledgeCollections).set(data).where(eq(knowledgeCollections.id, id));
   }
 
-  async deleteCollection(id: string): Promise<void> {
+  public async deleteCollection(id: string): Promise<void> {
     await db.delete(knowledgeCollections).where(eq(knowledgeCollections.id, id));
   }
 }

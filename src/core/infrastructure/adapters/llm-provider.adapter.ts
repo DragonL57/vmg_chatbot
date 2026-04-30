@@ -3,7 +3,7 @@ import { getInceptionProvider, getPoeProvider, ReasoningEffort } from "../../lib
 import { env } from "@/env";
 
 export class LLMProviderAdapter implements ILLMProvider {
-  async completion(params: {
+  public async completion(params: {
     messages: LLMMessage[];
     model?: string;
     jsonMode?: boolean;

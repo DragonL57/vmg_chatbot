@@ -12,14 +12,21 @@ interface ChatInterfaceProps {
 
 const ChatHeader = memo(({ onToggleSidebar }: { onToggleSidebar?: () => void }) => (
   <header className="bg-white border-b border-black/[0.06] px-4 h-[44px] flex items-center justify-between shrink-0">
-    <button onClick={onToggleSidebar} className="p-2 md:hidden">
+    <button 
+      onClick={onToggleSidebar} 
+      className="p-2 md:hidden"
+      aria-label="Mở menu điều hướng"
+    >
       <Menu className="w-5 h-5" />
     </button>
     <div className="flex items-center gap-2">
       <LayoutGrid className="w-4 h-4 text-black/40" />
       <span className="text-sm font-medium text-black/60">Không gian</span>
     </div>
-    <button className="p-2">
+    <button 
+      className="p-2"
+      aria-label="Cài đặt không gian"
+    >
       <Settings2 className="w-5 h-5 text-black/40" />
     </button>
   </header>

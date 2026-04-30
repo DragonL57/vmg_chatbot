@@ -19,7 +19,7 @@ export class ExtractUserMemoriesUseCase {
     private readonly logger: ILoggerProvider
   ) {}
 
-  async execute(input: ExtractUserMemoriesInput): Promise<number> {
+  public async execute(input: ExtractUserMemoriesInput): Promise<number> {
     const startTime = Date.now();
     const { userId, messages, traceId } = input;
     const recent = messages.slice(-6);

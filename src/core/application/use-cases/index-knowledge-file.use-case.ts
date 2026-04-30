@@ -26,7 +26,7 @@ export class IndexKnowledgeFileUseCase {
     private readonly knowledgeRepo: IKnowledgeRepositoryPort
   ) {}
 
-  async execute(input: IndexKnowledgeFileInput): Promise<void> {
+  public async execute(input: IndexKnowledgeFileInput): Promise<void> {
     const { markdown, sourceFile, collectionName, fileId } = input;
     const tokens: TokenAccumulator = { prompt: 0, completion: 0, total: 0 };
     let logs: string[] = [];

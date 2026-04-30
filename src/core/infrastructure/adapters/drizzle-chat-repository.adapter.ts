@@ -5,7 +5,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { ChatSession, Message } from "../../types/chat";
 
 export class DrizzleChatRepositoryAdapter implements IChatRepository {
-  async listByUser(userId: string): Promise<Conversation[]> {
+  public async listByUser(userId: string): Promise<Conversation[]> {
     const results = await db
       .select({
         id: conversations.id,
@@ -25,7 +25,7 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
     }));
   }
 
-  async getById(id: string, userId: string): Promise<ChatSession | null> {
+  public async getById(id: string, userId: string): Promise<ChatSession | null> {
     const [result] = await db
       .select()
       .from(conversations)
@@ -40,7 +40,19 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
     };
   }
 
-  async upsert(payload: ConversationPayload): Promise<void> {
+  public async ensureExists(id: string, userId: string): Promise<void> {
+    await db.insert(conversations)
+      .values({
+        id,
+        userId,
+        title: 'Cuộc hội thoại mới',
+        messages: [],
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing();
+  }
+
+  public async upsert(payload: ConversationPayload): Promise<void> {
     const firstMessageContent = payload.messages[0]?.content || '';
     const fallbackTitle = firstMessageContent 
       ? (firstMessageContent.slice(0, 40) + (firstMessageContent.length > 40 ? '...' : ''))
@@ -76,19 +88,19 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
       });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  public async delete(id: string, userId: string): Promise<void> {
     await db.delete(conversations).where(
       sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`
     );
   }
 
-  async star(id: string, userId: string, isStarred: boolean): Promise<void> {
+  public async star(id: string, userId: string, isStarred: boolean): Promise<void> {
     await db.update(conversations)
       .set({ isStarred: isStarred ? 1 : 0, updatedAt: new Date() })
       .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`);
   }
 
-  async rename(id: string, userId: string, title: string): Promise<void> {
+  public async rename(id: string, userId: string, title: string): Promise<void> {
     await db.update(conversations)
       .set({ title })
       .where(sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`);

@@ -25,6 +25,7 @@ import {
 } from '@core/application/use-cases';
 import { DocumentChunk } from '@core/domain/entities/indexing';
 import { TokenUsage } from '@core/domain/entities/chat';
+import { chatRequestSchema } from '@core/domain/entities/chat-request';
 import { AgentStateType } from '@core/agent/state';
 import { ILoggerProvider } from '@core/application/ports/logger.port';
 import { IObservabilityPort } from '@core/application/ports/observability.port';
@@ -46,8 +47,17 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const logger = new ConsoleLoggerAdapter();
   try {
-    const { messages, serviceMode, conversationId } = await req.json();
-    if (!serviceMode) return new Response(JSON.stringify({ error: 'Missing serviceMode' }), { status: 400 });
+    const json = await req.json();
+    const result = chatRequestSchema.safeParse(json);
+    
+    if (!result.success) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request payload', 
+        details: result.error.format() 
+      }), { status: 400 });
+    }
+
+    const { messages, serviceMode, conversationId } = result.data;
 
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -91,19 +101,21 @@ function createChatStream(params: StreamParams) {
 
       try {
         const [allCollections, memories] = await Promise.all([
-          knowledgeRepo.listCollections().catch(() => []),
+          knowledgeRepo.listCollections().catch((err) => {
+            logger.error('List collections fail', err);
+            return [];
+          }),
           getRecentMemories.execute(internalUserId, 20)
         ]);
         
         // Ensure conversation exists for agentTraces foreign key constraint
-        await new DrizzleChatRepositoryAdapter().upsert({
-          id: conversationId,
-          userId: internalUserId,
-          messages: [], // Shallow create
-          updatedAt: new Date()
-        }).catch(() => {});
+        await new DrizzleChatRepositoryAdapter().ensureExists(conversationId, internalUserId)
+          .catch((err) => logger.error('Ensure conversation exists fail', err));
 
-        const traceId = await obsPort.startTrace(internalUserId, conversationId).catch(() => null);
+        const traceId = await obsPort.startTrace(internalUserId, conversationId).catch((err) => {
+          logger.error('Start trace fail', err);
+          return null;
+        });
         if (traceId) emit({ type: 'trace_id', value: traceId });
 
         const { finalState, earlyExit } = await runReasoningGraph(
@@ -157,7 +169,9 @@ async function runReasoningGraph(params: { messages: { role: string; content: st
     if (nodeName === 'analyze_query' && state.questionIsClear === false) {
       emit({ type: 'content', value: state.reflection || "Yêu cầu chưa rõ ràng." });
       if (traceId) {
-        waitUntil(config.obsPort.finalizeTrace(traceId, 'clarification_requested').catch(() => {}));
+        waitUntil(config.obsPort.finalizeTrace(traceId, 'clarification_requested').catch((err) => {
+          config.logger.error('Finalize clarification trace fail', err);
+        }));
       }
       return { finalState, earlyExit: true };
     }

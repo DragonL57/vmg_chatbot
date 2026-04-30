@@ -5,7 +5,7 @@ import { userMemories } from "../../db/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export class DrizzleMemoryRepository implements IMemoryRepository {
-  async getByUserId(userId: string, limit = 20): Promise<UserMemory[]> {
+  public async getByUserId(userId: string, limit = 20): Promise<UserMemory[]> {
     const results = await db
       .select()
       .from(userMemories)
@@ -22,7 +22,7 @@ export class DrizzleMemoryRepository implements IMemoryRepository {
     }));
   }
 
-  async add(userId: string, fact: string, category: MemoryCategory): Promise<void> {
+  public async add(userId: string, fact: string, category: MemoryCategory): Promise<void> {
     await db.insert(userMemories).values({
       userId,
       fact,
@@ -30,7 +30,7 @@ export class DrizzleMemoryRepository implements IMemoryRepository {
     }).onConflictDoNothing();
   }
 
-  async update(id: string, userId: string, fact: string): Promise<void> {
+  public async update(id: string, userId: string, fact: string): Promise<void> {
     await db.update(userMemories)
       .set({ fact })
       .where(
@@ -41,7 +41,7 @@ export class DrizzleMemoryRepository implements IMemoryRepository {
       );
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  public async delete(id: string, userId: string): Promise<void> {
     await db.delete(userMemories)
       .where(
         and(
