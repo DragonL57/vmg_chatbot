@@ -19,7 +19,7 @@ if (!targetEmail) {
 const sql = postgres(dbUrl, { max: 1 });
 
 async function run() {
-  console.log(`⏳ Promoting user to admin: ${targetEmail}...`);
+  console.warn(`⏳ Promoting user to admin: ${targetEmail}...`);
   try {
     const result = await sql`
       UPDATE users 
@@ -29,9 +29,9 @@ async function run() {
     `;
     
     if (result.length > 0) {
-      console.log('✅ User promoted successfully:', result[0]);
+      console.warn('✅ User promoted successfully:', result[0]);
     } else {
-      console.log('⚠️ User not found in the database. Ensure you have logged in at least once.');
+      console.warn('⚠️ User not found in the database. Ensure you have logged in at least once.');
     }
   } catch (err) {
     console.error('❌ Failed to promote user:', err);

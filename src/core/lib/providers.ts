@@ -7,7 +7,7 @@ export interface ProviderResult {
   client: OpenAI;
   model: string;
   reasoningModel?: string;
-  extraBody?: any;
+  extraBody?: Record<string, unknown>;
   isBatch?: boolean;
 }
 

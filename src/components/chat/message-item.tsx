@@ -1,6 +1,6 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { Message } from '@core/types/chat';
-import { Database, ChevronDown, ChevronUp, Search, Flag, BrainCircuit, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
+import { Database, ChevronDown, ChevronUp, Search, Flag, ThumbsUp, ThumbsDown, Check } from 'lucide-react';
 import { MarkdownContent } from './markdown-content';
 import { ReportModal } from './report-modal';
 import { AgentSteps } from './agent-steps';
@@ -10,6 +10,7 @@ interface MessageItemProps {
   conversation?: Message[];
   sessionId?: string;
   isChatLoading?: boolean;
+  loadingPhase?: string;
 }
 
 const SystemMessage = memo(({ message }: { message: Message }) => {
@@ -29,7 +30,7 @@ const SystemMessage = memo(({ message }: { message: Message }) => {
           {message.content}
           {!isTool && (showData ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />)}
         </button>
-        {showData && message.leadData && (
+        {showData && !!message.leadData && (
           <div className="mt-3 w-full bg-[#1A1C1E] text-white p-5 rounded-[8px] text-[12px] font-mono overflow-x-auto shadow-notion">
             <pre className="whitespace-pre-wrap">{JSON.stringify(message.leadData, null, 2)}</pre>
           </div>
@@ -40,19 +41,131 @@ const SystemMessage = memo(({ message }: { message: Message }) => {
 });
 SystemMessage.displayName = 'SystemMessage';
 
-export const MessageItem = memo(({ message, conversation = [], sessionId, isChatLoading }: MessageItemProps) => {
+const MessageTimestamp = memo(({ timestamp, isUser }: { timestamp?: string | Date; isUser: boolean }) => {
+  if (!timestamp) return null;
+  return (
+    <div className={`text-[10px] mb-1 font-medium text-black/20 flex items-center gap-1.5 ${isUser ? 'mr-1' : 'ml-1'}`}>
+      {new Date(timestamp).toLocaleString('vi-VN', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}
+    </div>
+  );
+});
+MessageTimestamp.displayName = 'MessageTimestamp';
+
+const MessageActions = memo(({ 
+  isAssistant, 
+  traceId, 
+  isGenerating, 
+  reportState, 
+  onReport, 
+  feedback, 
+  onFeedback 
+}: { 
+  isAssistant: boolean;
+  traceId?: string;
+  isGenerating: boolean;
+  reportState: 'idle' | 'done';
+  onReport: () => void;
+  feedback: number | null;
+  onFeedback: (type: 1 | -1) => void;
+}) => (
+  <div className="px-4 w-full flex items-center gap-4">
+    <button
+      onClick={onReport}
+      className={`mt-1.5 flex items-center gap-1.5 py-0.5 rounded-[4px] text-[11px] font-medium transition-all
+        ${reportState === 'done' ? 'text-[#1aae39]' : 'text-black/20 hover:text-black/60'}`}
+    >
+      <Flag className="w-3 h-3" />
+      {reportState === 'done' ? 'Đã báo cáo' : 'Báo cáo'}
+    </button>
+
+    {isAssistant && traceId && !isGenerating && (
+      <div className="flex items-center gap-2 mt-1.5 border-l border-black/[0.05] pl-4 animate-in fade-in slide-in-from-left-1 duration-300">
+        <button
+          onClick={() => onFeedback(1)}
+          disabled={feedback !== null}
+          className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === 1 ? 'text-green-600' : 'text-black/20 hover:text-black/60'}`}
+        >
+          {feedback === 1 ? <Check className="w-3 h-3" /> : <ThumbsUp className="w-3 h-3" />}
+        </button>
+        <button
+          onClick={() => onFeedback(-1)}
+          disabled={feedback !== null}
+          className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === -1 ? 'text-red-600' : 'text-black/20 hover:text-black/60'}`}
+        >
+          <ThumbsDown className="w-3 h-3" />
+        </button>
+        <span className="text-[9px] font-mono text-black/10 select-none ml-1">
+          {traceId.split('-')[0]}
+        </span>
+      </div>
+    )}
+  </div>
+));
+MessageActions.displayName = 'MessageActions';
+
+const MessageBubble = memo(({ 
+  isUser, 
+  isSafetyWarning, 
+  isAmbiguous, 
+  isGenerating, 
+  content, 
+  reasoningTrace, 
+  memoryUpdated,
+  loadingPhase
+}: {
+  isUser: boolean;
+  isSafetyWarning: boolean;
+  isAmbiguous?: boolean;
+  isGenerating: boolean;
+  content: string;
+  reasoningTrace?: readonly string[];
+  memoryUpdated?: boolean;
+  loadingPhase?: string;
+}) => {
+  const bubbleClasses = isUser
+    ? 'bg-[#D32F2F] border-transparent text-white rounded-[12px] shadow-sm border'
+    : isSafetyWarning
+      ? 'bg-[#fff9f6] text-[#dd5b00] border border-[#dd5b00]/10 rounded-[12px] italic'
+      : `bg-transparent text-black/95 ${isAmbiguous ? 'border-l-4 border-[#D32F2F] pl-6' : ''}`;
+
+  return (
+    <div className={`w-full px-4 py-3 text-[15px] leading-[1.6] relative transition-all ${bubbleClasses}`}>
+      {!isUser && reasoningTrace && reasoningTrace.length > 0 && (
+        <AgentSteps 
+          phase={isGenerating ? (loadingPhase || 'thinking') : 'complete'} 
+          reflections={reasoningTrace as string[]} 
+        />
+      )}
+      <MarkdownContent content={content} isUser={isUser} />
+      {!isUser && memoryUpdated && (
+        <div className="mt-3 flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.02] border border-black/[0.04] rounded-md w-fit animate-in fade-in duration-700">
+          <span className="text-[11px] font-medium text-black/40 italic">MATE đã ghi nhớ thêm thông tin</span>
+        </div>
+      )}
+    </div>
+  );
+});
+MessageBubble.displayName = 'MessageBubble';
+
+export const MessageItem = memo(({ message, conversation = [], sessionId, isChatLoading, loadingPhase }: MessageItemProps) => {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const isSystem = message.role === 'system';
   const isSafetyWarning = message.content?.includes('⚠️ Cảnh báo vi phạm chính sách an toàn');
+  
   const [showModal, setShowModal] = useState(false);
   const [reportState, setReportState] = useState<'idle' | 'done'>('idle');
   const [feedback, setFeedback] = useState<number | null>(null);
 
-  // Logic to determine if this message is currently being "typed" by the AI
-  const isGenerating = isChatLoading && !isUser && !isSystem && conversation[conversation.length - 1]?.id === message.id;
+  const isGenerating = !!(isChatLoading && !isUser && !isSystem && conversation[conversation.length - 1]?.id === message.id);
 
-  const handleFeedback = async (type: 1 | -1) => {
+  const handleFeedback = useCallback(async (type: 1 | -1) => {
     if (!message.traceId || feedback !== null) return;
     setFeedback(type);
     try {
@@ -64,7 +177,7 @@ export const MessageItem = memo(({ message, conversation = [], sessionId, isChat
     } catch (error) {
       console.error('Feedback failed:', error);
     }
-  };
+  }, [message.traceId, feedback]);
 
   if (isSystem) return <SystemMessage message={message} />;
 
@@ -72,9 +185,7 @@ export const MessageItem = memo(({ message, conversation = [], sessionId, isChat
     <>
       {showModal && (
         <ReportModal
-          message={message}
-          conversation={conversation}
-          sessionId={sessionId}
+          message={message} conversation={conversation} sessionId={sessionId}
           onClose={() => setShowModal(false)}
           onSuccess={() => { setShowModal(false); setReportState('done'); }}
         />
@@ -82,97 +193,36 @@ export const MessageItem = memo(({ message, conversation = [], sessionId, isChat
 
       <div className={`flex w-full animate-in fade-in duration-400 group ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} ${isUser ? 'max-w-[85%] md:max-w-[75%]' : 'w-full'}`}>
-          
-          {/* Timestamp on Top */}
-          <div className={`text-[10px] mb-1 font-medium text-black/20 flex items-center gap-1.5 ${isUser ? 'mr-1' : 'ml-1'}`}>
-            {message.timestamp ? new Date(message.timestamp).toLocaleString('vi-VN', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            }) : ''}
-          </div>
-
-          <div
-            className={`w-full px-4 py-3 text-[15px] leading-[1.6] relative transition-all ${
-              isUser
-                ? 'bg-[#D32F2F] border-transparent text-white rounded-[12px] shadow-sm border'
-                : isSafetyWarning
-                  ? 'bg-[#fff9f6] text-[#dd5b00] border border-[#dd5b00]/10 rounded-[12px] italic'
-                  : `bg-transparent text-black/95 ${
-                      message.isAmbiguous ? 'border-l-4 border-[#D32F2F] pl-6' : ''
-                    }`
-            }`}
-          >
-            {!isUser && message.reasoningTrace && message.reasoningTrace.length > 0 && (
-              <AgentSteps 
-                phase={isGenerating ? 'generate' : 'complete'} 
-                reflections={message.reasoningTrace} 
-                defaultCollapsed={true} 
-              />
-            )}
-            <MarkdownContent content={message.content} isUser={isUser} />
-            
-            {!isUser && message.memoryUpdated && (
-              <div className="mt-3 flex items-center gap-1.5 px-2 py-0.5 bg-black/[0.02] border border-black/[0.04] rounded-md w-fit animate-in fade-in duration-700">
-                <span className="text-[11px] font-medium text-black/40 italic">MATE đã ghi nhớ thêm thông tin</span>
-              </div>
-            )}
-          </div>
-
+          <MessageTimestamp timestamp={message.timestamp} isUser={isUser} />
+          <MessageBubble 
+            isUser={isUser}
+            isSafetyWarning={isSafetyWarning}
+            isAmbiguous={message.isAmbiguous}
+            isGenerating={isGenerating}
+            content={message.content}
+            reasoningTrace={message.reasoningTrace}
+            memoryUpdated={message.memoryUpdated}
+            loadingPhase={loadingPhase}
+          />
           {!isUser && !isSystem && (
-            <div className="px-4 w-full flex items-center gap-4">
-              <button
-                onClick={() => { if (reportState !== 'done') setShowModal(true); }}
-                className={`mt-1.5 flex items-center gap-1.5 py-0.5 rounded-[4px] text-[11px] font-medium transition-all
-                  ${reportState === 'done'
-                    ? 'text-[#1aae39]'
-                    : 'text-black/20 hover:text-black/60'
-                  }`}
-              >
-                <Flag className="w-3 h-3" />
-                {reportState === 'done' ? 'Đã báo cáo' : 'Báo cáo'}
-              </button>
-
-              {/* Observability Feedback */}
-              {isAssistant && message.traceId && !isGenerating && (
-                <div className="flex items-center gap-2 mt-1.5 border-l border-black/[0.05] pl-4 animate-in fade-in slide-in-from-left-1 duration-300">
-                  <button
-                    onClick={() => handleFeedback(1)}
-                    disabled={feedback !== null}
-                    className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === 1 ? 'text-green-600' : 'text-black/20 hover:text-black/60'}`}
-                  >
-                    {feedback === 1 ? <Check className="w-3 h-3" /> : <ThumbsUp className="w-3 h-3" />}
-                  </button>
-                  <button
-                    onClick={() => handleFeedback(-1)}
-                    disabled={feedback !== null}
-                    className={`p-0.5 hover:bg-black/[0.03] rounded transition-colors ${feedback === -1 ? 'text-red-600' : 'text-black/20 hover:text-black/60'}`}
-                  >
-                    <ThumbsDown className="w-3 h-3" />
-                  </button>
-                  {/* Trace ID indicator (mini) */}
-                  <span className="text-[9px] font-mono text-black/10 select-none ml-1">
-                    {message.traceId.split('-')[0]}
-                  </span>
-                </div>
-              )}
-            </div>
+            <MessageActions 
+              isAssistant={isAssistant} traceId={message.traceId} isGenerating={isGenerating}
+              reportState={reportState} onReport={() => { if (reportState !== 'done') setShowModal(true); }}
+              feedback={feedback} onFeedback={handleFeedback}
+            />
           )}
         </div>
       </div>
     </>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison to only re-render if essential props change
   return (
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.reasoningTrace?.length === nextProps.message.reasoningTrace?.length &&
     prevProps.isChatLoading === nextProps.isChatLoading &&
     prevProps.message.traceId === nextProps.message.traceId &&
     prevProps.message.memoryUpdated === nextProps.message.memoryUpdated &&
-    prevProps.message.citations === nextProps.message.citations
+    prevProps.loadingPhase === nextProps.loadingPhase
   );
 });
 

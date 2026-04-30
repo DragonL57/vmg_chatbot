@@ -1,8 +1,8 @@
 export interface SpanData {
   nodeName: string;
   model: string;
-  input?: any;
-  output?: any;
+  input?: unknown;
+  output?: unknown;
   promptTokens: number;
   completionTokens: number;
   cachedTokens: number;

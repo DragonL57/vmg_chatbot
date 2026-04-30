@@ -1,4 +1,4 @@
-import { ILLMProvider, LLMMessage } from "../ports/llm-provider.port";
+import { ILLMProvider } from "../ports/llm-provider.port";
 import { IMemoryRepository } from "../ports/memory-repository.port";
 import { IObservabilityPort } from "../ports/observability.port";
 import { ILoggerProvider } from "../ports/logger.port";
@@ -22,92 +22,72 @@ export class ExtractUserMemoriesUseCase {
   async execute(input: ExtractUserMemoriesInput): Promise<number> {
     const startTime = Date.now();
     const { userId, messages, traceId } = input;
-    
-    const recentMessages = messages.slice(-6);
-    const contextStr = recentMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+    const recent = messages.slice(-6);
+    const contextStr = recent.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
     try {
-      const existingMemories = await this.memoryRepository.getByUserId(userId, 30);
-      const memoryBlock = existingMemories.map(m => `[ID: ${m.id}] (${m.category}): ${m.fact}`).join('\n');
-
-      const systemPrompt = KNOWLEDGE_AUDITOR_PROMPT(memoryBlock);
-
+      const existing = await this.memoryRepository.getByUserId(userId, 30);
       const res = await this.llmProvider.completion({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Latest context:\n${contextStr}` }
-        ],
-        jsonMode: true,
-        effort: 'high'
+        messages: [{ role: 'system', content: KNOWLEDGE_AUDITOR_PROMPT(existing.map(m => `[ID: ${m.id}] (${m.category}): ${m.fact}`).join('\n')) }, { role: 'user', content: `Latest context:\n${contextStr}` }],
+        jsonMode: true, effort: 'high'
       });
 
-      const rawOutput = res.content || '{"actions": []}';
-      let parsed;
-      try {
-        parsed = JSON.parse(rawOutput.trim());
-      } catch (e) {
-        this.logger.error('JSON parse error in memory extraction', e, { rawOutput, traceId });
-        return 0;
-      }
-
-      const validation = memoryExtractionSchema.safeParse(parsed);
-      
-      if (!validation.success) {
-         this.logger.warn('Invalid schema in memory extraction', { 
-           errors: validation.error.format(), 
-           rawOutput,
-           traceId 
-         });
-         return 0;
-      }
-
-      const actions = validation.data.actions;
+      const actions = this.parseActions(res.content, traceId);
       if (actions.length === 0) return 0;
 
-      let changeCount = 0;
-      for (const action of actions) {
-        try {
-          if (action.op === 'ADD' && action.fact) {
-            await this.memoryRepository.add(userId, action.fact, action.category || 'episodic');
-            changeCount++;
-          } 
-          else if (action.op === 'UPDATE' && action.id && action.fact) {
-            await this.memoryRepository.update(action.id, userId, action.fact);
-            changeCount++;
-          }
-          else if (action.op === 'DELETE' && action.id) {
-            await this.memoryRepository.delete(action.id, userId);
-            changeCount++;
-          }
-        } catch (actionErr) {
-          this.logger.error('Failed to apply memory action', actionErr, { action, userId, traceId });
-        }
-      }
-
-      if (traceId) {
-        await this.obsPort.emitSpan(traceId, {
-          nodeName: 'memory_curator',
-          model: res.model,
-          input: { historyLength: recentMessages.length },
-          output: actions,
-          promptTokens: res.usage.prompt_tokens,
-          completionTokens: res.usage.completion_tokens,
-          cachedTokens: res.usage.cached_tokens || 0,
-          cacheCreationTokens: res.usage.cache_creation_tokens || 0,
-          latencyMs: Date.now() - startTime,
-          isBatch: res.isBatch
-        }).catch(err => this.logger.error('Failed to emit memory_curator span', err, { traceId }));
-      }
-
-      if (changeCount > 0) {
-        this.logger.info(`Memory extracted and synchronized`, { userId, changeCount, traceId });
-      }
-
+      const changeCount = await this.applyActions(userId, actions, traceId);
+      await this.emitTrace(traceId, res, recent.length, actions, startTime);
+      if (changeCount > 0) this.logger.info(`Memory synced`, { userId, changeCount, traceId });
       return changeCount;
-
-    } catch (err) {
-      this.logger.error('Fatal error in ExtractUserMemoriesUseCase', err, { userId, traceId });
-      throw err; // Re-throw to be handled at the boundary
+    } catch (err: unknown) {
+      this.logger.error('Fatal memory error', err, { userId, traceId });
+      throw err;
     }
+  }
+
+  private parseActions(content: string | null, traceId?: string | null): MemoryAction[] {
+    try {
+      const parsed = JSON.parse((content || '{"actions": []}').trim());
+      const validation = memoryExtractionSchema.safeParse(parsed);
+      if (!validation.success) {
+        this.logger.warn('Invalid memory schema', { errors: validation.error.format(), traceId });
+        return [];
+      }
+      return validation.data.actions;
+    } catch (e) {
+      this.logger.error('JSON error in memory', e, { traceId });
+      return [];
+    }
+  }
+
+  private async applyActions(userId: string, actions: MemoryAction[], traceId?: string | null): Promise<number> {
+    let count = 0;
+    for (const a of actions) {
+      try {
+        if (a.op === 'ADD' && a.fact) {
+          await this.memoryRepository.add(userId, a.fact, a.category || 'episodic');
+          count++;
+        } else if (a.op === 'UPDATE' && a.id && a.fact) {
+          await this.memoryRepository.update(a.id, userId, a.fact);
+          count++;
+        } else if (a.op === 'DELETE' && a.id) {
+          await this.memoryRepository.delete(a.id, userId);
+          count++;
+        }
+      } catch (err) {
+        this.logger.error('Memory action fail', err, { action: a, userId, traceId });
+      }
+    }
+    return count;
+  }
+
+  private async emitTrace(traceId: string | null | undefined, res: { model: string; usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number; cached_tokens?: number; cache_creation_tokens?: number }; isBatch?: boolean }, histLen: number, actions: MemoryAction[], start: number) {
+    if (!traceId) return;
+    await this.obsPort.emitSpan(traceId, {
+      nodeName: 'memory_curator', model: res.model, input: { historyLength: histLen }, output: actions,
+      promptTokens: res.usage.prompt_tokens, completionTokens: res.usage.completion_tokens,
+      cachedTokens: res.usage.cached_tokens || 0, cacheCreationTokens: res.usage.cache_creation_tokens || 0,
+      latencyMs: Date.now() - start, isBatch: res.isBatch
+    }).catch(err => this.logger.error('Trace emit fail', err));
   }
 }

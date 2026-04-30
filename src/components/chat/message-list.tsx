@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, memo, useMemo } from 'react';
 import { Message } from '@core/types/chat';
 import { MessageItem } from './message-item';
-import { AgentSteps } from './agent-steps';
 import { HubView } from './hub-view';
 import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
@@ -9,19 +8,18 @@ interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   isHistoryLoading?: boolean;
+  isCollectionsLoading?: boolean;
   loadingPhase?: string;
-  phaseDetail?: string;
-  agentReflections?: string[];
   currentMode?: string;
   sessionId?: string;
   collections?: KnowledgeCollection[];
   onCollectionSelect?: (mode: string) => void;
-  onSuggestionClick?: (text: string) => void;
+  onSuggestionClick?: (content: string) => void;
 }
 
 export const MessageList = memo(({ 
-  messages, isLoading, isHistoryLoading, loadingPhase, phaseDetail, agentReflections, currentMode, sessionId, 
-  collections = [], onCollectionSelect, onSuggestionClick 
+  messages, isLoading, isHistoryLoading, isCollectionsLoading, loadingPhase, currentMode, sessionId, 
+  collections = [], onCollectionSelect 
 }: MessageListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -47,10 +45,11 @@ export const MessageList = memo(({
           conversation={messages} 
           sessionId={sessionId}
           isChatLoading={isLoading} 
+          loadingPhase={loadingPhase}
         />
       );
     });
-  }, [messages, isLoading, sessionId]);
+  }, [messages, isLoading, sessionId, loadingPhase]);
 
   if (isHistoryLoading) {
     return (
@@ -77,7 +76,7 @@ export const MessageList = memo(({
           collections={collections}
           currentMode={currentMode || 'auto'}
           onCollectionSelect={onCollectionSelect || (() => {})}
-          isLoading={isLoading && collections.length === 0}
+          isLoading={isCollectionsLoading}
         />
       </div>
     );

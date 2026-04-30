@@ -9,15 +9,18 @@ describe('GetRecentMemoriesUseCase', () => {
   beforeEach(() => {
     mockRepo = {
       getByUserId: vi.fn(),
-    } as any;
+      add: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    };
     useCase = new GetRecentMemoriesUseCase(mockRepo);
   });
 
   it('should fetch memories for a user', async () => {
     const mockMemories = [
-      { id: '1', userId: 'u1', fact: 'Fact 1', category: 'episodic', createdAt: new Date() }
+      { id: '1', userId: 'u1', fact: 'Fact 1', category: 'episodic' as const, createdAt: new Date() }
     ];
-    vi.mocked(mockRepo.getByUserId).mockResolvedValue(mockMemories as any);
+    vi.mocked(mockRepo.getByUserId).mockResolvedValue(mockMemories);
 
     const result = await useCase.execute('u1', 10);
 

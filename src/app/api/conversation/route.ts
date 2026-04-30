@@ -7,10 +7,10 @@ const upsertSchema = z.object({
   id: z.string().uuid(),
   title: z.string().optional(),
   messages: z.array(z.object({
+    id: z.string().optional(), // Make it optional in schema but we will provide fallback
     role: z.enum(['user', 'assistant', 'system']),
     content: z.string(),
     timestamp: z.string().or(z.date()).optional(),
-    citations: z.record(z.string()).optional(),
     reasoningTrace: z.array(z.string()).optional(),
     traceId: z.string().optional(),
   })),
@@ -61,6 +61,11 @@ export async function POST(req: Request) {
     await chatRepo.upsert({
       ...payload,
       userId: internalUserId,
+      messages: payload.messages.map((m) => ({
+        ...m,
+        id: m.id || crypto.randomUUID(),
+        timestamp: new Date(m.timestamp || Date.now())
+      })),
       updatedAt: new Date(payload.updated_at || Date.now())
     });
 

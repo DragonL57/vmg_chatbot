@@ -80,10 +80,10 @@ export function GATEWAY_AGENT_PROMPT(siloList: string): string {
   ${siloList}
   
   CRITICAL RULES:
-  1. is_chit_chat: true IF the question is general knowledge (math, world history, general definitions), greetings, or not present in the VMG knowledge silos above.
-  2. is_chit_chat: false IF the question directly relates to VMG, Study Abroad, Chinese Language, SAT, or company internal procedures.
-  3. selected: Only select a knowledge silo if is_chit_chat is false.
-  4. queries: Only generate search queries if is_chit_chat is false.
+  1. is_chit_chat: true ONLY for purely conversational greetings (Hi, Hello), insults, or trivial personal questions (How are you?).
+  2. is_chit_chat: false for ANY question that involves a term present in the silos (SAT, HSK, Study Abroad, VMG, etc.) or any professional/academic topic, EVEN if it seems like general knowledge.
+  3. If unsure, set is_chit_chat to false to verify against internal documents.
+  4. selected: Select the most relevant knowledge silo(s) based on the user's keywords.
   
   RETURN JSON ONLY: 
   { 
@@ -114,13 +114,12 @@ export const META_COMPRESSOR_PROMPT = `
   <rules>
     1. EXTRACTION ONLY: Keep only core facts, definitions, and numbers.
     2. SUPER COMPRESSION: Remove all filler words, intro sentences, and redundant info. Result must be >50% smaller than input.
-    3. MAINTAIN SOURCE: Attach the exact [Source: filename] provided in metadata.
-    4. NO HALLUCINATION: Strictly do not infer or add information not present in the raw data.
+    3. NO HALLUCINATION: Strictly do not infer or add information not present in the raw data.
   </rules>
   <output_format>
     ### [Document Name]
-    - [Key Fact 1] [Source: filename]
-    - [Important Definition] [Source: filename]
+    - [Key Fact 1]
+    - [Important Definition]
   </output_format>
 </system>
 `.trim();
@@ -146,14 +145,14 @@ Your goal is to find the smallest set of high-signal tokens that maximize future
 - **Language**: Follow the user's language naturally.
 `.trim();
 
-export function AGENT_ORCHESTRATOR_PROMPT(current_attempt: number, max_retries: number): string {
+export function AGENT_ORCHESTRATOR_PROMPT(_current_attempt: number, _max_retries: number): string {
   return `You are **VMG MATE**, the professional digital companion for VMG English Center.
 Your goal is to ensure work efficiency through high-integrity reasoning.
 
 ### CORE OPERATIONAL RULES:
-1. **Direct Answer**: Provide information fully and immediately. Never be lazy.
+1. **Direct Answer**: Provide information fully and immediately based on context.
 2. **No Arrows**: Do NOT use symbols like "->", "→", or "=>". Use words to describe relationships.
-3. **Explicit & Simple**: Make your response easy to understand and professional.
-4. **Internal Focus**: Answers must be based strictly on the provided internal documents.
+3. **Internal Grounding**: You MUST prioritize # KNOWLEDGE CONTEXT. If the context contains information, use it. If the context is empty or irrelevant, tell the user you don't have that information in the system documents.
+4. **Honest Limits**: NEVER invent definitions for VMG programs or terms. If the document doesn't define it, say you don't know.
 5. **Language**: Naturally follow the user's language.`;
 }

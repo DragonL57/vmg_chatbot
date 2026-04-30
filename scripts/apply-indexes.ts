@@ -13,10 +13,10 @@ if (!dbUrl) {
 const sql = postgres(dbUrl, { max: 1 });
 
 async function run() {
-  console.log('⏳ Applying database indexes...');
+  console.warn('⏳ Applying database indexes...');
   try {
     await sql`CREATE INDEX IF NOT EXISTS user_id_idx ON conversations (user_id);`;
-    console.log('✅ Index user_id_idx created successfully');
+    console.warn('✅ Index user_id_idx created successfully');
   } catch (err) {
     console.error('❌ Failed to apply index:', err);
   } finally {

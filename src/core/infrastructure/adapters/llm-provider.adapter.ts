@@ -9,33 +9,35 @@ export class LLMProviderAdapter implements ILLMProvider {
     jsonMode?: boolean;
     effort?: 'instant' | 'low' | 'medium' | 'high';
   }): Promise<LLMResponse> {
-    const { messages, jsonMode, effort, model: requestedModel } = params;
-    
-    // Logic to select provider similar to providers.ts
-    const provider = env.INCEPTION_API_KEY 
-      ? getInceptionProvider(effort as ReasoningEffort || 'medium') 
-      : getPoeProvider();
-
-    const actualModel = requestedModel || provider.model;
-
+    const provider = this.getProvider(params.effort);
     const res = await provider.client.chat.completions.create({
-      model: actualModel,
-      messages: messages as any,
-      response_format: jsonMode ? { type: 'json_object' } : undefined,
+      model: params.model || provider.model,
+      messages: params.messages.map(m => ({ role: m.role, content: m.content })),
+      response_format: params.jsonMode ? { type: 'json_object' } : undefined,
       ...(provider.extraBody ? { extra_body: provider.extraBody } : {}),
     });
 
     return {
-      content: res.choices[0].message.content,
-      usage: {
-        prompt_tokens: res.usage?.prompt_tokens || 0,
-        completion_tokens: res.usage?.completion_tokens || 0,
-        total_tokens: res.usage?.total_tokens || 0,
-        cached_tokens: (res.usage as any)?.prompt_tokens_details?.cached_tokens || 0,
-        cache_creation_tokens: (res.usage as any)?.prompt_tokens_details?.cache_creation_input_tokens || 0,
-      },
-      model: actualModel,
+      content: res.choices[0]?.message?.content || null,
+      usage: this.mapUsage(res.usage),
+      model: res.model || params.model || provider.model,
       isBatch: provider.isBatch
+    };
+  }
+
+  private getProvider(effort?: ReasoningEffort) {
+    return env.INCEPTION_API_KEY 
+      ? getInceptionProvider(effort || 'medium') 
+      : getPoeProvider();
+  }
+
+  private mapUsage(usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number; cache_creation_input_tokens?: number } } | null | undefined) {
+    return {
+      prompt_tokens: usage?.prompt_tokens || 0,
+      completion_tokens: usage?.completion_tokens || 0,
+      total_tokens: usage?.total_tokens || 0,
+      cached_tokens: usage?.prompt_tokens_details?.cached_tokens || 0,
+      cache_creation_tokens: usage?.prompt_tokens_details?.cache_creation_input_tokens || 0,
     };
   }
 }

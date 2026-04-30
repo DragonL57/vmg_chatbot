@@ -5,7 +5,7 @@ export interface DocumentChunk {
   content: string;
   source: string;
   parentContent?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   score?: number;
   collection?: string;
 }

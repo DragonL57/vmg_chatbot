@@ -1,20 +1,27 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 interface AgentStepsProps {
   phase: string;
   detail?: string;
   reflections?: ReadonlyArray<string>;
-  defaultCollapsed?: boolean;
 }
 
 /**
  * Collapsible Reasoning/Thought Component.
- * Inspired by assistant-ui "ReasoningPreview" pattern.
  */
-export const AgentSteps: React.FC<AgentStepsProps> = ({ phase, reflections = [], detail, defaultCollapsed = false }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export const AgentSteps: React.FC<AgentStepsProps> = ({ phase, reflections = [], detail: _detail }) => {
   const isComplete = phase === 'complete';
+  const isGenerating = phase === 'generate';
+  
+  const [prevPhase, setPrevPhase] = React.useState(phase);
+  const [isCollapsed, setIsCollapsed] = React.useState(isGenerating || isComplete);
+
+  // Sync state when phase changes without using useEffect to satisfy strict linting
+  if (phase !== prevPhase) {
+    setPrevPhase(phase);
+    setIsCollapsed(isGenerating || isComplete);
+  }
 
   return (
     <div className={`mb-4 w-full flex flex-col bg-white border border-black/[0.08] rounded-[10px] overflow-hidden transition-all duration-300 ${!isComplete ? 'animate-in fade-in' : ''}`}>

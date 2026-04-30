@@ -11,7 +11,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       filename: r.filename,
       mode: r.mode,
       folder: r.folder || undefined,
-      status: r.status as any,
+      status: r.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: r.progress || 0,
       summary: r.summary || undefined,
       logs: (r.logs as string[]) || []
@@ -26,7 +26,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       filename: result.filename,
       mode: result.mode,
       folder: result.folder || undefined,
-      status: result.status as any,
+      status: result.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: result.progress || 0,
       summary: result.summary || undefined,
       logs: (result.logs as string[]) || []
@@ -34,7 +34,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
   }
 
   async upsertFile(file: Partial<KnowledgeFile> & { id: string }): Promise<void> {
-    const updateData: any = {
+    const updateData: Partial<typeof knowledgeFiles.$inferInsert> = {
       updatedAt: new Date(),
     };
     
@@ -46,8 +46,6 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     if (file.mode !== undefined) updateData.mode = file.mode;
     if (file.folder !== undefined) updateData.folder = file.folder;
 
-    // To perform an INSERT (required for onConflict), we need filename and mode.
-    // If they are missing, we must perform a direct UPDATE.
     if (file.filename && file.mode) {
       await db.insert(knowledgeFiles).values({
         id: file.id,

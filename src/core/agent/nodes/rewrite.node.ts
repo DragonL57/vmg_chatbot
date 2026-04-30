@@ -43,7 +43,9 @@ export async function rewriteNode(state: AgentStateType, config: RunnableConfig)
   try {
     const rawParsed = JSON.parse(output);
     parsed = { ...parsed, ...rawParsed };
-  } catch (e) {}
+  } catch {
+    // Silent fail fallback
+  }
 
   return { 
     subQueries: Array.isArray(parsed.queries) && parsed.queries.length > 0 ? parsed.queries : [lastQuery],

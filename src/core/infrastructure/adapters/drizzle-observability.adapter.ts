@@ -53,7 +53,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
     }).where(eq(agentTraces.id, traceId));
   }
 
-  private calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, isBatch = false): number {
+  private calculateCost(model: string, prompt: number, completion: number, cached: number, created: number, _isBatch = false): number {
     const INPUT_BASE_1M = 0.25;
     const OUTPUT_BASE_1M = 0.75;
     const CACHE_HIT_1M = 0.025;

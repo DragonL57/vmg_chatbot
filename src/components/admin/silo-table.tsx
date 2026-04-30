@@ -7,8 +7,6 @@ interface SiloTableProps {
   collections: KnowledgeCollection[];
   files: KnowledgeFile[];
   onSelectSilo: (silo: KnowledgeCollection) => void;
-  onRename: (id: string, name: string) => void;
-  onUpdateDescription: (id: string, desc: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -16,8 +14,6 @@ export const SiloTable: React.FC<SiloTableProps> = ({
   collections,
   files,
   onSelectSilo,
-  onRename,
-  onUpdateDescription,
   onDelete
 }) => {
   return (

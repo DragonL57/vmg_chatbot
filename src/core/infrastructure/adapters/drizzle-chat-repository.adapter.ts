@@ -1,6 +1,6 @@
 import { IChatRepository, Conversation, ConversationPayload } from "../../application/ports/chat-repository.port";
 import { db } from "../../db";
-import { conversations, users } from "../../db/schema";
+import { conversations } from "../../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { ChatSession, Message } from "../../types/chat";
 

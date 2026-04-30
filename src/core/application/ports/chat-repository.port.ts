@@ -12,9 +12,9 @@ export interface ConversationPayload {
   userId: string;
   title?: string;
   messages: Message[];
-  locationCoords?: any;
+  locationCoords?: unknown;
   locationAddress?: string;
-  tokenUsage?: any;
+  tokenUsage?: unknown;
   messageCount?: number;
   updatedAt?: Date;
 }

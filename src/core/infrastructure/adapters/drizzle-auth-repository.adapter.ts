@@ -18,7 +18,7 @@ export class DrizzleAuthRepositoryAdapter implements IAuthRepository {
       email: user.email,
       fullName: user.fullName || undefined,
       avatarUrl: user.avatarUrl || undefined,
-      role: user.role as any
+      role: user.role as 'admin' | 'user'
     };
   }
 
@@ -30,7 +30,7 @@ export class DrizzleAuthRepositoryAdapter implements IAuthRepository {
       email: existing.email,
       fullName: existing.fullName || undefined,
       avatarUrl: existing.avatarUrl || undefined,
-      role: existing.role as any
+      role: existing.role as 'admin' | 'user'
     };
 
     const [inserted] = await db.insert(users).values({
@@ -46,7 +46,7 @@ export class DrizzleAuthRepositoryAdapter implements IAuthRepository {
       email: inserted.email,
       fullName: inserted.fullName || undefined,
       avatarUrl: inserted.avatarUrl || undefined,
-      role: inserted.role as any
+      role: inserted.role as 'admin' | 'user'
     };
   }
 

@@ -59,7 +59,9 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
       grade = result.data.is_relevant.toUpperCase() === "YES";
       reason = result.data.reasoning || (grade ? "Relevant information found." : "Documents provide insufficient information.");
     }
-  } catch (e) {}
+  } catch {
+    // Silent fail fallback to false
+  }
 
   return { isRelevant: grade, reflection: reason, totalUsage: res.usage };
 }

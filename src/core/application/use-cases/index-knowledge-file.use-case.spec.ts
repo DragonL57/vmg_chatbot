@@ -59,7 +59,7 @@ describe('IndexKnowledgeFileUseCase', () => {
   });
 
   it('should handle errors during indexing', async () => {
-    mockVectorStore.ensureCollection.mockRejectedValue(new Error('Vector store error'));
+    vi.mocked(mockVectorStore.ensureCollection).mockRejectedValue(new Error('Vector store error'));
 
     const input = {
       markdown: '# Test Content',

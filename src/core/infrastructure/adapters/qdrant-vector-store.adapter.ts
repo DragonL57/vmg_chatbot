@@ -22,7 +22,10 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
         field_schema: 'keyword',
         wait: true,
       });
-    } catch (err) {}
+    } catch {
+      // Ignored: collection might not exist
+    }
+
   }
 
   async upsert(chunks: DocumentChunk[], collectionName: string): Promise<void> {
@@ -100,10 +103,10 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
         headers: { 'api-key': env.QDRANT_API_KEY },
       });
       if (!res.ok) return false;
-      const json = await res.json() as any;
+      const json = await res.json() as { result?: { points_count?: number, vectors_count?: number } };
       const count = json.result?.points_count ?? json.result?.vectors_count ?? 0;
       return count > 0;
-    } catch (err) {
+    } catch {
       return false;
     }
   }

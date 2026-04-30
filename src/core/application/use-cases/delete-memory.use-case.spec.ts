@@ -9,7 +9,10 @@ describe('DeleteMemoryUseCase', () => {
   beforeEach(() => {
     mockRepo = {
       delete: vi.fn().mockResolvedValue(undefined),
-    } as any;
+      add: vi.fn(),
+      update: vi.fn(),
+      getByUserId: vi.fn(),
+    };
     useCase = new DeleteMemoryUseCase(mockRepo);
   });
 

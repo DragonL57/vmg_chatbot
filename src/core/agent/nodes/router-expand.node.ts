@@ -44,7 +44,9 @@ export async function routerExpandNode(state: AgentStateType, config: RunnableCo
   try {
     const rawParsed = JSON.parse(output);
     parsed = { ...parsed, ...rawParsed };
-  } catch (e) {}
+  } catch {
+    // Silent fail fallback
+  }
 
   let finalSilos = mode === 'auto' || mode === 'discovery' ? parsed.selected : [mode];
   if (finalSilos.length === 0 && !parsed.is_chit_chat) finalSilos = allCollections.map(c => c.qdrantName);
