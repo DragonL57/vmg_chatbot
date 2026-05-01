@@ -95,16 +95,24 @@ Enforced by custom linters (not optional):
 - **Error handling**: Always throw Error objects, never swallow exceptions silently
 - **Composition over Inheritance**: No extends for "has-a" relationships
 
+### 8. Documentation Standards (arc42 + ADR)
+Architecture is maintained as code using the **arc42** standard and **Architecture Decision Records (ADRs)**:
+- **arc42:** All architectural descriptions live in `docs/arc42/` following the structured template.
+- **ADRs:** Every significant architectural decision must be documented in `docs/adr/` using the evaluation matrix (Pugh Matrix).
+- **Communication Canvas:** The `docs/ARCHITECTURE_CANVAS.md` serves as the high-level executive summary.
+- **System of Record:** If a decision is not in an ADR or arc42 chapter, it does not exist.
+
 ---
 
 ## Agent Workflow (How You Execute)
 
 ### Phase 1: Context Gathering (Progressive Disclosure)
-1. Read `AGENTS.md` (this file) for constraints
-2. Read `docs/ARCHITECTURE.md` to understand domain boundaries and layer flow
-3. Check `docs/exec-plans/active/` for existing plans related to your task
-4. Read relevant domain schemas in `src/domain/` and ports in `src/application/ports.ts`
-5. Check `docs/tech-debt-tracker.md` for known debt in this area
+1. Read `GEMINI.md` (this file) for core mandates.
+2. Read `docs/ARCHITECTURE_CANVAS.md` for a high-level summary.
+3. Read `docs/arc42/00_master.md` and relevant chapters for deep architectural context.
+4. Read `docs/adr/README.md` to understand why specific technologies and patterns were chosen.
+5. Check `docs/exec-plans/active/` for existing plans related to your task.
+6. Check `docs/tech-debt-tracker.md` for known debt in this area.
 
 **Rule**: If context is missing or ambiguous, stop and request human encode it into the repo. Do not hallucinate based on training data.
 
@@ -117,6 +125,7 @@ User Story → Use Cases → Domain Operations → Adapter Implementations
 For tasks > 1 day:
 - Create `docs/exec-plans/active/YYYY-MM-DD-feature.md`
 - Include: Acceptance criteria, test strategy, boundary validation points, observability requirements
+- **If the task involves architectural changes:** You MUST create/update a corresponding **ADR** and **arc42 chapter**.
 
 For small tasks:
 - Create ephemeral plan in PR description

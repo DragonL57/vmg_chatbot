@@ -28,22 +28,31 @@ Making the tool as useful as a daily assistant.
     - Implemented LLM-generated titles for new conversations.
 - [x] **User Profiles:** Synchronized Google name and avatar to the UI and database.
 - [x] **Conversation Management:** Added Star, Rename, and Delete actions via Portal-based menus.
+- [x] **Observability (The "Glass Box"):** 
+    - Implemented `agent_traces` and `agent_spans` tables for granular token and cost tracking.
+    - Added real-time "Agentic Thinking" traces in the UI.
 
-## Phase 4: Advanced Admin Operations (⚪ Planned)
-Empowering the content managers.
+## Phase 4: Long-Term Memory & Personalization (🟢 Complete)
+Implementing the "Mate" that learns and remembers.
 
-- [ ] **Analytics Dashboard:** Create a view in `/admin` showing most searched topics and token usage.
-- [ ] **Audit Logs:** Track who uploaded/deleted which file and when.
-- [ ] **Bulk Actions:** Allow deleting multiple files or re-indexing entire folders at once.
-- [ ] **Expanded File Support:** Add ingestion logic for `.docx`, `.xlsx`, and OCR for PDFs.
+- [x] **Memory Extraction:** Background agents extract facts from conversations in the third person.
+- [x] **Memory Dashboard:** Users can view and edit their "remembered" facts in their profile.
+- [x] **Fact Deduplication:** Implemented semantic and exact checks for fact storage.
 
 ## Phase 5: Feedback & Optimization (🟡 In Progress)
 Closed-loop improvement.
 
 - [x] **Chit-Chat Detection:** (🟢 Done) Bypasses RAG for greetings to reduce latency.
-- [ ] **Report Management:** Dedicated `/admin/reports` page to resolve user feedback.
-- [ ] **User Feedback Loop:** "Thumbs up/down" responses for RAG fine-tuning.
-- [ ] **Self-Correcting RAG:** Automatic re-search for low-confidence results.
+- [x] **Report System:** (🟢 Done) Users can report messages; data is stored in `reports` table.
+- [ ] **Admin Reports Dashboard:** Dedicated `/admin/reports` page to resolve user feedback.
+- [ ] **Self-Correcting RAG:** Automatic re-search for low-confidence results (Meta-Grader loop).
+
+## Phase 6: Omnichannel & Workspace (⚪ Planned)
+Expanding MATE's reach.
+
+- [ ] **Google Workspace Integration:** Direct reading of Gmail/Calendar and meeting capture from Meet.
+- [ ] **Omnichannel Support:** Zalo and Messenger integration via webhooks.
+- [ ] **Bulk Operations:** Multi-file deletion and re-indexing in the Admin dashboard.
 
 ---
 **Status Key:**

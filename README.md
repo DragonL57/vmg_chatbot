@@ -59,12 +59,10 @@ We evaluate **Process, not just Outcomes**.
 
 For detailed implementation specifics, architectural boundaries, and layer-by-layer analysis, refer to the following:
 
-- **[Architecture Overview](./docs/ARCHITECTURE.md)**: High-level design and agentic taxonomy.
-- **[Domain Layer](./docs/DOMAIN.md)**: Pure entities, business policies, and chunking services.
-- **[Application Layer](./docs/APPLICATION.md)**: Use cases, port interfaces, and orchestration logic.
-- **[Agentic RAG Layer](./docs/AGENT.md)**: LangGraph state, node topology, and routing logic.
-- **[Infrastructure Layer](./docs/INFRASTRUCTURE.md)**: Persistence (Drizzle), Vector Store (Qdrant), and LLM adapters.
-- **[UI & API Layer](./docs/UI_API.md)**: Next.js App Router, streaming API, and React components.
+- **[Architecture Hub](./docs/ARCHITECTURE.md)**: Entry point for the **arc42** documentation and **ADRs**.
+- **[Design System](./docs/DESIGN.md)**: Visual tokens, principles, and component standards.
+- **[Feature Roadmap](./docs/PLAN.md)**: Development phases and status.
+- **[Quality Scorecard](./docs/QUALITY_SCORE.md)**: Domain health and coverage metrics.
 
 ---
 **VMG MATE** — *State-of-the-Art Agentic Intelligence for the Enterprise.*
