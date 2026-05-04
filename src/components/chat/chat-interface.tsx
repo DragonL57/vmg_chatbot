@@ -61,7 +61,7 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         />
       </div>
 
-      <div className="px-4 md:px-32 max-w-5xl mx-auto w-full shrink-0 space-y-1">
+      <div className="px-4 md:px-32 max-w-5xl mx-auto w-full shrink-0 space-y-1 pb-[var(--safe-bottom)]">
         <ChatInput 
           input={input} 
           handleInputChange={handleInputChange} 
