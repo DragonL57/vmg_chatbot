@@ -42,11 +42,32 @@ To enable continuous learning, VMG MATE implements a **Knowledge Agent** pattern
 3. **Persistence:** Extracted facts are stored in the `user_memories` table, rewritten in the third person.
 4. **Augmentation:** Future sessions retrieve these memories and inject them into the `AgentState`, allowing MATE to be proactive (e.g., "Since you are preparing for IELTS 7.5...").
 
-### 8.2.3 Iterative Planning & Correction
+### 8.2.3 Iterative Planning & Correction (CRAG Loop)
 
-VMG MATE does not execute a static list of tasks. Instead, it uses **Iterative Planning**:
-- **Meta-Grading Feedback:** The `grade` node evaluates the results of the `retrieve` subtask. If the outcome is insufficient, the system "re-plans" by triggering the `rewrite` node.
-- **Dynamic Adaptation:** If the `router_expand` node discovers that a query requires multi-hop retrieval, it can decompose the intent into multiple `subQueries` that are executed sequentially or in parallel.
+VMG MATE implements **Corrective RAG (CRAG)** — an inline verification and correction loop that detects insufficient evidence and triggers re-retrieval.
+
+#### CRAG Data Flow
+
+```
+retrieve ──→ grade ──→ [relevant?] ──→ compress ──→ generate
+                      → [irrelevant?] ──→ rewrite ──→ router_expand ──→ retrieve (↻ loop)
+                      → [max retries?] ──→ compress ──→ generate (best-effort)
+```
+
+1. **Retrieve** (k=10 per query): Broad initial recall using hybrid vector + keyword search.
+2. **Grade** (Meta-Grader): A lightweight evaluator scores claim↔evidence alignment. Outputs `is_relevant: YES/NO` with reasoning.
+3. **Rewrite** (corrective action): Generates improved queries (synonyms, alternative phrasings) when grade returns NO.
+4. **Loop back** to `router_expand` → `retrieve` with the new queries, up to `MAX_ITERATIONS` (3).
+5. **Best-effort synthesis**: After exhausting retries, compresses whatever evidence exists rather than returning empty.
+
+#### Why Always Grade
+
+Prior to the fix, the `retrieve→grade` edge conditionally skipped grading when retrieved content exceeded 3000 tokens (token compression threshold). This **bypassed the CRAG loop entirely** for large document sets — the system would compress irrelevant content and fail silently. The fix ensures `retrieve` **always** routes to `grade`, making the corrective loop reliable regardless of document size.
+
+#### Key Properties
+- **Claim-level verification**: Grade decomposes the question into atomic claims and checks each against evidence
+- **Reconstructed queries**: Grade uses RECAP-reconstructed intent (`rewrittenQuestions`/`subQueries`) instead of raw user message, enabling accurate context-aware grading
+- **Iterative refinement**: Each rewrite loop broadens the search with improved queries, increasing recall progressively
 
 ### 8.2.4 Mitigation of Context Failures
 
