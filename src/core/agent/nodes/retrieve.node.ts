@@ -12,7 +12,7 @@ export async function retrieveNode(state: AgentStateType, config: RunnableConfig
 
   const allResults = await Promise.all(
     targetCollections.map(col => 
-      Promise.all(queries.map(q => vectorStore.search(q, col, 5).catch(() => [])))
+      Promise.all(queries.map(q => vectorStore.search(q, col, 10).catch(() => [])))
     )
   );
 
