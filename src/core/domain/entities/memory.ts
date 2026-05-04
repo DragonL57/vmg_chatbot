@@ -12,12 +12,12 @@ export interface UserMemory {
 export type MemoryActionOp = 'ADD' | 'UPDATE' | 'DELETE';
 
 export interface MemoryAction {
-  op: MemoryActionOp;
-  fact?: string;
-  category?: MemoryCategory;
-  id?: string;
+  readonly op: MemoryActionOp;
+  readonly fact?: string;
+  readonly category?: MemoryCategory;
+  readonly id?: string;
 }
 
 export interface MemoryExtraction {
-  actions: MemoryAction[];
+  readonly actions: ReadonlyArray<MemoryAction>;
 }

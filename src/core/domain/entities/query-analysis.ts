@@ -1,5 +1,5 @@
 export interface QueryAnalysis {
-  is_clear: boolean;
-  questions: string[];
-  clarification_needed?: string;
+  readonly is_clear: boolean;
+  readonly questions: ReadonlyArray<string>;
+  readonly clarification_needed?: string;
 }

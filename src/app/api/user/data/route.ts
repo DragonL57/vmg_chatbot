@@ -98,14 +98,10 @@ export async function DELETE() {
     const internalUserId = await authRepo.getInternalId(user.id);
     if (!internalUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Scrub Supabase Auth record first (overwrite email, clear metadata)
     const supabaseAdmin = createAdminSupabase();
     const anonEmail = `anon-${internalUserId.slice(0, 8)}@anonymized.local`;
-    await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      email: anonEmail,
-      user_metadata: {},
-    });
 
+    // DB first — if this fails, Auth is untouched and user can retry
     await db.transaction(async (tx) => {
       // Anonymize user profile
       await tx.update(users)
@@ -165,6 +161,18 @@ export async function DELETE() {
         })
         .where(eq(reports.userId, internalUserId));
     });
+
+    // DB transaction succeeded. Now scrub Supabase Auth record.
+    // If this fails, DB is already safe — return 500 so user can retry to complete Auth scrub.
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      email: anonEmail,
+      user_metadata: {},
+    });
+
+    if (authError) {
+      logger.error('Auth anonymization failed after DB scrub', authError, { operation: 'user_data_anonymize', userId: internalUserId });
+      return NextResponse.json({ error: 'Anonymization completed for stored data but failed for account email. Please try again.' }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, message: 'Dữ liệu đã được ẩn danh hóa' });
   } catch (error: unknown) {

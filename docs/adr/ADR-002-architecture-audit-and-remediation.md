@@ -37,6 +37,46 @@ A comprehensive architecture audit of `origin/master` (commit c642161) was condu
 ## Decision
 We will remediate violations in priority order, starting with domain purity and port compliance. Each fix must maintain backward compatibility and pass `npm run lint:strict` and `npm run type-check`.
 
+## Evaluation Matrix (Pugh)
+
+### Criterion Definitions
+| Criterion | Definition |
+|-----------|------------|
+| **Layer Compliance** | Does the approach enforce Clean Architecture dependency rules (dependencies point inward)?  |
+| **Testability** | Can the approach be unit-tested without mocking infrastructure? |
+| **Migration Effort** | How much code change is required? (Low = <5 files, Medium = 5-15 files, High = >15 files) |
+| **Runtime Impact** | Does the approach affect performance, bundle size, or latency? |
+
+### 1. Domain Purity — Where to put Zod schemas?
+
+| Alternative | Layer Compliance | Testability | Migration Effort | Runtime Impact |
+|-------------|-----------------|-------------|-----------------|---------------|
+| **A: Move schemas to `application/schemas/`** _(chosen)_ | ✅ Full — domain is import-free | ✅ Schemas testable as pure logic | Medium (4 files moved + import updates) | ✅ None (static schemas) |
+| **B: Keep schemas in `domain/entities/`** | ❌ Domain imports Zod (external dep) | ✅ Same | ❌ None (status quo) | ✅ None |
+| **C: Extract Zod to standalone `@vmg/schemas` package** | ✅ Full | ✅ Same | ❌ High (new package, build config, publish) | ✅ None (tree-shakeable) |
+
+**Rationale:** Moving to `application/schemas/` is the minimal change that achieves domain purity. Schema validation is an application concern (it happens at the boundary), not a domain concern. Option C is architecturally cleaner but over-engineered for a monorepo.
+
+### 2. Port Compliance — How to remove direct Supabase imports from hooks?
+
+| Alternative | Layer Compliance | Testability | Migration Effort | Runtime Impact |
+|-------------|-----------------|-------------|-----------------|---------------|
+| **A: Create `hooks/use-auth-user.ts`** _(chosen)_ | ✅ Hooks no longer import infrastructure | ✅ Auth logic testable in isolation | Low (1 new file, 2 hook updates) | ✅ None |
+| **B: Wrap Supabase in React Context** | ✅ Same | ✅ Same | ❌ Medium (new context provider, wrap app) | ❌ Slight (re-renders on auth change) |
+| **C: Inject auth via HOC / props** | ✅ Same | ✅ Same | ❌ High (prop-drilling through component tree) | ✅ None |
+
+**Rationale:** The `use-auth-user.ts` hook is the lightest-weight solution. It encapsulates the Supabase import in one place without requiring a Context provider or prop-drilling. React Context would be warranted if auth state needed to be reactive across the tree, but the current usage is one-shot read-only.
+
+### 3. Error Logging — How to replace `console.error` in agent nodes?
+
+| Alternative | Layer Compliance | Testability | Migration Effort | Runtime Impact |
+|-------------|-----------------|-------------|-----------------|---------------|
+| **A: Inject `ILoggerProvider` via config** _(chosen)_ | ✅ Adheres to Clean Architecture DI pattern | ✅ Logger can be mocked in tests | Medium (5 node files + config wiring) | ✅ None (trivial wrapper) |
+| **B: Use global singleton logger** | ❌ Global state violates DI principle | ❌ Harder to mock (global import) | Low (import logger once) | ✅ None |
+| **C: Keep `console.error`** | ❌ Violates "Structured logging only" rule | ❌ Can't be tested | ❌ None (status quo) | ✅ None |
+
+**Rationale:** Dependency injection via `config.configurable` is already the pattern used for `llmProvider` and `obsPort` in the same node functions. Using `ILoggerProvider` is consistent with the existing architecture and allows logger mocking in tests.
+
 ## Remediation Plan
 
 ### Phase 1: Domain Purity (High)

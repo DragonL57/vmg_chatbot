@@ -91,6 +91,7 @@ The codebase follows strict layer separation:
 ### 7. Mechanical Taste
 Enforced by custom linters (not optional):
 - **Structured logging only**: No `console.log`, use injected LoggerProvider
+- **No emojis in code or logs**: Emojis can cause encoding issues in log pipelines and terminal scrollback. Use plain text markers (e.g., `[ok]`, `[error]`) instead.
 - **Naming**: PascalCase types/classes, camelCase functions/variables, SCREAMING_SNAKE_CASE constants
 - **Immutability**: `readonly` arrays, prefer `ReadonlyArray`, spread over push
 - **Error handling**: Always throw Error objects, never swallow exceptions silently

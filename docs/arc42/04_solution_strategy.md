@@ -173,10 +173,26 @@ The erasure handler scrubs personal data at three layers:
 | **Internal DB — reports** | Reported message, conversation transcript, note, sessionId | Content scrubbed, `userId` set to null |
 
 **Key design decisions:**
+- **Erasure ordering**: DB is scrubbed first; Supabase Auth is scrubbed second. If Auth update fails, DB is already safe and the user can retry. (Never Auth-first — if DB fails after Auth is scrubbed, the user is stuck in a half-anonymized state.)
 - Aggregate observability data (token counts, costs, latency) is preserved — only user-content payloads (`input`, `output`) in `agent_spans` are removed.
 - The Supabase Auth record is overwritten (not deleted) so the user account remains functional for login.
 - The internal `users` table email is overwritten to match the anonymized Auth email.
 - Report structure is preserved (for abuse analysis) but all user-generated content is replaced.
+
+#### Termination Cleanup Script — `scripts/anonymize-user.ts`
+
+For offboarding (employment termination), an admin can run:
+
+```bash
+npx tsx scripts/anonymize-user.ts <email|supabase_id>
+```
+
+This script performs the same scrubbing as the API route, but can be run directly against the database (no auth session required). It also scrubs Supabase Auth if `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are set in `.env.local`.
+
+**Prerequisites:**
+- `DATABASE_URL` in `.env.local`
+- (Optional) `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` for Auth scrub
+- The script does not log PII (only internal user IDs and anonymized IDs)
 
 ### Phase B: Infrastructure Sovereignty (Medium-term)
 - **Containerization:** All core logic is decoupled from cloud-specific APIs.

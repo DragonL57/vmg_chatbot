@@ -1,13 +1,13 @@
 export interface DocumentChunk {
-  id: string;
-  parentId?: string;
-  title: string;
-  content: string;
-  source: string;
-  parentContent?: string;
-  metadata?: Record<string, unknown>;
-  score?: number;
-  collection?: string;
+  readonly id: string;
+  readonly parentId?: string;
+  readonly title: string;
+  readonly content: string;
+  readonly source: string;
+  readonly parentContent?: string;
+  readonly metadata?: Record<string, unknown>;
+  readonly score?: number;
+  readonly collection?: string;
 }
 
 export interface TokenAccumulator {

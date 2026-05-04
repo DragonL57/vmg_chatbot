@@ -8,7 +8,7 @@ const mockGetUser = vi.fn();
 const mockGetInternalId = vi.fn();
 const mockFrom = vi.fn();
 const mockWhere = vi.fn();
-const mockUpdateUserById = vi.fn();
+const mockUpdateUserById = vi.fn().mockResolvedValue({ data: {}, error: null });
 
 vi.mock('@/core/lib/supabase-server', () => ({
   createServerSupabase: () => ({

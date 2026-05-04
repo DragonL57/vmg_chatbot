@@ -1,7 +1,7 @@
 export interface IngestRequest {
-  storagePath: string;
-  filename: string;
-  mode: string;
-  folder?: string;
-  fileId?: string;
+  readonly storagePath: string;
+  readonly filename: string;
+  readonly mode: string;
+  readonly folder?: string;
+  readonly fileId?: string;
 }

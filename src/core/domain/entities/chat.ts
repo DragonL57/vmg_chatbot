@@ -6,34 +6,34 @@ export const CHAT_POLICIES = {
 };
 
 export interface TokenUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  cached_tokens?: number;
-  cache_creation_tokens?: number;
+  readonly prompt_tokens: number;
+  readonly completion_tokens: number;
+  readonly total_tokens: number;
+  readonly cached_tokens?: number;
+  readonly cache_creation_tokens?: number;
 }
 
 export interface ChatTrace {
-  id: string;
-  userId: string;
-  conversationId: string;
-  totalTokens: number;
-  totalCostUsd: string;
-  latencyMs: number;
-  error?: string;
+  readonly id: string;
+  readonly userId: string;
+  readonly conversationId: string;
+  readonly totalTokens: number;
+  readonly totalCostUsd: string;
+  readonly latencyMs: number;
+  readonly error?: string;
 }
 
 export interface ChatSpan {
-  id: string;
-  traceId: string;
-  nodeName: string;
-  model: string;
-  input?: unknown;
-  output?: unknown;
-  promptTokens: number;
-  completionTokens: number;
-  cachedTokens: number;
-  cacheCreationTokens: number;
-  costUsd: string;
-  latencyMs: number;
+  readonly id: string;
+  readonly traceId: string;
+  readonly nodeName: string;
+  readonly model: string;
+  readonly input?: unknown;
+  readonly output?: unknown;
+  readonly promptTokens: number;
+  readonly completionTokens: number;
+  readonly cachedTokens: number;
+  readonly cacheCreationTokens: number;
+  readonly costUsd: string;
+  readonly latencyMs: number;
 }
