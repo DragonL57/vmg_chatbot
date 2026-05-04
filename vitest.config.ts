@@ -11,5 +11,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@core': path.resolve(__dirname, './src/core'),
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/core/domain/**', 'src/core/application/**'],
+      exclude: ['**/*.spec.ts', '**/*.test.ts'],
+    },
   },
 });
