@@ -121,6 +121,33 @@ For tasks > 1 day:
 For small tasks:
 - Create ephemeral plan in PR description
 
+### Phase 2a: Concept Documentation (Must Do)
+
+When you introduce a **new concept** (e.g., CRAG, RECAP, URASys, MCP) or significantly change an existing one, you **must document it** in the appropriate arc42 section so future agents can understand what it is and how it works without reverse-engineering the code.
+
+#### Where concepts go in arc42
+
+| Concept Type | arc42 Section | Example |
+|-------------|---------------|---------|
+| **Cross-cutting pattern** (applies to multiple building blocks) | `08_cross_cutting_concepts.md` | CRAG corrective loop, Memory taxonomy, Observability |
+| **Solution strategy** (why we chose this approach) | `04_solution_strategy.md` | Hybrid Adaptive-Corrective RAG, Multi-Agent Design |
+| **Architecture decision** (a specific choice with alternatives) | `docs/adr/ADR-xxx.md` | Choosing LangGraph over custom state machine |
+| **Runtime behavior** (how nodes interact at runtime) | `06_runtime_view.md` | Graph topology, node execution order |
+| **Quality requirement** (measurable target for the concept) | `10_quality_requirements.md` | Accuracy > 98%, P99 latency < threshold |
+| **Risk or debt** (known issues with the concept) | `11_risks_and_technical_debt.md` | Unsigned traces, missing consent flow |
+| **Definition** (term or acronym) | `12_glossary.md` | CRAG, RECAP, URASys, MCP |
+
+#### Documentation checklist for each new concept
+
+- [ ] **What** — A clear, concise definition of the concept (1-2 sentences)
+- [ ] **Why** — The problem it solves and why this approach was chosen
+- [ ] **How** — How it works at a high level (flow diagram, pseudocode, or sequence)
+- [ ] **Where** — Which source files implement it (file paths)
+- [ ] **When** — Under what conditions it activates (e.g., CRAG loops only when grader returns NO)
+- [ ] **Trade-offs** — Known limitations, edge cases, or alternatives considered
+
+**Rule**: If you can't find a concept documented in the arc42 after introducing it, the documentation doesn't exist. Fix it before closing the task.
+
 ### Phase 3: Isolated Environment Setup
 Execute in isolated worktree:
 ```bash
@@ -177,6 +204,9 @@ Before submitting:
 - [ ] File sizes < 300 lines
 - [ ] No `any` types, no `console.log`, no dead code
 - [ ] Update relevant docs in `docs/` if behavior changed
+- [ ] **New concepts documented** in arc42 (see Phase 2a checklist)
+- [ ] **ADRs created** for architectural decisions
+- [ ] **Glossary updated** for new terms
 - [ ] Update `tech-debt-tracker.md` if created or paid down debt
 - [ ] Cross-linked: New docs reference existing docs and vice versa
 
