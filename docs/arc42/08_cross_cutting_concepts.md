@@ -19,6 +19,14 @@ To ensure the reliability of the multi-agent system, we implement three layers o
 - **Node-level Analysis:** We track the latency and cost of each specialized agent to identify bottlenecks.
 - **Meta-Grading Success Rate:** We monitor how often the `grade` node rejects evidence to identify gaps in the knowledge base.
 
+### 8.1.4 Data Erasure & Observability
+
+To comply with Law 91/2025 §11 (right to erasure), user-generated content in observability data is scrubbed upon erasure request:
+- `agent_spans.input` and `agent_spans.output` (JSONB) are set to `NULL` — these contain user query text and LLM responses.
+- `agent_traces.userId` and `agent_traces.conversationId` are set to `NULL` to remove linking.
+- `agent_traces.isAnonymized` is set to `1` to explicitly mark the trace as anonymized.
+- Aggregate metrics (token counts, costs, latency, feedback scores) are preserved for system performance analysis.
+
 ## 8.2 Agent Memory & Context Engineering
 
 VMG MATE manages information across multiple memory tiers to ensure a self-improving, personalized user experience.

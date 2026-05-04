@@ -175,7 +175,7 @@ export const MessageItem = memo(({ message, conversation = [], sessionId, isChat
         body: JSON.stringify({ traceId: message.traceId, feedback: type }),
       });
     } catch {
-      // Feedback failure is non-critical
+      setFeedback(null); // Reset so user can retry
     }
   }, [message.traceId, feedback]);
 

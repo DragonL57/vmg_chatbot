@@ -149,6 +149,35 @@ To address the **Technical Debt (Chapter 11)**, we adopt a phased transition:
 - **Mechanism:** Implement an explicit "Consent Management" UI on the login screen.
 - **Policy:** Link to a versioned Privacy Policy stored as Markdown in the repo.
 
+### Phase A1: Data Subject Rights (Completed — Apr 2026)
+
+Compliant with Law 91/2025 §11 (right to access, right to erasure) and Decree 356/2025 (20-day response window).
+
+#### Right to Access — `GET /api/user/data`
+- Authenticated users can download all their personal data as JSON
+- Profile is read from the internal `users` table (system of record, synced from Supabase Auth at login)
+- Returns: conversations with full messages, user memories, agent traces, reports, and profile
+
+#### Right to Erasure — `DELETE /api/user/data`
+
+The erasure handler scrubs personal data at three layers:
+
+| Layer | What is scrubbed | How |
+|-------|-----------------|-----|
+| **Supabase Auth** | Email, user_metadata | `supabaseAdmin.auth.admin.updateUserById()` — overwrites with `anon-xxx@anonymized.local`, empties metadata. Uses `SUPABASE_SERVICE_KEY`. |
+| **Internal DB — profile** | `users` table email, name, avatar | Set to anonymized values, `updatedAt` updated |
+| **Internal DB — conversations** | Title, messages, location, token usage | Content cleared, structure preserved for debugging |
+| **Internal DB — memories** | `user_memories` rows | Hard deleted |
+| **Internal DB — traces** | `agent_traces.userId`, `conversationId` | Set to null; `isAnonymized = 1` flag set |
+| **Internal DB — spans** | `agent_spans.input`, `output` payloads | Set to null (aggregate metrics like token counts and costs preserved for audit) |
+| **Internal DB — reports** | Reported message, conversation transcript, note, sessionId | Content scrubbed, `userId` set to null |
+
+**Key design decisions:**
+- Aggregate observability data (token counts, costs, latency) is preserved — only user-content payloads (`input`, `output`) in `agent_spans` are removed.
+- The Supabase Auth record is overwritten (not deleted) so the user account remains functional for login.
+- The internal `users` table email is overwritten to match the anonymized Auth email.
+- Report structure is preserved (for abuse analysis) but all user-generated content is replaced.
+
 ### Phase B: Infrastructure Sovereignty (Medium-term)
 - **Containerization:** All core logic is decoupled from cloud-specific APIs.
 - **Target:** Transition from Supabase Cloud to a self-hosted PostgreSQL/Auth stack on a **Vietnamese VPS**.

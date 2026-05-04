@@ -17,6 +17,7 @@
 | **Next.js 16 / React 19** | Fixed frontend stack for performance and modern primitives. |
 | **LangGraph Orchestration** | Primary framework for managing complex agentic state machines. |
 | **Cloud-to-Local Path** | Architecture must allow for future migration to on-premise hosting (Docker readiness). |
+| **Supabase Service Role** | `SUPABASE_SERVICE_KEY` is required for admin operations (user anonymization). Must be kept server-side only. |
 
 ## 2.4 Database Design Principles
 

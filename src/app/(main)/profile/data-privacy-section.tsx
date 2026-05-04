@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 async function downloadUserData() {
   const res = await fetch('/api/user/data');
   const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Xuất dữ liệu thất bại');
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -26,7 +27,7 @@ export const DataPrivacySection = () => {
   const handleExport = async () => {
     setExporting(true);
     try { await downloadUserData(); toast.success('Dữ liệu đã được tải xuống'); }
-    catch { toast.error('Xuất dữ liệu thất bại'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Xuất dữ liệu thất bại'); }
     finally { setExporting(false); }
   };
 

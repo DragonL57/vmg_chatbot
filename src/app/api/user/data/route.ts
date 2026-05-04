@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabase } from '@/core/lib/supabase-server';
-import { DrizzleAuthRepositoryAdapter } from '@core/infrastructure/adapters';
+import { createServerSupabase, createAdminSupabase } from '@/core/lib/supabase-server';
+import { DrizzleAuthRepositoryAdapter, ConsoleLoggerAdapter } from '@core/infrastructure/adapters';
 import { db } from '@/core/db';
-import { users, conversations, userMemories, agentTraces, reports } from '@/core/db/schema';
-import { eq } from 'drizzle-orm';
+import { users, conversations, userMemories, agentTraces, agentSpans, reports } from '@/core/db/schema';
+import { eq, inArray } from 'drizzle-orm';
+
+const logger = new ConsoleLoggerAdapter();
 
 /**
  * GET /api/user/data — Export all personal data for the authenticated user.
@@ -20,6 +22,10 @@ export async function GET() {
     const internalUserId = await authRepo.getInternalId(user.id);
     if (!internalUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    const [internalUser] = await Promise.all([
+      db.select().from(users).where(eq(users.id, internalUserId)).limit(1),
+    ]);
+
     const [userConversations, userMemoryRecords, userTraces, userReports] = await Promise.all([
       db.select().from(conversations).where(eq(conversations.userId, internalUserId)),
       db.select().from(userMemories).where(eq(userMemories.userId, internalUserId)),
@@ -27,13 +33,15 @@ export async function GET() {
       db.select().from(reports).where(eq(reports.userId, internalUserId)),
     ]);
 
+    const profileUser = internalUser[0] ?? { id: internalUserId, email: null, fullName: null };
+
     const exportData = {
       exportedAt: new Date().toISOString(),
       userId: internalUserId,
       profile: {
-        id: user.id,
-        email: user.email,
-        fullName: user.user_metadata?.full_name || null,
+        id: profileUser.id,
+        email: profileUser.email,
+        fullName: profileUser.fullName,
       },
       conversations: userConversations.map((c) => ({
         id: c.id,
@@ -69,7 +77,7 @@ export async function GET() {
 
     return NextResponse.json(exportData);
   } catch (error: unknown) {
-    console.error('[User Data Export API] Error:', error);
+    logger.error('Data export failed', error, { operation: 'user_data_export' });
     return NextResponse.json({ error: 'Export failed' }, { status: 500 });
   }
 }
@@ -90,11 +98,19 @@ export async function DELETE() {
     const internalUserId = await authRepo.getInternalId(user.id);
     if (!internalUserId) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    // Scrub Supabase Auth record first (overwrite email, clear metadata)
+    const supabaseAdmin = createAdminSupabase();
+    const anonEmail = `anon-${internalUserId.slice(0, 8)}@anonymized.local`;
+    await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      email: anonEmail,
+      user_metadata: {},
+    });
+
     await db.transaction(async (tx) => {
       // Anonymize user profile
       await tx.update(users)
         .set({
-          email: `anon-${internalUserId.slice(0, 8)}@anonymized.local`,
+          email: anonEmail,
           fullName: null,
           avatarUrl: null,
           updatedAt: new Date(),
@@ -116,24 +132,43 @@ export async function DELETE() {
       // Clear memories
       await tx.delete(userMemories).where(eq(userMemories.userId, internalUserId));
 
-      // Anonymize traces (keep for audit, remove user link)
-      await tx.update(agentTraces)
-        .set({ userId: null })
+      // Find user traces to also scrub span payloads
+      const userTraceIds = await tx.select({ id: agentTraces.id })
+        .from(agentTraces)
         .where(eq(agentTraces.userId, internalUserId));
 
-      // Anonymize reports
+      if (userTraceIds.length > 0) {
+        const traceIds = userTraceIds.map(t => t.id);
+        // Scrub span payloads — input/output contain user conversation text
+        await tx.update(agentSpans)
+          .set({ input: null, output: null })
+          .where(inArray(agentSpans.traceId, traceIds));
+      }
+
+      // Anonymize traces (keep for audit, remove user/conversation link, mark as anonymized)
+      await tx.update(agentTraces)
+        .set({
+          userId: null,
+          conversationId: null,
+          isAnonymized: 1,
+        })
+        .where(eq(agentTraces.userId, internalUserId));
+
+      // Anonymize reports — conversation is not-null so set to empty array
       await tx.update(reports)
         .set({
           userId: null,
           reportedMessage: 'Anonymized',
+          conversation: [],
           note: null,
+          sessionId: null,
         })
         .where(eq(reports.userId, internalUserId));
     });
 
     return NextResponse.json({ success: true, message: 'Dữ liệu đã được ẩn danh hóa' });
   } catch (error: unknown) {
-    console.error('[User Data Delete API] Error:', error);
+    logger.error('Data anonymization failed', error, { operation: 'user_data_anonymize' });
     return NextResponse.json({ error: 'Anonymization failed' }, { status: 500 });
   }
 }
