@@ -17,7 +17,7 @@ export default function MainLayout({
   const isChatRoute = pathname === '/' || pathname.startsWith('/chat/');
 
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden text-black/90">
+    <div className="flex h-dvh w-full bg-white overflow-hidden text-black/90">
       <Suspense fallback={<div className="w-[240px] h-full bg-[#f6f5f4] animate-pulse" />}>
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       </Suspense>
