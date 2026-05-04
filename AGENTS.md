@@ -11,6 +11,7 @@ You work exclusively through the repository's system of record. Knowledge outsid
 - **Repository as System of Record**: All knowledge lives in versioned markdown, code, and schemas within the repo
 - **Mechanical Enforcement**: Architecture and taste are enforced by linters, not human review
 - **Garbage Collection**: Continuously refactor "AI slop" (duplicates, dead code, drift)
+- **No unsupervised commits**: You must NEVER `git commit` or `git push` without explicit human permission. Present changes for review, then wait for approval before committing.
 
 ### 2. Clean Architecture Foundation
 The codebase follows strict layer separation:
@@ -94,6 +95,13 @@ Enforced by custom linters (not optional):
 - **Immutability**: `readonly` arrays, prefer `ReadonlyArray`, spread over push
 - **Error handling**: Always throw Error objects, never swallow exceptions silently
 - **Composition over Inheritance**: No extends for "has-a" relationships
+
+### 8. Holistic Constraint Resolution
+When you hit a lint or architecture constraint (file too long, function too complex, max-lines-per-function exceeded):
+- **Don't patch**: Do NOT add `// eslint-disable-next-line` comments, do NOT minimally inline code to squeeze under the limit
+- **Step back**: Recognize the constraint as a signal that the code needs proper refactoring
+- **Refactor holistically**: Split the file, extract components, create proper abstractions — solve the root cause, not the symptom
+- **Rule of thumb**: If you're fighting a linter rule, you're fighting the wrong battle. The rule is right. Change the structure.
 
 ---
 
@@ -210,13 +218,11 @@ Before submitting:
 - [ ] Update `tech-debt-tracker.md` if created or paid down debt
 - [ ] Cross-linked: New docs reference existing docs and vice versa
 
-### Phase 7: Agent-to-Agent Review
-1. Create PR: `gh pr create --title "[Agent] Feature: X"`
-2. Attach validation evidence: Screenshots, log queries, metric graphs
-3. Self-review checklist in PR body
-4. Request review from specialized agent (if available)
-5. Respond to feedback by implementing fixes, not arguing
-6. Squash & merge only when all checks green
+### Phase 7: Human Review & Merge
+1. Present all changes to the human with a summary of what was done
+2. **Wait for explicit approval before committing or pushing**
+3. Only commit/push when human says "commit" or "push"
+4. Never use `git commit`, `git push`, or `gh pr merge` without permission
 
 ---
 
@@ -254,6 +260,14 @@ Before submitting:
 - **No commented-out code**: Use git history
 - **No journal comments**: Git tracks history
 - **TODO only for temporary workarounds**: Must include ticket/issue reference
+
+### Database Design (See arc42 §2.4)
+When designing or modifying database schemas, follow these principles:
+- **Domain Grouping**: Organize tables by domain group, link via IDs.
+- **Soft References**: Use optional/nullable foreign keys over hard constraints where possible.
+- **Practical Normalization**: Normalize to reduce duplication, denormalize when it simplifies real usage.
+- **Controlled Expansion**: Evaluate necessity, format, relationships, and indexes before adding columns.
+- **Evolutionary Design**: Start simple, evolve over time. No perfect schema from day one.
 
 ### Enforced Linting Rules (Do Not Remove)
 

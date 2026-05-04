@@ -38,7 +38,9 @@ export async function GET() {
       conversations: userConversations.map((c) => ({
         id: c.id,
         title: c.title,
+        messages: c.messages,
         messageCount: c.messageCount,
+        tokenUsage: c.tokenUsage,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),
@@ -54,10 +56,13 @@ export async function GET() {
         totalCostUsd: t.totalCostUsd,
         latencyMs: t.latencyMs,
         feedback: t.feedback,
+        error: t.error,
         createdAt: t.createdAt,
       })),
       reports: userReports.map((r) => ({
         id: r.id,
+        reportedMessage: r.reportedMessage,
+        note: r.note,
         createdAt: r.createdAt,
       })),
     };

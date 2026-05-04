@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LoadingView, MemorySection, ProfileHeader } from './profile-sections';
+import { DataPrivacySection } from './data-privacy-section';
 import { useMemoryEditor, useProfileData } from './use-profile';
 
 export default function ProfilePage() {
@@ -22,6 +23,7 @@ export default function ProfilePage() {
     <div className="flex-1 bg-[#f6f5f4] overflow-y-auto custom-scrollbar">
       <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
         <ProfileHeader user={user} />
+        <DataPrivacySection />
         <MemorySection
           memories={memories}
           editingId={editingId}
