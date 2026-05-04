@@ -14,7 +14,7 @@ import {
   ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { IndexKnowledgeFileUseCase } from '@core/application/use-cases';
-import { ingestRequestSchema } from '@core/domain/entities/ingest-request';
+import { ingestRequestSchema } from '@core/application/schemas/ingest-request-schema';
 
 // Initialize backend Supabase client
 const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);

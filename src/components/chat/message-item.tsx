@@ -174,8 +174,8 @@ export const MessageItem = memo(({ message, conversation = [], sessionId, isChat
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ traceId: message.traceId, feedback: type }),
       });
-    } catch (error) {
-      console.error('Feedback failed:', error);
+    } catch {
+      // Feedback failure is non-critical
     }
   }, [message.traceId, feedback]);
 

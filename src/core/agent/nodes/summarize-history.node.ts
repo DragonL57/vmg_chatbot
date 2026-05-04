@@ -2,6 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
+import { ILoggerProvider } from "../../application/ports/logger.port";
 import { CHAT_POLICIES } from "../../domain/entities/chat";
 import { STRUCTURED_COMPACTION_PROMPT } from "../../prompts/rag-agents";
 
@@ -10,7 +11,7 @@ import { STRUCTURED_COMPACTION_PROMPT } from "../../prompts/rag-agents";
  */
 export async function summarizeHistoryNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   if (state.messages.length < CHAT_POLICIES.CONTEXT_COMPACTION_THRESHOLD) return { reflection: "" };
 
   const { traceId } = state;
@@ -41,7 +42,7 @@ export async function summarizeHistoryNode(state: AgentStateType, config: Runnab
       cacheCreationTokens: res.usage.cache_creation_tokens || 0,
       latencyMs: Date.now() - startTime,
       isBatch: res.isBatch
-    }).catch(console.error);
+    }).catch((err) => logger.error('Failed to emit summarize span', err));
   }
 
   return { 

@@ -5,8 +5,6 @@ import type { Dispatch, SetStateAction, MutableRefObject } from 'react';
 import { Message } from '@core/types/chat';
 import { v4 as uuidv4 } from 'uuid';
 import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
-import { supabase } from '@/core/lib/supabase';
-import { type User } from '@supabase/supabase-js';
 import {
   createUserMessage,
   createAssistantMessage,
@@ -45,15 +43,7 @@ type SendMessageParams = {
   onStreamError: () => void;
 };
 
-export const useAuthUser = () => {
-  const [user, setUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  }, []);
-
-  return user;
-};
 
 export const useCollections = () => {
   const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
@@ -130,7 +120,7 @@ export const useConversationHistory = ({
 
 export const useConversationSaver = (
   sessionId: string,
-  user: User | null,
+  user: { id: string } | null,
   tokenUsageRef: MutableRefObject<unknown>
 ) =>
   useCallback(

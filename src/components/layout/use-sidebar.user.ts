@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/core/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { useAuthUser } from '@/hooks/use-auth-user';
 import {
   getUserInitial,
   getUserName,
@@ -10,16 +8,7 @@ import {
 } from './sidebar-utils';
 
 export const useSidebarUser = () => {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setUser(data.user);
-    };
-
-    queueMicrotask(fetchUser);
-  }, []);
+  const user = useAuthUser();
 
   const userInitial = getUserInitial(user);
   const userAvatar = getUserAvatar(user);

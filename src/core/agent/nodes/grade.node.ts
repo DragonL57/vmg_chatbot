@@ -2,6 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
+import { ILoggerProvider } from "../../application/ports/logger.port";
 import { META_GRADER_PROMPT } from "../../prompts/rag-agents";
 import { z } from "zod";
 
@@ -15,7 +16,7 @@ const graderSchema = z.object({
  */
 export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { evidence, messages, traceId } = state;
   const lastQuery = messages[messages.length - 1].content as string;
   if (!evidence.docs.length) return { isRelevant: false, reflection: "No relevant documents found." };
@@ -45,7 +46,7 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
       cacheCreationTokens: res.usage.cache_creation_tokens || 0,
       latencyMs: Date.now() - startTime,
       isBatch: res.isBatch
-    }).catch(console.error);
+    }).catch((err) => logger.error('Failed to emit grade span', err));
   }
 
   let grade = false;

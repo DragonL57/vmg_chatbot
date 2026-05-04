@@ -25,7 +25,7 @@ import {
 } from '@core/application/use-cases';
 import { DocumentChunk } from '@core/domain/entities/indexing';
 import { TokenUsage } from '@core/domain/entities/chat';
-import { chatRequestSchema } from '@core/domain/entities/chat-request';
+import { chatRequestSchema } from '@core/application/schemas/chat-request-schema';
 import { AgentStateType } from '@core/agent/state';
 import { ILoggerProvider } from '@core/application/ports/logger.port';
 import { IObservabilityPort } from '@core/application/ports/observability.port';

@@ -2,6 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
+import { ILoggerProvider } from "../../application/ports/logger.port";
 import { META_COMPRESSOR_PROMPT } from "../../prompts/rag-agents";
 
 /**
@@ -9,7 +10,7 @@ import { META_COMPRESSOR_PROMPT } from "../../prompts/rag-agents";
  */
 export async function compressNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { evidence, traceId, isChitChat } = state;
   if (!evidence.docs.length || isChitChat) return { reflection: "" };
 
@@ -37,7 +38,7 @@ export async function compressNode(state: AgentStateType, config: RunnableConfig
       cacheCreationTokens: res.usage.cache_creation_tokens || 0,
       latencyMs: Date.now() - startTime,
       isBatch: res.isBatch
-    }).catch(console.error);
+    }).catch((err) => logger.error('Failed to emit compress span', err));
   }
 
   return { 
