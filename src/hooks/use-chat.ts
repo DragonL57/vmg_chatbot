@@ -4,8 +4,8 @@ import { useState, useRef, useCallback } from 'react';
 import { Message } from '@core/types/chat';
 import { toast } from 'sonner';
 import { useRouter, useParams } from 'next/navigation';
+import { useAuthUser } from './use-auth-user';
 import {
-  useAuthUser,
   useCollections,
   useSessionId,
   useConversationHistory,

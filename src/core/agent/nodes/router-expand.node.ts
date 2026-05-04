@@ -2,6 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
+import { ILoggerProvider } from "../../application/ports/logger.port";
 import { GATEWAY_AGENT_PROMPT } from "../../prompts/rag-agents";
 
 /**
@@ -9,7 +10,7 @@ import { GATEWAY_AGENT_PROMPT } from "../../prompts/rag-agents";
  */
 export async function routerExpandNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { mode, allCollections, messages, traceId, subQueries } = state;
   const queries = subQueries && subQueries.length > 0 ? subQueries : [messages[messages.length - 1].content as string];
   const siloList = allCollections.map(c => `- ${c.qdrantName} (${c.name}): ${c.description || 'No description'}`).join("\n");
@@ -37,7 +38,7 @@ export async function routerExpandNode(state: AgentStateType, config: RunnableCo
       cacheCreationTokens: res.usage.cache_creation_tokens || 0,
       latencyMs: Date.now() - startTime,
       isBatch: res.isBatch
-    }).catch(console.error);
+    }).catch((err) => logger.error('Failed to emit router_expand span', err));
   }
 
   let parsed = { is_chit_chat: false, selected: [] as string[], queries: queries, reasoning: "" };

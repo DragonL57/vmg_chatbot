@@ -2,7 +2,8 @@ import { ILLMProvider } from "../ports/llm-provider.port";
 import { IMemoryRepository } from "../ports/memory-repository.port";
 import { IObservabilityPort } from "../ports/observability.port";
 import { ILoggerProvider } from "../ports/logger.port";
-import { memoryExtractionSchema, MemoryAction } from "../../domain/entities/memory";
+import { MemoryAction } from "../../domain/entities/memory";
+import { memoryExtractionSchema } from "../schemas/memory-schemas";
 import { KNOWLEDGE_AUDITOR_PROMPT } from "@core/prompts/memory";
 
 export interface ExtractUserMemoriesInput {

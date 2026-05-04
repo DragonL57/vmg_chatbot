@@ -12,7 +12,7 @@ export async function retrieveNode(state: AgentStateType, config: RunnableConfig
 
   const allResults = await Promise.all(
     targetCollections.map(col => 
-      Promise.all(queries.map(q => vectorStore.search(q, col, 5).catch(() => [])))
+      Promise.all(queries.map(q => vectorStore.search(q, col, 10).catch(() => [])))
     )
   );
 
@@ -25,7 +25,7 @@ export async function retrieveNode(state: AgentStateType, config: RunnableConfig
     return true;
   });
 
-  const rankedDocs = deduplicated.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
+  const rankedDocs = deduplicated.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10);
 
   return { 
     evidence: { docs: rankedDocs },

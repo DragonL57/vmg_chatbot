@@ -1,6 +1,5 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { AgentState } from "./state";
-import { estimateTokens } from "@core/lib/utils";
 import { CHAT_POLICIES } from "@core/domain/entities/chat";
 import { 
   analyzeQueryNode,
@@ -11,8 +10,6 @@ import {
   rewriteNode,
   compressNode
 } from "./nodes";
-
-const TOKEN_COMPRESSION_THRESHOLD = CHAT_POLICIES.TOKEN_COMPRESSION_THRESHOLD;
 
 const workflow = new StateGraph(AgentState)
   .addNode("analyze_query", analyzeQueryNode)
@@ -28,8 +25,8 @@ workflow.addEdge("summarize", "analyze_query");
 
 workflow.addConditionalEdges(
   "analyze_query",
-  (state) => state.questionIsClear ? "router_expand" : "end",
-  { router_expand: "router_expand", end: END }
+  (state) => state.questionIsClear ? "router_expand" : END,
+  { router_expand: "router_expand" }
 );
 
 workflow.addConditionalEdges(
@@ -38,14 +35,8 @@ workflow.addConditionalEdges(
   { compress: "compress", retrieve: "retrieve" }
 );
 
-workflow.addConditionalEdges(
-  "retrieve",
-  (state) => {
-    const totalContent = state.evidence.docs.map(d => d.content).join("\n");
-    return estimateTokens(totalContent) > TOKEN_COMPRESSION_THRESHOLD ? "compress" : "grade";
-  },
-  { compress: "compress", grade: "grade" }
-);
+// Always route to grade — enables CRAG corrective loop
+workflow.addEdge("retrieve", "grade");
 
 workflow.addConditionalEdges(
   "grade",

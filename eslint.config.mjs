@@ -42,12 +42,12 @@ export default tseslint.config(
       "boundaries/dependencies": ["error", {
         "default": "disallow",
         "rules": [
-          { "from": "domain", "allow": ["domain"] },
-          { "from": "application", "allow": ["domain", "application"] },
-          { "from": "infrastructure", "allow": ["domain", "application", "infrastructure", "lib"] },
-          { "from": "agent", "allow": ["domain", "application", "agent", "lib"] },
-          { "from": "ui", "allow": ["domain", "application", "infrastructure", "agent", "lib", "ui", "components"] },
-          { "from": "components", "allow": ["domain", "application", "lib", "components"] }
+          { "from": { "type": "domain" }, "allow": { "to": { "type": "domain" } } },
+          { "from": { "type": "application" }, "allow": { "to": { "type": ["domain", "application"] } } },
+          { "from": { "type": "infrastructure" }, "allow": { "to": { "type": ["domain", "application", "infrastructure", "lib"] } } },
+          { "from": { "type": "agent" }, "allow": { "to": { "type": ["domain", "application", "agent", "lib"] } } },
+          { "from": { "type": "ui" }, "allow": { "to": { "type": ["domain", "application", "infrastructure", "agent", "lib", "ui", "components"] } } },
+          { "from": { "type": "components" }, "allow": { "to": { "type": ["domain", "application", "lib", "components"] } } }
         ]
       }]
     }

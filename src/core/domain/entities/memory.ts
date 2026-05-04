@@ -1,27 +1,23 @@
-import { z } from 'zod';
-
-export const memoryCategorySchema = z.enum(['persona', 'preference', 'entity', 'episodic', 'general']);
-export type MemoryCategory = z.infer<typeof memoryCategorySchema>;
+export type MemoryCategory = 'persona' | 'preference' | 'entity' | 'episodic' | 'general';
 
 export interface UserMemory {
   readonly id: string;
   readonly userId: string;
   readonly fact: string;
   readonly category: MemoryCategory;
+  readonly metadata?: Record<string, unknown>;
   readonly createdAt: Date;
 }
 
-export const memoryActionSchema = z.object({
-  op: z.enum(['ADD', 'UPDATE', 'DELETE']),
-  fact: z.string().optional(),
-  category: memoryCategorySchema.optional(),
-  id: z.string().uuid().optional()
-});
+export type MemoryActionOp = 'ADD' | 'UPDATE' | 'DELETE';
 
-export type MemoryAction = z.infer<typeof memoryActionSchema>;
+export interface MemoryAction {
+  readonly op: MemoryActionOp;
+  readonly fact?: string;
+  readonly category?: MemoryCategory;
+  readonly id?: string;
+}
 
-export const memoryExtractionSchema = z.object({
-  actions: z.array(memoryActionSchema)
-});
-
-export type MemoryExtraction = z.infer<typeof memoryExtractionSchema>;
+export interface MemoryExtraction {
+  readonly actions: ReadonlyArray<MemoryAction>;
+}

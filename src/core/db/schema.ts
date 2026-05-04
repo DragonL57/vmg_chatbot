@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   fullName: text("full_name"),
   avatarUrl: text("avatar_url"),
   role: userRoleEnum("role").notNull().default("user"),
+  metadata: jsonb("metadata").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -48,6 +49,7 @@ export const conversations = pgTable("conversations", {
   locationAddress: text("location_address"),
   tokenUsage: jsonb("token_usage"),
   messageCount: integer("message_count").default(0),
+  metadata: jsonb("metadata").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -69,6 +71,7 @@ export const userMemories = pgTable("user_memories", {
   userId: uuid("user_id").references(() => users.id).notNull(),
   fact: text("fact").notNull(),
   category: text("category").notNull().default("general"),
+  metadata: jsonb("metadata").default({}),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   userIdIdx: index("user_memories_user_id_idx").on(table.userId),
@@ -93,6 +96,7 @@ export const agentTraces = pgTable("agent_traces", {
   latencyMs: integer("latency_ms").notNull().default(0),
   feedback: integer("feedback").default(0), // 1: Good, -1: Bad
   error: text("error"),
+  isAnonymized: integer("is_anonymized").default(0), // 0: No, 1: Yes
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -2,6 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
+import { ILoggerProvider } from "../../application/ports/logger.port";
 import { META_GRADER_PROMPT } from "../../prompts/rag-agents";
 import { z } from "zod";
 
@@ -15,9 +16,14 @@ const graderSchema = z.object({
  */
 export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
-  const { llmProvider, obsPort } = config.configurable as { llmProvider: ILLMProvider, obsPort: IObservabilityPort };
+  const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { evidence, messages, traceId } = state;
-  const lastQuery = messages[messages.length - 1].content as string;
+  // Use reconstructed queries from analyze_query node for better context
+  const searchQuery = (state.subQueries && state.subQueries.length > 0)
+    ? state.subQueries.join(' | ')
+    : (state.rewrittenQuestions && state.rewrittenQuestions.length > 0
+      ? state.rewrittenQuestions[0]
+      : messages[messages.length - 1].content as string);
   if (!evidence.docs.length) return { isRelevant: false, reflection: "No relevant documents found." };
 
   const context = evidence.docs.slice(0, 8).map(d => d.parentContent || d.content).join("\n\n");
@@ -25,7 +31,7 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const res = await llmProvider.completion({
     messages: [
       { role: "system", content: META_GRADER_PROMPT },
-      { role: "user", content: `Question: ${lastQuery}\n\nContext:\n${context.slice(0, 4000)}` }
+      { role: "user", content: `Question: ${searchQuery}\n\nContext:\n${context.slice(0, 4000)}` }
     ],
     jsonMode: true,
     effort: 'instant'
@@ -37,7 +43,7 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
     await obsPort.emitSpan(traceId, {
       nodeName: 'grade',
       model: res.model,
-      input: { query: lastQuery },
+      input: { query: searchQuery },
       output: rawOut,
       promptTokens: res.usage.prompt_tokens,
       completionTokens: res.usage.completion_tokens,
@@ -45,7 +51,7 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
       cacheCreationTokens: res.usage.cache_creation_tokens || 0,
       latencyMs: Date.now() - startTime,
       isBatch: res.isBatch
-    }).catch(console.error);
+    }).catch((err) => logger.error('Failed to emit grade span', err));
   }
 
   let grade = false;

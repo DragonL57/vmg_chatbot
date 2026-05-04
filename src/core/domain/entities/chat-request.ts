@@ -1,12 +1,7 @@
-import { z } from 'zod';
+export type ChatRole = 'user' | 'assistant' | 'system';
 
-export const chatRequestSchema = z.object({
-  messages: z.array(z.object({
-    role: z.enum(['user', 'assistant', 'system']),
-    content: z.string().min(1, "Content cannot be empty")
-  })).min(1, "Messages array must contain at least one message"),
-  serviceMode: z.string().min(1, "serviceMode is required"),
-  conversationId: z.string().uuid("conversationId must be a valid UUID")
-});
-
-export type ChatRequest = z.infer<typeof chatRequestSchema>;
+export interface ChatRequest {
+  readonly messages: ReadonlyArray<{ readonly role: ChatRole; readonly content: string }>;
+  readonly serviceMode: string;
+  readonly conversationId: string;
+}

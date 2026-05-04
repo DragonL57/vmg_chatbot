@@ -13,11 +13,19 @@ To ensure the reliability of the multi-agent system, we implement three layers o
 
 ### 8.1.2 Visualization (Metacognitive Trace)
 - **Real-time UI:** The frontend renders a live "thinking" state, showing which agent node is currently active (e.g., "MATE is grading evidence...").
-- **Intent Visualization:** RECAP reconstructions and Router decisions are visible to provide transparency into the "why" behind an answer.
+- **Intent Visualization:** Query reconstructions and Router decisions are visible to provide transparency into the "why" behind an answer.
 
 ### 8.1.3 Performance Metrics
 - **Node-level Analysis:** We track the latency and cost of each specialized agent to identify bottlenecks.
 - **Meta-Grading Success Rate:** We monitor how often the `grade` node rejects evidence to identify gaps in the knowledge base.
+
+### 8.1.4 Data Erasure & Observability
+
+To comply with Law 91/2025 §11 (right to erasure), user-generated content in observability data is scrubbed upon erasure request:
+- `agent_spans.input` and `agent_spans.output` (JSONB) are set to `NULL` — these contain user query text and LLM responses.
+- `agent_traces.userId` and `agent_traces.conversationId` are set to `NULL` to remove linking.
+- `agent_traces.isAnonymized` is set to `1` to explicitly mark the trace as anonymized.
+- Aggregate metrics (token counts, costs, latency, feedback scores) are preserved for system performance analysis.
 
 ## 8.2 Agent Memory & Context Engineering
 
@@ -42,11 +50,34 @@ To enable continuous learning, VMG MATE implements a **Knowledge Agent** pattern
 3. **Persistence:** Extracted facts are stored in the `user_memories` table, rewritten in the third person.
 4. **Augmentation:** Future sessions retrieve these memories and inject them into the `AgentState`, allowing MATE to be proactive (e.g., "Since you are preparing for IELTS 7.5...").
 
-### 8.2.3 Iterative Planning & Correction
+### 8.2.3 Iterative Planning & Correction (CRAG Loop)
 
-VMG MATE does not execute a static list of tasks. Instead, it uses **Iterative Planning**:
-- **Meta-Grading Feedback:** The `grade` node evaluates the results of the `retrieve` subtask. If the outcome is insufficient, the system "re-plans" by triggering the `rewrite` node.
-- **Dynamic Adaptation:** If the `router_expand` node discovers that a query requires multi-hop retrieval, it can decompose the intent into multiple `subQueries` that are executed sequentially or in parallel.
+VMG MATE implements **Corrective RAG (CRAG)** — an inline verification and correction loop that detects insufficient evidence and triggers re-retrieval.
+
+For a detailed breakdown of each node's logic, academic provenance, and rationale (including why CRAG was chosen over Naive RAG, Self-RAG, ReAct, and RECAP), see **§5.2.3 Node Deep-Dive** and **§5.2.4 Overall Architecture: The CRAG Loop**.
+
+#### CRAG Data Flow
+
+```
+retrieve ──→ grade ──→ [relevant?] ──→ compress ──→ generate
+                      → [irrelevant?] ──→ rewrite ──→ router_expand ──→ retrieve (↻ loop)
+                      → [max retries?] ──→ compress ──→ generate (best-effort)
+```
+
+1. **Retrieve** (k=10 per query): Broad initial recall using hybrid vector + keyword search.
+2. **Grade** (Meta-Grader): A lightweight evaluator scores claim↔evidence alignment. Outputs `is_relevant: YES/NO` with reasoning.
+3. **Rewrite** (corrective action): Generates improved queries (synonyms, alternative phrasings) when grade returns NO.
+4. **Loop back** to `router_expand` → `retrieve` with the new queries, up to `MAX_ITERATIONS` (3).
+5. **Best-effort synthesis**: After exhausting retries, compresses whatever evidence exists rather than returning empty.
+
+#### Why Always Grade
+
+Prior to the fix, the `retrieve→grade` edge conditionally skipped grading when retrieved content exceeded 3000 tokens (token compression threshold). This **bypassed the CRAG loop entirely** for large document sets — the system would compress irrelevant content and fail silently. The fix ensures `retrieve` **always** routes to `grade`, making the corrective loop reliable regardless of document size.
+
+#### Key Properties
+- **Claim-level verification**: Grade decomposes the question into atomic claims and checks each against evidence
+- **Reconstructed queries**: Grade uses reconstructed intent (`rewrittenQuestions`/`subQueries`) instead of raw user message, enabling accurate context-aware grading
+- **Iterative refinement**: Each rewrite loop broadens the search with improved queries, increasing recall progressively
 
 ### 8.2.4 Mitigation of Context Failures
 
@@ -55,7 +86,7 @@ To prevent common agentic failures, MATE employs the following architectural "gu
 - **Context Poisoning (Hallucination Loops):** Prevented by the **Meta-Grader** node. It validates retrieved evidence before it enters the synthesis stage. Low-quality evidence is quarantined, and a `rewrite` loop is triggered.
 - **Context Distraction (History Overload):** Mitigated by the **Summarization Pipeline**. By periodically compressing the context, we prevent the "Lost in the Middle" syndrome and ensure the LLM focuses on the current goal.
 - **Context Confusion (Tool Overload):** Controlled by the **Router/Expand** node. Instead of exposing all knowledge silos, the router selects only relevant `targetCollections` based on the query intent.
-- **Context Clash (Contradictory Input):** Resolved by **RECAP (Intent Reconstruction)**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
+- **Context Clash (Contradictory Input):** Resolved by **Query Reconstruction**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
 
 ## 8.3 Security & Validation
 

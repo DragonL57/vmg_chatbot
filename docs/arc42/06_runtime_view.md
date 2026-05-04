@@ -13,7 +13,7 @@ The system determines "how" to answer by planning and retrieving evidence.
 sequenceDiagram
     participant API as API Route
     participant S as Summarizer
-    participant A as Analyze Query (RECAP)
+    participant A as Analyze Query (Query Reconstruction)
     participant R as Router/Expand
     participant K as Retriever (URASys)
     participant G as Meta-Grader
@@ -76,12 +76,12 @@ This simulation demonstrates how the `AgentState` evolves through a multi-turn c
 ### Turn 2: Elliptical Follow-up
 **User:** "And for my wife?"
 
-This is a classic "Context Failure" point where RECAP (Intent Reconstruction) is critical.
+This is a classic "Context Failure" point where Query Reconstruction (intent resolution) is critical.
 
 | Node | Action | `AgentState` Key Updates |
 | :--- | :--- | :--- |
 | **Summarize** | Compresses Turn 1. | `context_summary`: "User asked about VMG health insurance. Assistant provided policy details." |
-| **Analyze** | **RECAP Logic.** | `rewrittenQuestions`: ["Does VMG health insurance policy cover spouses?"] |
+| **Analyze** | **Query Reconstruction.** | `rewrittenQuestions`: ["Does VMG health insurance policy cover spouses?"] |
 | **Router** | Maps to "HR/Policies". | `targetCollections`: ["hr_policy"] |
 | **Retrieve** | Fetches new chunks. | `evidence`: { docs: [Chunk3 (Spouse coverage)] } |
 | **Grade** | High fidelity match. | `isRelevant`: true, `reflection`: "Found spouse coverage details." |

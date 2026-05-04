@@ -1,6 +1,15 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { env } from '@/env';
+
+export function createAdminSupabase() {
+  return createAdminClient(
+    env.SUPABASE_URL,
+    env.SUPABASE_SERVICE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export async function createServerSupabase() {
   const cookieStore = await cookies();

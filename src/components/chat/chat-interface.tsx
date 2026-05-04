@@ -61,13 +61,16 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         />
       </div>
 
-      <div className="p-4 md:px-32 max-w-5xl mx-auto w-full shrink-0">
+      <div className="px-4 md:px-32 max-w-5xl mx-auto w-full shrink-0 space-y-1">
         <ChatInput 
           input={input} 
           handleInputChange={handleInputChange} 
           handleSubmit={handleFormSubmit} 
           isLoading={isLoading} 
         />
+        <p className="text-[12px] text-black/30 text-center italic leading-tight">
+          Bạn đang tương tác với trí tuệ nhân tạo. Vui lòng kiểm tra lại thông tin
+        </p>
       </div>
     </div>
   );

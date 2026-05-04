@@ -3,7 +3,8 @@ import { AgentStateType } from "../state";
 import { ILLMProvider, LLMResponse } from "../../application/ports/llm-provider.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
 import { QUERY_ANALYZER_PROMPT } from "../../prompts/rag-agents";
-import { queryAnalysisSchema, QueryAnalysis } from "../../domain/entities/query-analysis";
+import { QueryAnalysis } from "../../domain/entities/query-analysis";
+import { queryAnalysisSchema } from "../../application/schemas/query-analysis-schema";
 
 export async function analyzeQueryNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
