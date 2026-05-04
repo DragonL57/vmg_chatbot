@@ -110,7 +110,7 @@ async function main() {
     // Scrub span payloads FIRST (before nulling userId on agent_traces)
     const traceRows = await sql`SELECT id FROM agent_traces WHERE user_id = ${user.id}`;
     if (traceRows.length > 0) {
-      const traceIds = traceRows.map((r: { id: string }) => r.id);
+      const traceIds = (traceRows as unknown as Array<{ id: string }>).map((r) => r.id);
       await sql`UPDATE agent_spans SET input = NULL, output = NULL WHERE trace_id = ANY(${traceIds}::uuid[])`;
       console.log(`  [ok] ${traceIds.length} trace spans scrubbed`);
     }
