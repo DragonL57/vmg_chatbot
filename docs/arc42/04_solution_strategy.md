@@ -92,12 +92,14 @@ The `grade` node uses a structured schema:
 | `is_relevant: NO` | → rewrite (if iterations < max) | Evidence is off-topic or insufficient; generate improved query and re-search |
 | `is_relevant: NO` + max iterations | → compress | Force best-effort synthesis after exhausting retries |
 
-### 4.4.3 Query Reconstruction (RECAP)
+### 4.4.3 Query Reconstruction
 
-Before grading, the query is reconstructed from conversation context by the `analyze_query` node (RECAP — arXiv:2509.04472):
+Before grading, the query is reconstructed from conversation context by the `analyze_query` node:
 - **Ellipsis Resolution:** "SAT thì sao?" → "Thông tin về các khóa học SAT tại VMG"
 - **Fake Intent Shift Protection:** Distinguishes between goal changes and refinements
 - **Structured Output:** Produces `rewrittenQuestions` and `subQueries` used by both retrieve and grade nodes
+
+For a detailed rationale of why we use query reconstruction vs. other approaches (heuristic co-reference, no rewriting, etc.), see **§5.2.3 — Analyze Query**.
 
 ### 4.4.4 Retrieval Recall for CRAG
 
@@ -110,6 +112,27 @@ CRAG requires broad initial recall to be effective:
 ### 4.4.5 Fail-Safe: Best-Effort Synthesis
 
 If all retry attempts fail to find relevant evidence, the system still synthesizes a response from whatever context is available, with transparent language indicating the confidence level. This prevents silent failures while maintaining the corrective loop's integrity.
+
+### 4.4.6 Prompt Engineering: Curated Reasoning Example
+
+The master synthesis prompt (`src/core/prompts/master.ts`) includes a **curated reasoning example** following the StSQA approach [arxiv:2304.03087]:
+
+> StSQA (Structured Stance QA) demonstrates that a single manually verified reasoning example in the prompt achieves nearly the same accuracy as dynamically generated chain-of-thought, at a fraction of the cost. The key is quality over quantity: one well-crafted reasoning trace beats many generic ones.
+
+**What the example demonstrates:**
+- **ANALYZE → REASON → SYNTHESIZE scaffold** applied end-to-end on a realistic VMG query
+- **Dual-track grounding**: uses `# KNOWLEDGE CONTEXT` for enterprise knowledge and `<user_memories>` for personal context
+- **Language matching**: Vietnamese query → Vietnamese response
+- **Output format compliance**: bullet points, no arrows, no emojis, formal tone
+- **Evidence boundary**: answers only from documented policies, no speculation
+
+**Why a single curated example instead of dynamic few-shot selection:**
+- Dynamic clustering (Auto-CoT) requires 2+ LLM calls per query, adding latency
+- A static curated example costs nothing at inference time
+- The example shows the *reasoning process*, not just the output format — this teaches the LLM *how* to think, not just *what* to output
+- Works across all query types (enterprise Q&A, personal context, chit-chat) because it generalizes the scaffold rather than the content
+
+**Reference:** This technique is inspired by StSQA [Zhang et al., 2023b] and validated by the systematic comparison of prompting vs. multi-agent methods [Dai et al., 2026], which found that a single curated reasoning example matches or exceeds complex multi-agent approaches at 7-12× lower cost.
 
 ## 4.5 "Glass Box" Observability
 

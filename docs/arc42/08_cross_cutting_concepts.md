@@ -13,7 +13,7 @@ To ensure the reliability of the multi-agent system, we implement three layers o
 
 ### 8.1.2 Visualization (Metacognitive Trace)
 - **Real-time UI:** The frontend renders a live "thinking" state, showing which agent node is currently active (e.g., "MATE is grading evidence...").
-- **Intent Visualization:** RECAP reconstructions and Router decisions are visible to provide transparency into the "why" behind an answer.
+- **Intent Visualization:** Query reconstructions and Router decisions are visible to provide transparency into the "why" behind an answer.
 
 ### 8.1.3 Performance Metrics
 - **Node-level Analysis:** We track the latency and cost of each specialized agent to identify bottlenecks.
@@ -46,6 +46,8 @@ To enable continuous learning, VMG MATE implements a **Knowledge Agent** pattern
 
 VMG MATE implements **Corrective RAG (CRAG)** — an inline verification and correction loop that detects insufficient evidence and triggers re-retrieval.
 
+For a detailed breakdown of each node's logic, academic provenance, and rationale (including why CRAG was chosen over Naive RAG, Self-RAG, ReAct, and RECAP), see **§5.2.3 Node Deep-Dive** and **§5.2.4 Overall Architecture: The CRAG Loop**.
+
 #### CRAG Data Flow
 
 ```
@@ -66,7 +68,7 @@ Prior to the fix, the `retrieve→grade` edge conditionally skipped grading when
 
 #### Key Properties
 - **Claim-level verification**: Grade decomposes the question into atomic claims and checks each against evidence
-- **Reconstructed queries**: Grade uses RECAP-reconstructed intent (`rewrittenQuestions`/`subQueries`) instead of raw user message, enabling accurate context-aware grading
+- **Reconstructed queries**: Grade uses reconstructed intent (`rewrittenQuestions`/`subQueries`) instead of raw user message, enabling accurate context-aware grading
 - **Iterative refinement**: Each rewrite loop broadens the search with improved queries, increasing recall progressively
 
 ### 8.2.4 Mitigation of Context Failures
@@ -76,7 +78,7 @@ To prevent common agentic failures, MATE employs the following architectural "gu
 - **Context Poisoning (Hallucination Loops):** Prevented by the **Meta-Grader** node. It validates retrieved evidence before it enters the synthesis stage. Low-quality evidence is quarantined, and a `rewrite` loop is triggered.
 - **Context Distraction (History Overload):** Mitigated by the **Summarization Pipeline**. By periodically compressing the context, we prevent the "Lost in the Middle" syndrome and ensure the LLM focuses on the current goal.
 - **Context Confusion (Tool Overload):** Controlled by the **Router/Expand** node. Instead of exposing all knowledge silos, the router selects only relevant `targetCollections` based on the query intent.
-- **Context Clash (Contradictory Input):** Resolved by **RECAP (Intent Reconstruction)**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
+- **Context Clash (Contradictory Input):** Resolved by **Query Reconstruction**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
 
 ## 8.3 Security & Validation
 

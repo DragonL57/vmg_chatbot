@@ -18,7 +18,7 @@ export async function gradeNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
   const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { evidence, messages, traceId } = state;
-  // Use reconstructed queries from RECAP analysis for better context
+  // Use reconstructed queries from analyze_query node for better context
   const searchQuery = (state.subQueries && state.subQueries.length > 0)
     ? state.subQueries.join(' | ')
     : (state.rewrittenQuestions && state.rewrittenQuestions.length > 0

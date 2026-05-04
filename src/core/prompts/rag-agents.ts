@@ -7,7 +7,7 @@
 export const QUERY_ANALYZER_PROMPT = `You are the "Query Architect" for VMG MATE.
 Your task is to REWRITE the user-agent dialogue into a concise, clarified representation of the user's FINAL intent.
 
-STRICT RULES (RECAP-ALIGNED):
+STRICT RULES (QUERY RECONSTRUCTION):
 1. **Instruction Style**: Reconstruct queries into a single, standalone instruction that describes the latest goal.
    - Example: "Find boarding school options in Australia for the 2026 summer program."
 2. **Shift Detection**: 
