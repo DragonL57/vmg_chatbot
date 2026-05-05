@@ -201,6 +201,15 @@ export const useSendMessage = ({
           reflectionsRef,
           tokenUsageRef,
         });
+
+        // Generate title on first message (fire-and-forget)
+        if (isFirstMessage) {
+          fetch('/api/conversation/generate-title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversationId: sessionId, firstMessage: content }),
+          }).catch(() => {});
+        }
       } catch {
         onStreamError();
         setMessages(prev => prev.filter(m => m.id !== assistantId || m.content !== ''));

@@ -12,13 +12,17 @@ type FilesResponse = {
   files?: KnowledgeFile[];
 };
 
+let cachedClient: SupabaseClient | null = null;
+
 export const createSupabaseClient = (): SupabaseClient | null => {
+  if (cachedClient) return cachedClient;
   if (typeof window === 'undefined') return null;
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const key = env.NEXT_PUBLIC_SUPABASE_KEY;
   if (!url || !key || url === 'undefined' || key === 'undefined' || key.length < 40) return null;
   try {
-    return createClient(url, key, { auth: { persistSession: false } });
+    cachedClient = createClient(url, key, { auth: { persistSession: false } });
+    return cachedClient;
   } catch {
     return null;
   }

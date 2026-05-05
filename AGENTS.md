@@ -11,7 +11,7 @@ You work exclusively through the repository's system of record. Knowledge outsid
 - **Repository as System of Record**: All knowledge lives in versioned markdown, code, and schemas within the repo
 - **Mechanical Enforcement**: Architecture and taste are enforced by linters, not human review
 - **Garbage Collection**: Continuously refactor "AI slop" (duplicates, dead code, drift)
-- **No unsupervised commits**: You must NEVER `git commit` or `git push` without explicit human permission. Present changes for review, then wait for approval before committing.
+- **No unsupervised commits**: You must NEVER `git commit`, `git push`, or `git merge` without explicit human permission. Present changes for review, then wait for approval before committing or pushing.
 
 ### 2. Clean Architecture Foundation
 The codebase follows strict layer separation:
@@ -96,6 +96,7 @@ Enforced by custom linters (not optional):
 - **Immutability**: `readonly` arrays, prefer `ReadonlyArray`, spread over push
 - **Error handling**: Always throw Error objects, never swallow exceptions silently
 - **Composition over Inheritance**: No extends for "has-a" relationships
+- **No unsupervised commits or pushes**: You must NEVER `git commit`, `git push`, or `git merge` without explicit human permission. Wait for "commit" or "push" before proceeding.
 
 ### 8. Holistic Constraint Resolution
 When you hit a lint or architecture constraint (file too long, function too complex, max-lines-per-function exceeded):

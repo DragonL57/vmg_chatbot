@@ -39,6 +39,7 @@ export class IndexKnowledgeFileUseCase {
     try {
       await addLog(`START: ${sourceFile}`, 2);
       await this.vectorStore.ensureCollection(collectionName);
+      await this.vectorStore.deleteBySource(sourceFile, collectionName);
       const segments = hierarchicalChunk(markdown);
       const chunks = await this.processSegments(segments, sourceFile, tokens, addLog);
 

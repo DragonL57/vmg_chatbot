@@ -7,6 +7,7 @@ export interface KnowledgeFile {
   progress: number;
   summary?: string;
   logs: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface KnowledgeCollection {

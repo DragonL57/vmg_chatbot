@@ -1,7 +1,7 @@
 import { IChatRepository, Conversation, ConversationPayload } from "../../application/ports/chat-repository.port";
 import { db } from "../../db";
-import { conversations } from "../../db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { conversations, agentTraces, agentSpans } from "../../db/schema";
+import { eq, desc, sql, inArray } from "drizzle-orm";
 import { ChatSession, Message } from "../../types/chat";
 
 export class DrizzleChatRepositoryAdapter implements IChatRepository {
@@ -89,6 +89,24 @@ export class DrizzleChatRepositoryAdapter implements IChatRepository {
   }
 
   public async delete(id: string, userId: string): Promise<void> {
+    // Unlink agent traces before deleting to avoid FK violation
+    const traceIds = await db.select({ id: agentTraces.id })
+      .from(agentTraces)
+      .where(sql`${agentTraces.conversationId} = ${id}`);
+
+    if (traceIds.length > 0) {
+      const ids = traceIds.map(t => t.id);
+      // Scrub span payloads before unlinking traces
+      await db.update(agentSpans)
+        .set({ input: null, output: null })
+        .where(inArray(agentSpans.traceId, ids));
+
+      // Unlink traces from conversation
+      await db.update(agentTraces)
+        .set({ conversationId: null })
+        .where(inArray(agentTraces.id, ids));
+    }
+
     await db.delete(conversations).where(
       sql`${conversations.id} = ${id} AND ${conversations.userId} = ${userId}`
     );

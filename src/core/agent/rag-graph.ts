@@ -26,7 +26,6 @@ workflow.addEdge("summarize", "analyze_query");
 workflow.addConditionalEdges(
   "analyze_query",
   (state) => state.questionIsClear ? "router_expand" : END,
-  { router_expand: "router_expand" }
 );
 
 workflow.addConditionalEdges(

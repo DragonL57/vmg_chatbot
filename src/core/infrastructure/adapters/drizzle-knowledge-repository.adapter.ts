@@ -14,7 +14,8 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       status: r.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: r.progress || 0,
       summary: r.summary || undefined,
-      logs: (r.logs as string[]) || []
+      logs: (r.logs as string[]) || [],
+      metadata: (r.metadata as Record<string, unknown>) || undefined
     }));
   }
 
@@ -29,7 +30,8 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       status: result.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: result.progress || 0,
       summary: result.summary || undefined,
-      logs: (result.logs as string[]) || []
+      logs: (result.logs as string[]) || [],
+      metadata: (result.metadata as Record<string, unknown>) || undefined
     };
   }
 
@@ -45,27 +47,28 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     if (file.filename !== undefined) updateData.filename = file.filename;
     if (file.mode !== undefined) updateData.mode = file.mode;
     if (file.folder !== undefined) updateData.folder = file.folder;
+    if (file.metadata !== undefined) updateData.metadata = file.metadata;
 
     if (file.filename && file.mode) {
-      await db.insert(knowledgeFiles).values({
-        id: file.id,
-        filename: file.filename,
-        mode: file.mode,
-        folder: file.folder ?? 'root',
-        status: file.status ?? 'pending',
-        progress: file.progress ?? 0,
-        summary: file.summary,
-        logs: file.logs ?? [],
-        updatedAt: new Date(),
-      }).onConflictDoUpdate({
-        target: knowledgeFiles.filename,
-        set: updateData
-      });
+      await this.insertOrUpdate(file, updateData);
     } else {
-      await db.update(knowledgeFiles)
-        .set(updateData)
-        .where(eq(knowledgeFiles.id, file.id));
+      await db.update(knowledgeFiles).set(updateData).where(eq(knowledgeFiles.id, file.id));
     }
+  }
+
+  private async insertOrUpdate(file: Partial<KnowledgeFile> & { id: string }, updateData: Partial<typeof knowledgeFiles.$inferInsert>): Promise<void> {
+    await db.insert(knowledgeFiles).values({
+      id: file.id,
+      filename: file.filename!,
+      mode: file.mode!,
+      folder: file.folder ?? 'root',
+      status: file.status ?? 'pending',
+      progress: file.progress ?? 0,
+      summary: file.summary,
+      logs: file.logs ?? [],
+      metadata: file.metadata ?? {},
+      updatedAt: new Date(),
+    }).onConflictDoUpdate({ target: knowledgeFiles.filename, set: updateData });
   }
 
   public async deleteFile(id: string): Promise<void> {

@@ -67,32 +67,48 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
   }
 
   public async listBySource(source: string, collectionName: string): Promise<DocumentChunk[]> {
-    const response = await qdrantClient.scroll(collectionName, {
-      filter: {
-        must: [{ key: 'source', match: { value: source } }]
-      },
-      limit: 100,
-      with_payload: true,
-    });
+    const results: DocumentChunk[] = [];
+    let offset: unknown = undefined;
+    const MAX_SCROLLS = 20;
 
-    return response.points.map(r => ({
+    for (let i = 0; i < MAX_SCROLLS; i++) {
+      const response = await qdrantClient.scroll(collectionName, {
+        limit: 50,
+        offset: offset as string | number | undefined,
+        with_payload: true,
+      });
+
+      if (response.points.length === 0) break;
+
+      for (const r of response.points) {
+        const docSource = String(r.payload?.source || '');
+        if (docSource === source) results.push(this.toDocumentChunk(r, docSource, collectionName));
+      }
+
+      offset = response.next_page_offset ?? undefined;
+      if (offset === undefined) break;
+    }
+
+    return results;
+  }
+
+  public async deleteBySource(source: string, collectionName: string): Promise<void> {
+    const chunks = await this.listBySource(source, collectionName);
+    if (chunks.length === 0) return;
+    const ids = chunks.map(c => c.id);
+    await qdrantClient.delete(collectionName, { points: ids, wait: true });
+  }
+
+  private toDocumentChunk(r: { id: string | number; payload?: Record<string, unknown> | null }, source: string, collectionName: string): DocumentChunk {
+    return {
       id: String(r.id),
       parentId: String(r.payload?.parentId || ''),
       title: String(r.payload?.title || ''),
       content: String(r.payload?.content || ''),
-      source: String(r.payload?.source || ''),
+      source,
       parentContent: String(r.payload?.parentContent || ''),
-      collection: collectionName
-    }));
-  }
-
-  public async deleteBySource(source: string, collectionName: string): Promise<void> {
-    await qdrantClient.delete(collectionName, {
-      filter: {
-        must: [{ key: 'source', match: { value: source } }]
-      },
-      wait: true,
-    });
+      collection: collectionName,
+    };
   }
 
   public async isIndexed(collectionName: string): Promise<boolean> {

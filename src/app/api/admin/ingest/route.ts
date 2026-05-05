@@ -95,7 +95,11 @@ export async function POST(req: NextRequest) {
       finalFileId = existing ? existing.id : crypto.randomUUID();
     }
 
-    // 3. Initialize record
+    // 3. Track old storage path for cleanup after re-index
+    const existing = await knowledgeRepo.getFileByFilename(filename);
+    const oldStoragePath = getStoragePath(existing?.metadata);
+
+    // Initialize record (store current storagePath for future cleanup)
     await knowledgeRepo.upsertFile({
       id: finalFileId,
       filename,
@@ -103,24 +107,16 @@ export async function POST(req: NextRequest) {
       folder: folder || 'root',
       status: 'indexing',
       progress: 0,
+      metadata: { storagePath },
       logs: [`[${new Date().toLocaleTimeString('vi-VN')}] Đã tải file từ Storage...`]
     });
 
     // 4. RUN IN BACKGROUND
-    const runIndexing = async () => {
-      try {
-        await indexUseCase.execute({
-          markdown: content,
-          sourceFile: filename,
-          collectionName: mode,
-          fileId: finalFileId!
-        });
-      } catch (err: unknown) {
-        logger.error('Background Indexing Failed', err);
-      }
-    };
-
-    waitUntil(runIndexing());
+    const bgTask = createIndexingTask({
+      indexUseCase, supabaseBackend, logger,
+      content, filename, mode, finalFileId, storagePath, oldStoragePath
+    });
+    waitUntil(bgTask());
 
     return NextResponse.json({ 
       success: true, 
@@ -132,4 +128,44 @@ export async function POST(req: NextRequest) {
     logger.error('Ingest error', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+function getStoragePath(metadata: unknown): string | undefined {
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return undefined;
+  const m = metadata as Record<string, unknown>;
+  return typeof m.storagePath === 'string' ? m.storagePath : undefined;
+}
+
+function createIndexingTask(params: {
+  indexUseCase: IndexKnowledgeFileUseCase;
+  supabaseBackend: { storage: { from: (b: string) => { remove: (paths: string[]) => Promise<unknown> } } };
+  logger: ConsoleLoggerAdapter;
+  content: string;
+  filename: string;
+  mode: string;
+  finalFileId: string;
+  storagePath: string;
+  oldStoragePath: string | undefined;
+}) {
+  const { indexUseCase, supabaseBackend, logger, content, filename, mode, finalFileId, storagePath, oldStoragePath } = params;
+  return async () => {
+    try {
+      await indexUseCase.execute({
+        markdown: content,
+        sourceFile: filename,
+        collectionName: mode,
+        fileId: finalFileId,
+      });
+
+      if (oldStoragePath && oldStoragePath !== storagePath) {
+        try {
+          await supabaseBackend.storage.from('knowledge-sources').remove([oldStoragePath]);
+        } catch {
+          logger.warn('Failed to clean old storage file', { oldPath: oldStoragePath });
+        }
+      }
+    } catch (err: unknown) {
+      logger.error('Background Indexing Failed', err);
+    }
+  };
 }

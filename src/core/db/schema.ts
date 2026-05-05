@@ -26,6 +26,7 @@ export const knowledgeFiles = pgTable("knowledge_files", {
   progress: integer("progress").default(0),
   summary: text("summary"),
   logs: jsonb("logs").default([]),
+  metadata: jsonb("metadata").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
