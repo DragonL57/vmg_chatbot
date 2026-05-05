@@ -143,6 +143,8 @@ const useDeleteAction = (
 
 const useRegenerateAction = (
   fileId: string,
+  filename: string,
+  mode: string,
   refresh: () => void,
   setSaving: React.Dispatch<React.SetStateAction<boolean>>
 ) =>
@@ -152,7 +154,7 @@ const useRegenerateAction = (
       const res = await fetch('/api/admin/files/generate-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: fileId }),
+        body: JSON.stringify({ fileId, filename, mode }),
       });
       if (res.ok) {
         refresh();
@@ -165,7 +167,7 @@ const useRegenerateAction = (
     } finally {
       setSaving(false);
     }
-  }, [fileId, refresh, setSaving]);
+  }, [fileId, filename, mode, refresh, setSaving]);
 
 export const useFileDetail = (siloId: string, fileId: string): FileDetailState & FileDetailActions => {
   const router = useRouter();
@@ -200,7 +202,7 @@ export const useFileDetail = (siloId: string, fileId: string): FileDetailState &
 
   const handleSave = useSaveAction(fileId, filename, summary, refresh, setSaving);
   const handleDelete = useDeleteAction(fileId, siloId, router);
-  const handleRegenerateSummary = useRegenerateAction(fileId, refresh, setSaving);
+  const handleRegenerateSummary = useRegenerateAction(fileId, filename, file?.mode ?? '', refresh, setSaving);
 
   return {
     file,
