@@ -5,6 +5,7 @@ import { type SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { slugify } from '@/core/lib/utils';
 import { type KnowledgeCollection, type KnowledgeFile } from '@core/application/ports/knowledge-repository.port';
+import { useIndexingPoll } from '@/hooks/use-indexing-poll';
 import { createSupabaseClient, fetchCollections, fetchFiles } from './silo-detail-utils';
 
 type SiloDetailState = {
@@ -179,7 +180,7 @@ const useSiloUpload = (
     setUploading(true);
     try {
       const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}_${slugify(selectedFile.name.split('.')[0])}.${fileExt}`;
+      const fileName = `${slugify(selectedFile.name.split('.')[0])}.${fileExt}`;
       const filePath = `sources/${fileName}`;
       const { error: uploadError } = await supabase.storage.from('knowledge-sources').upload(filePath, selectedFile);
       if (uploadError) throw new Error(uploadError.message);
@@ -262,6 +263,17 @@ export const useSiloDetail = (id: string): SiloDetailState & SiloDetailActions =
   useEffect(() => {
     queueMicrotask(() => fetchSiloData());
   }, [fetchSiloData]);
+
+  useIndexingPoll(files.some(f => f.status === 'indexing'), () =>
+    Promise.all([fetchCollections(), fetchFiles()]).then(([colData, fileData]) => {
+      const silo = colData.collections?.find(c => c.id === id) ?? null;
+      if (silo) {
+        const siloFiles = fileData.files?.filter(f => f.mode === silo.qdrantName) ?? [];
+        setFiles(siloFiles);
+        return siloFiles.find(f => f.status === 'indexing')?.progress;
+      }
+    })
+  );
 
   const handleSaveSiloMetadata = useSiloSave(id, siloName, siloDesc, fetchSiloData, setSaving);
   const handleRegenerateSiloDescription = useSiloRegenerate(id, activeSilo, fetchSiloData, setSaving);

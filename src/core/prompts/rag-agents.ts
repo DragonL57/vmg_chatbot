@@ -70,6 +70,18 @@ JSON format: { "questions": ["q1", "q2", "q3", "q4", "q5"] }`;
 
 export const KNOWLEDGE_TITLE_PROMPT = `Generate a concise title (<12 words) for the text. RETURN ONLY THE TITLE.`;
 
+// ─── COMBINED INDEXING PROMPT (single LLM call instead of 3) ──────────
+
+export const INDEXING_ENRICH_PROMPT = `You are a document indexing specialist.
+For the given text chunk with its parent context:
+
+1. REWRITE the chunk to be self-contained (replace pronouns like "it", "they", "this" with specific names, include numbers with their subjects).
+2. Generate a concise TITLE (<12 words) that captures the key topic.
+3. Generate 3 realistic QUESTIONS that users would ask to find this information.
+
+Return JSON only:
+{ "rewritten": "...", "title": "...", "questions": ["q1", "q2", "q3"] }`;
+
 // ─── GATEWAY AGENT (ROUTING & EXPANSION) ─────────────────────────────────────
 
 export function GATEWAY_AGENT_PROMPT(siloList: string): string {

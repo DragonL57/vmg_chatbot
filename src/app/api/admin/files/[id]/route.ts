@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/env';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { 
   DrizzleAuthRepositoryAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
-  QdrantVectorStoreAdapter
+  QdrantVectorStoreAdapter,
+  ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { DeleteKnowledgeFileUseCase } from '@core/application/use-cases/delete-knowledge-file.use-case';
 import { z } from 'zod';
+
+const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 
 const patchSchema = z.object({
   filename: z.string().trim().min(1).optional(),
@@ -22,8 +27,10 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let fileId: string | undefined;
   try {
     const { id } = await params;
+    fileId = id;
     
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -45,12 +52,26 @@ export async function DELETE(
 
     const vectorStore = new QdrantVectorStoreAdapter();
     const deleteUseCase = new DeleteKnowledgeFileUseCase(vectorStore, knowledgeRepo);
+    const logger = new ConsoleLoggerAdapter();
 
     await deleteUseCase.execute(id, file.filename, file.mode);
 
+    // Clean up Supabase Storage file
+    const storagePath = file.metadata && typeof file.metadata === 'object'
+      ? (file.metadata as Record<string, unknown>).storagePath as string | undefined
+      : undefined;
+    if (storagePath) {
+      try {
+        await supabaseBackend.storage.from('knowledge-sources').remove([storagePath]);
+      } catch {
+        logger.warn('Storage file cleanup failed', { fileId: id, storagePath });
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Admin File Delete API] Error:', error);
+    const logger = new ConsoleLoggerAdapter();
+    logger.error('Admin file delete failed', error, { fileId });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

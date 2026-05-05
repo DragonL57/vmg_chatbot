@@ -34,7 +34,16 @@ export const FileTable: React.FC<FileTableProps> = ({
                   </div>
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-black/90 truncate group-hover:text-[#D32F2F] transition-colors">{file.filename}</p>
-                    <p className="text-[12px] text-[#615d59] line-clamp-1 mt-0.5">{file.summary || 'Chưa có tóm tắt.'}</p>
+                    <p className="text-[12px] text-[#615d59] line-clamp-1 mt-0.5">
+                      {file.status === 'indexing' 
+                        ? `Đang xử lý... ${file.progress || 0}%`
+                        : (file.summary || 'Chưa có tóm tắt.')}
+                    </p>
+                    {file.status === 'indexing' && (
+                      <div className="w-full h-1 bg-black/[0.06] rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-[#D32F2F] rounded-full transition-all duration-500" style={{ width: `${file.progress || 0}%` }} />
+                      </div>
+                    )}
                   </div>
                 </Link>
               </td>

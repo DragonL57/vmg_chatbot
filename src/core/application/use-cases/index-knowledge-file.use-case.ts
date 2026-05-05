@@ -5,11 +5,7 @@ import { IVectorStorePort } from "../ports/vector-store.port";
 import { IKnowledgeRepositoryPort } from "../ports/knowledge-repository.port";
 import { hierarchicalChunk } from "../../domain/services/chunking.service";
 import { DocumentChunk, TokenAccumulator } from "../../domain/entities/indexing";
-import { 
-  DOCUMENT_REWRITER_PROMPT, 
-  KNOWLEDGE_TITLE_PROMPT, 
-  FAQ_CREATOR_PROMPT 
-} from "../../prompts/rag-agents";
+import { INDEXING_ENRICH_PROMPT } from "../../prompts/rag-agents";
 import { FILE_SUMMARY_PROMPT, COLLECTION_DESCRIPTION_PROMPT } from "@core/prompts/admin";
 
 export interface IndexKnowledgeFileInput {
@@ -53,7 +49,7 @@ export class IndexKnowledgeFileUseCase {
   }
 
   private async processSegments(segments: { child: string; parent: string; header: string }[], sourceFile: string, tokens: TokenAccumulator, addLog: (msg: string, progress: number) => Promise<void>): Promise<DocumentChunk[]> {
-    const limit = pLimit(2);
+    const limit = pLimit(5);
     const parentIdMap = new Map<string, string>();
     let processed = 0;
 
@@ -61,45 +57,36 @@ export class IndexKnowledgeFileUseCase {
       const parentId = parentIdMap.get(seg.parent) || randomUUID();
       parentIdMap.set(seg.parent, parentId);
 
-      const rewritten = await this.enrichContent(seg, tokens);
-      const title = await this.generateTitle(rewritten, tokens);
-      const faqs = await this.generateFaqs(rewritten, tokens);
+      const result = await this.enrichSegment(seg, tokens);
 
       processed++;
       await addLog(`COMPLETE: Segment ${i + 1}`, 10 + Math.floor((processed / segments.length) * 80));
 
-      return { id: randomUUID(), parentId, title, content: `[INTENTS]: ${faqs.join("; ")}\n\n[CONTENT]: ${rewritten}`, source: sourceFile, parentContent: seg.parent };
+      return { id: randomUUID(), parentId, title: result.title, content: `[INTENTS]: ${result.questions.join("; ")}\n\n[CONTENT]: ${result.rewritten}`, source: sourceFile, parentContent: seg.parent };
     })));
   }
 
-  private async enrichContent(seg: { child: string; parent: string }, tokens: TokenAccumulator): Promise<string> {
-    const res = await this.llmProvider.completion({
-      messages: [{ role: 'system', content: DOCUMENT_REWRITER_PROMPT }, { role: 'user', content: `Context: ${seg.parent.slice(0, 300)}\n\nContent: ${seg.child}` }],
-      effort: 'low'
-    });
-    this.accumulateTokens(tokens, res.usage);
-    return res.content || seg.child;
-  }
-
-  private async generateTitle(content: string, tokens: TokenAccumulator): Promise<string> {
-    const res = await this.llmProvider.completion({
-      messages: [{ role: 'system', content: KNOWLEDGE_TITLE_PROMPT }, { role: 'user', content: content.slice(0, 600) }],
-      effort: 'low'
-    });
-    this.accumulateTokens(tokens, res.usage);
-    return (res.content || 'Knowledge Node').trim().slice(0, 80);
-  }
-
-  private async generateFaqs(content: string, tokens: TokenAccumulator): Promise<string[]> {
-    const res = await this.llmProvider.completion({
-      messages: [{ role: 'system', content: FAQ_CREATOR_PROMPT }, { role: 'user', content }],
-      jsonMode: true, effort: 'low'
-    });
-    this.accumulateTokens(tokens, res.usage);
+  private async enrichSegment(seg: { child: string; parent: string }, tokens: TokenAccumulator): Promise<{ rewritten: string; title: string; questions: string[] }> {
+    const fallback = { rewritten: seg.child, title: seg.parent.slice(0, 80) || 'Untitled', questions: [] };
     try {
-      const parsed = JSON.parse(res.content || "{}");
-      return Array.isArray(parsed.questions) ? parsed.questions : [];
-    } catch { return []; }
+      const res = await this.llmProvider.completion({
+        messages: [
+          { role: 'system', content: INDEXING_ENRICH_PROMPT },
+          { role: 'user', content: `Parent context: ${seg.parent.slice(0, 300)}\n\nChunk to process:\n${seg.child.slice(0, 2000)}` }
+        ],
+        jsonMode: true,
+        effort: 'low'
+      });
+      this.accumulateTokens(tokens, res.usage);
+      const parsed = JSON.parse(res.content || '{}');
+      return {
+        rewritten: parsed.rewritten || seg.child,
+        title: (parsed.title || 'Untitled').trim().slice(0, 80),
+        questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 5) : [],
+      };
+    } catch {
+      return fallback;
+    }
   }
 
   private async finalizeIndexing(fileId: string, source: string, col: string, md: string, tokens: TokenAccumulator, logs: string[]) {

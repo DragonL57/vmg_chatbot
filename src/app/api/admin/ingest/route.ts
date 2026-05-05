@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     // 4. RUN IN BACKGROUND
     const bgTask = createIndexingTask({
-      indexUseCase, supabaseBackend, logger,
+      indexUseCase, supabaseBackend, logger, knowledgeRepo,
       content, filename, mode, finalFileId, storagePath, oldStoragePath
     });
     waitUntil(bgTask());
@@ -140,6 +140,7 @@ function createIndexingTask(params: {
   indexUseCase: IndexKnowledgeFileUseCase;
   supabaseBackend: { storage: { from: (b: string) => { remove: (paths: string[]) => Promise<unknown> } } };
   logger: ConsoleLoggerAdapter;
+  knowledgeRepo: DrizzleKnowledgeRepositoryAdapter;
   content: string;
   filename: string;
   mode: string;
@@ -147,7 +148,7 @@ function createIndexingTask(params: {
   storagePath: string;
   oldStoragePath: string | undefined;
 }) {
-  const { indexUseCase, supabaseBackend, logger, content, filename, mode, finalFileId, storagePath, oldStoragePath } = params;
+  const { indexUseCase, supabaseBackend, logger, knowledgeRepo, content, filename, mode, finalFileId, storagePath, oldStoragePath } = params;
   return async () => {
     try {
       await indexUseCase.execute({
@@ -166,6 +167,7 @@ function createIndexingTask(params: {
       }
     } catch (err: unknown) {
       logger.error('Background Indexing Failed', err);
+      await knowledgeRepo.upsertFile({ id: finalFileId, status: 'failed', progress: 0 }).catch(() => {});
     }
   };
 }

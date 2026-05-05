@@ -22,6 +22,17 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
         field_schema: 'keyword',
         wait: true,
       });
+      // Text indexes for keyword search
+      await qdrantClient.createPayloadIndex(collectionName, {
+        field_name: 'content',
+        field_schema: 'text',
+        wait: true,
+      });
+      await qdrantClient.createPayloadIndex(collectionName, {
+        field_name: 'title',
+        field_schema: 'text',
+        wait: true,
+      });
     } catch {
       // Ignored: collection might not exist
     }
@@ -97,6 +108,28 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
     if (chunks.length === 0) return;
     const ids = chunks.map(c => c.id);
     await qdrantClient.delete(collectionName, { points: ids, wait: true });
+  }
+
+  public async keywordSearch(keywords: string[], collectionName: string, limit = 5): Promise<DocumentChunk[]> {
+    const response = await qdrantClient.scroll(collectionName, {
+      filter: {
+        should: keywords.map(k => ({
+          key: 'content',
+          match: { text: k },
+        })),
+      },
+      limit,
+      with_payload: true,
+    });
+    return response.points.map(r => ({
+      id: String(r.id),
+      parentId: String(r.payload?.parentId || ''),
+      title: String(r.payload?.title || ''),
+      content: String(r.payload?.content || ''),
+      source: String(r.payload?.source || ''),
+      parentContent: String(r.payload?.parentContent || ''),
+      collection: collectionName,
+    }));
   }
 
   private toDocumentChunk(r: { id: string | number; payload?: Record<string, unknown> | null }, source: string, collectionName: string): DocumentChunk {

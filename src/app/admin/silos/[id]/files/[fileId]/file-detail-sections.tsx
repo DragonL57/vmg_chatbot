@@ -107,18 +107,31 @@ type FileDetailInfoProps = {
   file: KnowledgeFile | null;
 };
 
+const IndexingStatus = ({ file }: { file: KnowledgeFile | null }) => {
+  const status = file?.status ?? 'unknown';
+  const dotColor = status === 'completed' ? 'bg-[#1aae39]' : status === 'failed' ? 'bg-red-500' : status === 'indexing' ? 'bg-amber-400 animate-pulse' : 'bg-red-500';
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-bold text-black/30">Trạng thái index</p>
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+        <span className="text-[14px] font-semibold capitalize">{status === 'indexing' ? `Đang xử lý: ${file?.progress || 0}%` : status}</span>
+      </div>
+      {status === 'indexing' && (
+        <div className="w-full h-1.5 bg-black/[0.06] rounded-full mt-2 overflow-hidden">
+          <div className="h-full bg-[#D32F2F] rounded-full transition-all duration-500" style={{ width: `${file?.progress || 0}%` }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const FileDetailInfo = ({ file }: FileDetailInfoProps) => (
   <div className="space-y-6">
     <div className="notion-card p-5 space-y-4">
       <h4 className="text-[13px] font-bold text-black/40">Thông tin hệ thống</h4>
       <div className="space-y-4">
-        <div className="space-y-1">
-          <p className="text-[11px] font-bold text-black/30">Trạng thái index</p>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${file?.status === 'completed' ? 'bg-[#1aae39]' : 'bg-red-500'}`} />
-            <span className="text-[14px] font-semibold capitalize">{file?.status}</span>
-          </div>
-        </div>
+        <IndexingStatus file={file} />
         <div className="space-y-1">
           <p className="text-[11px] font-bold text-black/30">Không gian (Mode)</p>
           <div className="flex items-center gap-2 text-black/60">

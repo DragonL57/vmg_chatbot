@@ -223,8 +223,10 @@ function buildSystemPrompt(state: AgentStateType, userMemories: string, lastUser
   const evidence = state.evidence;
   const contextSummary = state.context_summary;
   const isChitChat = !!state.isChitChat;
+  // Only include evidence if grade found it relevant (not a forced fallthrough from max retries)
+  const isRelevant = state.isRelevant !== false;
   let knowledgeBlock = '';
-  if (evidence?.docs?.length > 0) {
+  if (isRelevant && evidence?.docs?.length > 0) {
     knowledgeBlock = buildRetrievedContext(evidence);
     if (contextSummary) knowledgeBlock += `\n\n# CẤU TRÚC SỰ THẬT (FACT SHEET)\n${contextSummary}`;
   }

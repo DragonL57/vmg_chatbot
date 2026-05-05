@@ -22,6 +22,7 @@ describe('IndexKnowledgeFileUseCase', () => {
       ensureCollection: vi.fn().mockResolvedValue(undefined),
       upsert: vi.fn().mockResolvedValue(undefined),
       search: vi.fn(),
+      keywordSearch: vi.fn(),
       listBySource: vi.fn(),
       deleteBySource: vi.fn(),
       isIndexed: vi.fn()
