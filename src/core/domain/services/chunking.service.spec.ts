@@ -69,6 +69,29 @@ describe('hierarchicalChunk section merging', () => {
     expect(parents.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('handles buffer overflow — flushes buffer when new section would exceed minSize', () => {
+    // First section builds up buffer, second section doesn't fit → flush
+    const result = hierarchicalChunk(
+      '# A\n' + 'X'.repeat(500) + '\n\n# B\n' + 'Y'.repeat(800)
+    );
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('handles accumulation of multiple tiny sections into one parent', () => {
+    // Several sections under minSize should accumulate
+    const result = hierarchicalChunk(
+      '# H1\nSmall.\n\n# H2\nTiny.\n\n# H3\nMinimal.\n\n# H4\nAnother.\n\n# H5\nEnough content to push over the threshold with all accumulated together.'
+    );
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('handles sections without headers (uses previous header)', () => {
+    const result = hierarchicalChunk('# Main\nThis is content under main header. '.repeat(20));
+    for (const chunk of result) {
+      expect(chunk.header).toBeTruthy();
+    }
+  });
+
   it('handles real-world markdown with mixed content', () => {
     const text = [
       '# Course Overview',

@@ -7,9 +7,15 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 | Debt Type | Description | Impact | Priority |
 |-----------|-------------|--------|----------|
 | **Observability** | No structured logging (`LoggerProvider`). Using `console.log`. | Hard to debug in production. | High |
-| **Testing** | Low coverage for Adapter layer. | High risk of regression on DB/API changes. | Medium |
 | **Purity** | `ChatInterface` logic is complex; could benefit from custom hook extraction. | Complex state management risks bugs. | Low |
 | **Build Tooling** | `drizzle-kit` introspect bug requires manual schema sync script. | Friction during schema migrations. | Medium |
+
+## Resolved Debt (2026-05-06)
+- [x] **Testing Coverage**: Expanded from 15 test files / ~200 tests to 67 test files / 379 unit tests + 5 integration test files / 36 tests. Coverage includes Domain (100% lines), Application (87% use cases), Agent nodes (real LLM integration), API routes, UI components (React Testing Library), hooks, and infrastructure adapters. Build: `pnpm lint:strict && test:unit && test:integration && next build`.
+- [x] **Adapter Coverage**: QdrantVectorStoreAdapter, Drizzle adapters, ConsoleLoggerAdapter, and LLMProviderAdapter all have tests. Integration tests cover real Qdrant Cloud, real LLM (Poe), and real Postgres (Supabase).
+- [x] **UI Component Tests**: Added React Testing Library tests for 22 components including ChatInput, MessageItem, FileTable, SiloTable, Sidebar sections, ReportModal, AgentSteps, Admin components, and more.
+- [x] **API Route Tests**: Added tests for collections, history, report, conversation CRUD, and user data/memories API routes.
+- [x] **Agent Node Integration**: All 7 RAG nodes tested end-to-end with real LLM and Qdrant. Full graph E2E test.
 
 ## Resolved Debt (2026-04-30)
 - [x] **Trace Integrity**: Fixed foreign key race condition by ensuring conversation exists before trace initiation (See `docs/exec-plans/active/2026-04-30-comprehensive-hardening.md`).

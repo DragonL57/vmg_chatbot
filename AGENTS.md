@@ -36,6 +36,66 @@ The codebase follows strict layer separation:
 
 ---
 
+## Behavioral Guidelines (Reduce LLM Coding Mistakes)
+
+These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### 1. Think Before Coding
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### 2. Simplicity First
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+**The test**: Every changed line should trace directly to the user's request.
+
+**Exception — Garbage Collection mode**: When explicitly performing maintenance (weekly scans, tech-debt sessions), broader cleanup is allowed. Distinguish between task-focused work and maintenance work. If you see dead code during a task, note it for the next GC pass rather than expanding scope mid-task.
+
+### 4. Goal-Driven Execution
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
 ## Golden Principles (Non-Negotiable)
 
 ### 1. Validate at Boundaries (Agent-First + Clean Arch)
@@ -62,14 +122,14 @@ The codebase follows strict layer separation:
 - If you detect a pattern repeated 3+ times, extract to shared domain utility
 - Use repository-embedded concurrency helpers rather than importing generic libraries that bypass observability
 
-### 4. Agent Legibility First
+### 5. Agent Legibility First
 - Optimize code for **agent comprehension** over human stylistic preferences
 - File size limit: **300 lines max** (enforced by linter)
 - Function parameters: **max 3**, use objects for configuration
 - Function length: **Do one thing** at one level of abstraction (<40 lines preferred)
 - Naming must reveal intent clearly for future agent runs
 
-### 5. Architecture Enforcement
+### 6. Architecture Enforcement
 **Strict Layer Rules** (enforced mechanically):
 - Domain: No imports from outer layers
 - Application: Only imports Domain
@@ -81,14 +141,14 @@ The codebase follows strict layer separation:
 - Domain depending on framework-specific code
 - Adapters exposing raw external types to inner layers
 
-### 6. Repository as System of Record
+### 7. Repository as System of Record
 - All design decisions must be encoded in `docs/` as markdown
 - Execution plans for complex work live in `docs/exec-plans/active/`
 - **Golden Rule**: If you can't find it in the repo, it doesn't exist
 - Update `docs/ARCHITECTURE.md` if you change domain boundaries
 - Update `docs/QUALITY_SCORE.md` if you improve/refactor domains
 
-### 7. Mechanical Taste
+### 8. Mechanical Taste
 Enforced by custom linters (not optional):
 - **Structured logging only**: No `console.log`, use injected LoggerProvider
 - **No emojis in code or logs**: Emojis can cause encoding issues in log pipelines and terminal scrollback. Use plain text markers (e.g., `[ok]`, `[error]`) instead.
@@ -98,7 +158,7 @@ Enforced by custom linters (not optional):
 - **Composition over Inheritance**: No extends for "has-a" relationships
 - **No unsupervised commits or pushes**: You must NEVER `git commit`, `git push`, or `git merge` without explicit human permission. Wait for "commit" or "push" before proceeding.
 
-### 8. Holistic Constraint Resolution
+### 9. Holistic Constraint Resolution
 When you hit a lint or architecture constraint (file too long, function too complex, max-lines-per-function exceeded):
 - **Don't patch**: Do NOT add `// eslint-disable-next-line` comments, do NOT minimally inline code to squeeze under the limit
 - **Step back**: Recognize the constraint as a signal that the code needs proper refactoring

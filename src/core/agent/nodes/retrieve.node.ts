@@ -2,7 +2,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
 import { IVectorStorePort } from "../../application/ports/vector-store.port";
 
-function extractKeywords(query: string): string[] {
+export function extractKeywords(query: string): string[] {
   // Extract uppercase acronyms (2+ chars) and standalone numbers
   const acronyms = query.match(/\b[A-Z0-9]{2,}\b/g) || [];
   // Extract capitalized Vietnamese/English words (proper nouns)

@@ -79,13 +79,12 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
 
   public async listBySource(source: string, collectionName: string): Promise<DocumentChunk[]> {
     const results: DocumentChunk[] = [];
-    let offset: unknown = undefined;
-    const MAX_SCROLLS = 20;
+    let offset: string | number | null = null;
 
-    for (let i = 0; i < MAX_SCROLLS; i++) {
+    while (true) {
       const response = await qdrantClient.scroll(collectionName, {
         limit: 50,
-        offset: offset as string | number | undefined,
+        offset: offset ?? undefined,
         with_payload: true,
       });
 
@@ -96,8 +95,8 @@ export class QdrantVectorStoreAdapter implements IVectorStorePort {
         if (docSource === source) results.push(this.toDocumentChunk(r, docSource, collectionName));
       }
 
-      offset = response.next_page_offset ?? undefined;
-      if (offset === undefined) break;
+      if (response.next_page_offset === null || response.next_page_offset === undefined) break;
+      offset = response.next_page_offset as string | number;
     }
 
     return results;
