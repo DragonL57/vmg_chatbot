@@ -142,32 +142,27 @@ Vercel's build environment resolves `react-dom` to the **production CJS bundle**
 - **Symptom**: All 67 test suites fail with `TypeError: React.act is not a function` or `TypeError: Cannot redefine property: act`.
 - **Why local passes**: Local development resolves the ESM development version of `react-dom`, which has a working `act`.
 
-**Fix**: Use Vitest's `alias` config to redirect ALL imports of `react-dom/test-utils` to a mock file that imports the real module but overrides `act` with React's own `act` export (available in Vitest's bundled ESM environment, even when Vercel resolves CJS).
+**Root cause**: Vercel injects `NODE_ENV=production` globally across its build container. Vitest's jsdom environment runs in a Node.js process (Vite SSR pipeline), inheriting this value. Node.js then resolves React's CJS production bundle (`react/cjs/react.production.js`) via its `package.json` export map, where `React.act` is intentionally stripped to reduce bundle size.
 
-```typescript
-// vitest.config.ts — test.alias
-alias: {
-  'react-dom/test-utils': path.resolve(__dirname, './src/test/__mocks__/react-dom-test-utils.ts'),
-}
+**Fix**: Explicitly override `NODE_ENV=test` during test execution. This forces Node.js to resolve React's development bundle, where `React.act` exists and `@testing-library/react`'s `act-compat.js` can use it directly, never falling back to the broken production `react-dom/test-utils`.
+
+```jsonc
+// package.json
+"test:unit": "cross-env NODE_ENV=test vitest run --coverage",
+"test:integration": "cross-env NODE_ENV=test vitest run --config vitest.integration.config.ts"
 ```
 
-```typescript
-// src/test/__mocks__/react-dom-test-utils.ts
-export * from 'react-dom/test-utils';  // re-export all original exports
-import * as React from 'react';
-export const act = React.act;          // override: use React's own act
-```
-
-This works at the module resolution level — ALL consumers (including `@testing-library/react`'s internal `act-compat.js`) resolve to the mock file, which delegates to React's working `act` instead of the broken CJS production `act`.
+`cross-env` ensures cross-platform compatibility (Windows/Linux). When `NODE_ENV=test`, Node.js resolves `react` → development ESM build → `React.act` is available → `@testing-library/react` uses it → no fallback to `react-dom/test-utils`.
 
 Attempted alternative approaches that failed:
 
 | Approach | Failure Reason |
 |----------|---------------|
-| `React.act = (cb) => cb()` — direct assignment | Property is read-only (`Cannot redefine property: act`) in Vercel's React production build |
-| `Object.defineProperty(React, 'act', ...)` | Property is non-configurable; `TypeError` thrown |
-| `vi.mock('react-dom/test-utils', ...)` in setup file | Vitest hoists `vi.mock` within the file, but `@testing-library/react` may resolve the module before the setup file executes on Vercel |
-| `test.alias` in vitest.config.ts | **Works** — module resolution is intercepted at the bundler level, before any consumer loads |
+| `React.act = (cb) => cb()` — direct assignment | ES module namespace is read-only (`Cannot redefine property`) |
+| `Object.defineProperty(React, 'act', ...)` | Property is non-configurable in sealed module namespace |
+| `vi.mock('react-dom/test-utils', ...)` in setup | Mock doesn't match pnpm's symlinked realpath; Node.js bypasses vitest cache |
+| `test.alias` in vitest.config.ts | Vite aliases only apply to inlined modules; externalized deps go to Node.js resolver directly |
+| `cross-env NODE_ENV=test` in package.json scripts | **Works** — sets env at process level before vitest starts, Node.js resolves development React bundle |
 
 ## 8.3 Security & Validation
 

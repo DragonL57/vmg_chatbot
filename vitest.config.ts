@@ -15,7 +15,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@core': path.resolve(__dirname, './src/core'),
-      'react-dom/test-utils': path.resolve(__dirname, './src/test/__mocks__/react-dom-test-utils.ts'),
     },
     exclude: ['**/*.integration.spec.ts', 'node_modules', '.next'],
     coverage: {
