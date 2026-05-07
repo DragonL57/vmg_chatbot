@@ -18,3 +18,9 @@ This chapter defines key terms and acronyms used in the VMG MATE ecosystem.
 | **Clean Architecture** | A design pattern that separates code into layers (Domain, Application, Infrastructure) to minimize dependencies on external frameworks. |
 | **HITL** | **H**uman-**i**n-the-**L**oop. Specialist evaluators who review and correct AI outputs to improve the knowledge base. |
 | **Zalo Webhook** | An HTTP callback used by Zalo to send real-time message events to the MATE platform. |
+| **AAA (Arrange-Act-Assert)** | A test structure pattern: set up preconditions (Arrange), execute the action under test (Act), verify the outcome (Assert). Equivalent to Given-When-Then. |
+| **Given-When-Then** | A test description convention: Given = initial context, When = triggering event, Then = expected observable result. Required for all test titles in this project. |
+| **Screen Query** | A Testing Library API (`screen.getByText`, `screen.getByRole`, etc.) that queries the rendered DOM as a user would perceive it. Preferred over `document.querySelector` in component tests. |
+| **Integration Test** | A test that combines multiple real units and verifies they work together correctly. In this project: tests using real Postgres, Qdrant, and LLM connections, run via `vitest.integration.config.ts`. |
+| **Unit Test** | A test covering the smallest unit of code (a single function, class, or component) with all dependencies mocked. Runs fast in jsdom environment via `vitest.config.ts`. |
+| **jsdom** | A JavaScript implementation of web standards used by Vitest to simulate a browser DOM for unit tests. Component tests render into jsdom, not a real browser. |

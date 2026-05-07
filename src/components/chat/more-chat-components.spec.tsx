@@ -16,31 +16,33 @@ vi.mock('./hub-view', () => ({
 Element.prototype.scrollIntoView = vi.fn();
 
 describe('MarkdownContent', () => {
-  it('renders plain text', () => {
+  it('given plain text, renders it', () => {
     render(<MarkdownContent content="Hello world" />);
     expect(screen.getByText('Hello world')).toBeInTheDocument();
   });
 
-  it('renders markdown bold', () => {
+  it('given markdown bold syntax, renders bold text', () => {
     render(<MarkdownContent content="**bold**" />);
     expect(screen.getByText('bold')).toBeInTheDocument();
   });
 
-  it('renders user content with white text class', () => {
+  it('given user content, renders with user styling', () => {
     const { container } = render(<MarkdownContent content="User msg" isUser={true} />);
-    expect(container.querySelector('.text-white')).toBeInTheDocument();
+    // User messages are rendered as inline-block with text-white styling
+    const markdownWrapper = container.firstChild;
+    expect(markdownWrapper).toHaveClass('text-white');
   });
 
-  it('renders links', () => {
+  it('given a markdown link, renders clickable anchor with href', () => {
     render(<MarkdownContent content="[link](https://vmg.edu.vn)" />);
-    const link = document.querySelector('a');
+    const link = screen.getByRole('link', { name: 'link' });
     expect(link).toBeInTheDocument();
-    expect(link?.getAttribute('href')).toBe('https://vmg.edu.vn');
+    expect(link).toHaveAttribute('href', 'https://vmg.edu.vn');
   });
 
-  it('renders code blocks', () => {
-    render(<MarkdownContent content="`code`" />);
-    expect(document.querySelector('code')).toBeInTheDocument();
+  it('given inline code syntax, renders code element', () => {
+    const { container } = render(<MarkdownContent content="`code`" />);
+    expect(container.querySelector('code')).toBeInTheDocument();
   });
 });
 
@@ -50,30 +52,30 @@ describe('MessageList', () => {
     { id: '2', role: 'assistant' as const, content: 'Hi!', timestamp: new Date().toISOString() },
   ];
 
-  it('renders messages', () => {
+  it('given messages, renders user and assistant content', () => {
     render(<MessageList messages={messages} isLoading={false} />);
-    expect(document.body.textContent).toContain('Hello');
-    expect(document.body.textContent).toContain('Hi!');
+    expect(screen.getByText('Hello')).toBeInTheDocument();
+    expect(screen.getByText('Hi!')).toBeInTheDocument();
   });
 
-  it('shows hub view when no messages', () => {
+  it('given empty messages, shows hub view', () => {
     render(<MessageList messages={[]} isLoading={false} collections={[]} />);
     expect(screen.getByTestId('hub-view')).toBeInTheDocument();
   });
 
-  it('shows loading skeleton when history loading', () => {
-    render(<MessageList messages={[]} isLoading={false} isHistoryLoading={true} />);
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+  it('given history loading state, shows loading skeleton', () => {
+    const { container } = render(<MessageList messages={[]} isLoading={false} isHistoryLoading={true} />);
+    expect(container.querySelector('[class*="animate-pulse"]')).toBeInTheDocument();
   });
 
-  it('renders empty without crashing', () => {
+  it('given empty messages without history loading, shows hub view', () => {
     render(<MessageList messages={[]} isLoading={false} />);
     expect(screen.getByTestId('hub-view')).toBeInTheDocument();
   });
 });
 
 describe('CreateSiloModal', () => {
-  it('renders form fields', () => {
+  it('given no input, renders title, name field, submit and cancel buttons', () => {
     render(<CreateSiloModal name="" onNameChange={vi.fn()} qName="" onQNameChange={vi.fn()} desc="" onDescChange={vi.fn()} onSubmit={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('Tạo không gian mới')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Ví dụ: Quy trình Du học')).toBeInTheDocument();
@@ -81,21 +83,21 @@ describe('CreateSiloModal', () => {
     expect(screen.getByText('Hủy bỏ')).toBeInTheDocument();
   });
 
-  it('calls onNameChange when typing', () => {
+  it('given a name change handler, when user types in name field, calls handler with value', () => {
     const onChange = vi.fn();
     render(<CreateSiloModal name="" onNameChange={onChange} qName="" onQNameChange={vi.fn()} desc="" onDescChange={vi.fn()} onSubmit={vi.fn()} onClose={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText('Ví dụ: Quy trình Du học'), { target: { value: 'Test' } });
     expect(onChange).toHaveBeenCalledWith('Test');
   });
 
-  it('calls onClose when cancel clicked', () => {
+  it('given a close handler, when user clicks cancel, calls onClose', () => {
     const onClose = vi.fn();
     render(<CreateSiloModal name="" onNameChange={vi.fn()} qName="" onQNameChange={vi.fn()} desc="" onDescChange={vi.fn()} onSubmit={vi.fn()} onClose={onClose} />);
     fireEvent.click(screen.getByText('Hủy bỏ'));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('calls onSubmit when form submitted', () => {
+  it('given filled form, when user clicks submit, calls onSubmit', () => {
     const onSubmit = vi.fn((e) => e.preventDefault());
     render(<CreateSiloModal name="Test" onNameChange={vi.fn()} qName="test" onQNameChange={vi.fn()} desc="desc" onDescChange={vi.fn()} onSubmit={onSubmit} onClose={vi.fn()} />);
     fireEvent.click(screen.getByText('Tạo không gian'));

@@ -3,38 +3,36 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AgentSteps } from './agent-steps';
 
 describe('AgentSteps', () => {
-  it('renders thinking state', () => {
+  it('given thinking phase, shows thinking label', () => {
     render(<AgentSteps phase="thinking" reflections={['Analyzing query...']} />);
     expect(screen.getByText('MATE đang suy nghĩ...')).toBeInTheDocument();
   });
 
-  it('renders complete state', () => {
+  it('given complete phase, shows reasoning trace label', () => {
     render(<AgentSteps phase="complete" reflections={['Done']} />);
     expect(screen.getByText('Tiến trình suy luận')).toBeInTheDocument();
   });
 
-  it('shows reflections when expanded', () => {
+  it('given reflections, renders each step text', () => {
     render(<AgentSteps phase="thinking" reflections={['Step 1', 'Step 2']} />);
     expect(screen.getByText('Step 1')).toBeInTheDocument();
     expect(screen.getByText('Step 2')).toBeInTheDocument();
   });
 
-  it('collapses and expands on click', () => {
+  it('given auto-collapsed complete phase, when user clicks label, expands to show reflections', () => {
     render(<AgentSteps phase="complete" reflections={['Done']} />);
-    // Complete state is auto-collapsed, click to expand
     const btn = screen.getByText('Tiến trình suy luận').closest('button');
     if (btn) fireEvent.click(btn);
     expect(screen.getByText('Done')).toBeInTheDocument();
   });
 
-  it('shows loading spinner when not complete', () => {
+  it('given thinking phase with no reflections, shows initializing fallback text', () => {
     render(<AgentSteps phase="thinking" reflections={[]} />);
-    expect(screen.getByText('MATE đang suy nghĩ...')).toBeInTheDocument();
+    expect(screen.getByText('Đang khởi tạo chuỗi suy luận...')).toBeInTheDocument();
   });
 
-  it('shows fallback when no reflections', () => {
+  it('given thinking phase, does not show completed label', () => {
     render(<AgentSteps phase="thinking" reflections={[]} />);
-    // Should show the animate-pulse fallback text
-    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(screen.queryByText('Tiến trình suy luận')).not.toBeInTheDocument();
   });
 });

@@ -165,6 +165,65 @@ When you hit a lint or architecture constraint (file too long, function too comp
 - **Refactor holistically**: Split the file, extract components, create proper abstractions — solve the root cause, not the symptom
 - **Rule of thumb**: If you're fighting a linter rule, you're fighting the wrong battle. The rule is right. Change the structure.
 
+### 10. Test Standards (Test-First, User-Centric)
+
+All code must be testable and tested. Tests are the safety net that prevents regressions and serve as living documentation for future agent runs.
+
+#### 10.1 Testable Code First
+- **Separate view from business logic**: React components render UI; business logic lives in pure functions, domain entities, and use cases independent of any framework.
+- **No monolithic files**: If a function or component is hard to test, it is too coupled. Refactor before writing tests.
+- **Inject dependencies**: Use constructor injection or parameter passing. Never import and call external services directly from domain or application code.
+
+#### 10.2 Test Structure (AAA / Given-When-Then)
+Every test description must follow the **Given-When-Then** pattern:
+
+```typescript
+// GOOD
+it('given an empty input, when form is submitted, disables the submit button', () => { ... });
+
+// BAD — describes what but not the condition or outcome
+it('renders user message with red bubble', () => { ... });
+```
+
+- **Given**: precondition / initial state
+- **When**: the action or event
+- **Then**: the expected outcome visible to the user
+
+#### 10.3 Component Tests: User Perspective Only
+Component tests must test what the **user sees and does**, never implementation details.
+
+- **Use `screen` queries**: `getByText`, `getByRole`, `getByLabelText`, `getByPlaceholderText` — these mirror what users perceive.
+- **Forbidden in component tests**:
+  - `document.querySelector` / `document.querySelectorAll` (brittle CSS class selectors)
+  - `document.body.textContent` (too broad, false positives)
+  - Assertions on component state, props, or internal variables
+  - Counting DOM elements instead of asserting on visible content
+- **Exception**: `container.querySelector` is acceptable only for presentational components with no text (e.g., skeleton loaders, icon-only buttons). Even then, prefer `container` over `document`.
+
+#### 10.4 Mocking: Prefer Real, Mock Only When Necessary
+- **Real implementations are better than mocks**. Mock only when the real dependency:
+  - Makes network calls (external APIs, databases)
+  - Is non-deterministic (Date.now, Math.random)
+  - Would make tests slow or flaky
+- **Mock at module level** with `vi.mock` for external dependencies.
+- **Never mock the code under test** — mock the adapters, keep the domain and application real.
+
+#### 10.5 Test Independence
+- Each test must be independent: no test depends on another test's side effects.
+- Use `beforeEach`/`vi.clearAllMocks()` to reset state.
+- Tests must pass in any order, in isolation, or as a suite.
+
+#### 10.6 Don't Test Configuration
+- Do NOT write tests that merely assert constant values equal themselves. These add zero protection.
+- Test **behavior** that uses the configuration, not the configuration values themselves.
+
+#### 10.7 Coverage Targets (Enforced in Build)
+- **Domain**: 100% lines, branches, functions
+- **Application use cases**: >85% lines
+- **Adapters**: Integration tests for real services; unit tests verify error paths
+- **Components**: User-visible behavior covered (render + interaction)
+- Build runs: `pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build`
+
 ---
 
 ## Agent Workflow (How You Execute)

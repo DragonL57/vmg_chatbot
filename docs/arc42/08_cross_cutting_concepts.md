@@ -88,6 +88,52 @@ To prevent common agentic failures, MATE employs the following architectural "gu
 - **Context Confusion (Tool Overload):** Controlled by the **Router/Expand** node. Instead of exposing all knowledge silos, the router selects only relevant `targetCollections` based on the query intent.
 - **Context Clash (Contradictory Input):** Resolved by **Query Reconstruction**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
 
+## 8.6 Automated Testing Strategy
+
+Testing is a cross-cutting concern spanning all layers of the Clean Architecture. The testing strategy follows the principle: **test behavior visible to users, not implementation details**.
+
+### 8.6.1 Testing Layers
+
+| Layer | Test Type | Environment | What to Test |
+|-------|----------|-------------|-------------|
+| **Domain** | Unit (pure functions) | jsdom | All entities, value objects, services. No mocking needed. |
+| **Application** | Unit (mocked ports) | jsdom | Use cases with mocked adapters. Test success, failure, and edge paths. |
+| **Adapters** | Integration (real services) | node | Real Qdrant, real Postgres, real LLM calls. Smoke-test connectivity. |
+| **Components** | Unit (React Testing Library) | jsdom | Render output and user interactions. Mock sub-components, never test CSS classes. |
+| **API Routes** | Unit (mocked Next.js) | jsdom | Route handlers with mocked Supabase, adapters, and env vars. |
+
+### 8.6.2 Component Test Rules
+
+- **User-centric queries only**: `screen.getByText`, `screen.getByRole`, `screen.getByLabelText`, `screen.getByPlaceholderText`
+- **Forbidden**: `document.querySelector`, `document.querySelectorAll`, `document.body.textContent`, assertions on component props/state
+- **Acceptable only when no text exists**: `container.querySelector` for presentational elements (skeletons, icons)
+
+### 8.6.3 Test Description Convention
+
+Every test title follows Given-When-Then:
+
+```
+it('given <precondition>, [when <action>,] <expected outcome>')
+```
+
+Examples:
+- `'given an empty input, disables the submit button'`
+- `'given a user message, does not show the report button'`
+- `'given a click handler, when user clicks suggestion, calls it with the label'`
+
+### 8.6.4 Build Pipeline Integration
+
+Tests are mandatory before compilation:
+
+```bash
+pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build
+```
+
+- `lint:strict`: ESLint with `--max-warnings 0`
+- `test:unit`: Vitest in jsdom (fast, mocked, 67 test files)
+- `test:integration`: Vitest in node with `.env.local` (real services, 5 test files)
+- `next build`: TypeScript compilation + Next.js production build
+
 ## 8.3 Security & Validation
 
 - **Zod Boundaries:** All external data is parsed at the adapter layer before entering the application/domain layers.

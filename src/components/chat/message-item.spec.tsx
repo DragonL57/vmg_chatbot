@@ -26,49 +26,48 @@ const createMessage = (overrides: Partial<Message> = {}): Message => ({
 });
 
 describe('MessageItem', () => {
-  it('renders user message with red bubble', () => {
+  it('given a user message, renders its content', () => {
     render(<MessageItem message={createMessage({ role: 'user' })} />);
     expect(screen.getByText('Hello')).toBeInTheDocument();
   });
 
-  it('renders assistant message', () => {
+  it('given an assistant message, renders its content', () => {
     render(<MessageItem message={createMessage({ role: 'assistant', content: 'Hi there!' })} />);
     expect(screen.getByText('Hi there!')).toBeInTheDocument();
   });
 
-  it('renders system message', () => {
+  it('given a system message, renders its content', () => {
     render(<MessageItem message={createMessage({ role: 'system', content: 'System update' })} />);
     expect(screen.getByText('System update')).toBeInTheDocument();
   });
 
-  it('shows report button for assistant messages', () => {
+  it('given an assistant message, shows the report button', () => {
     render(<MessageItem message={createMessage({ role: 'assistant', traceId: 'trace-123' })} />);
     expect(screen.getByText('Báo cáo')).toBeInTheDocument();
   });
 
-  it('shows feedback buttons for assistant with traceId', () => {
+  it('given an assistant message with traceId, shows trace prefix as feedback row', () => {
     render(<MessageItem message={createMessage({ role: 'assistant', traceId: 'trace-123' })} />);
-    expect(document.querySelectorAll('button').length).toBeGreaterThan(2);
+    expect(screen.getByText('trace')).toBeInTheDocument();
   });
 
-  it('does not show feedback for user messages', () => {
+  it('given a user message, does not show report button', () => {
     render(<MessageItem message={createMessage({ role: 'user' })} />);
     expect(screen.queryByText('Báo cáo')).not.toBeInTheDocument();
   });
 
-  it('shows memory updated indicator', () => {
+  it('given an assistant message with memoryUpdated flag, shows memory indicator', () => {
     render(<MessageItem message={createMessage({ role: 'assistant', memoryUpdated: true })} />);
     expect(screen.getByText(/MATE đã ghi nhớ/)).toBeInTheDocument();
   });
 
-  it('opens report modal on report click', () => {
+  it('given an assistant message, when user clicks report, opens the report modal', () => {
     render(<MessageItem message={createMessage({ role: 'assistant', traceId: 'trace-123' })} />);
-    const reportBtn = screen.getByText('Báo cáo');
-    fireEvent.click(reportBtn);
+    fireEvent.click(screen.getByText('Báo cáo'));
     expect(screen.getByTestId('report-modal')).toBeInTheDocument();
   });
 
-  it('shows safety warning styling', () => {
+  it('given an assistant message with safety warning content, renders the warning text', () => {
     render(<MessageItem message={createMessage({
       role: 'assistant',
       content: '⚠️ Cảnh báo vi phạm chính sách an toàn',

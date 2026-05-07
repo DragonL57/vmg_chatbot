@@ -20,24 +20,15 @@ vi.mock('@/env', () => ({
 
 import { QdrantVectorStoreAdapter } from './qdrant-vector-store.adapter';
 
-describe('QdrantVectorStoreAdapter - constructor and interface', () => {
-  it('instantiates correctly', () => {
+describe('QdrantVectorStoreAdapter', () => {
+  it('given env config, instantiates without error and is an instance of the adapter', () => {
     const adapter = new QdrantVectorStoreAdapter();
-    expect(adapter).toBeDefined();
-    expect(typeof adapter.search).toBe('function');
-    expect(typeof adapter.keywordSearch).toBe('function');
-    expect(typeof adapter.listBySource).toBe('function');
-    expect(typeof adapter.deleteBySource).toBe('function');
-    expect(typeof adapter.ensureCollection).toBe('function');
-    expect(typeof adapter.upsert).toBe('function');
-    expect(typeof adapter.isIndexed).toBe('function');
+    expect(adapter).toBeInstanceOf(QdrantVectorStoreAdapter);
   });
 
-  it('implements all IVectorStorePort methods', () => {
+  it('given env config, when calling isIndexed with an unknown collection, returns false', async () => {
     const adapter = new QdrantVectorStoreAdapter();
-    const methods = ['ensureCollection', 'upsert', 'search', 'keywordSearch', 'listBySource', 'deleteBySource', 'isIndexed'];
-    for (const m of methods) {
-      expect(typeof (adapter as Record<string, unknown>)[m]).toBe('function');
-    }
+    const result = await adapter.isIndexed('__nonexistent_test_collection__');
+    expect(result).toBe(false);
   });
 });
