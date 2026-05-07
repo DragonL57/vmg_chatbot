@@ -142,22 +142,32 @@ Vercel's build environment resolves `react-dom` to the **production CJS bundle**
 - **Symptom**: All 67 test suites fail with `TypeError: React.act is not a function` or `TypeError: Cannot redefine property: act`.
 - **Why local passes**: Local development resolves the ESM development version of `react-dom`, which has a working `act`.
 
-**Fix**: `src/test/setup.ts` uses `vi.mock('react-dom/test-utils', ...)` to replace the broken production test-utils with a safe implementation. `vi.mock` is compiler-hoisted by Vitest, meaning it runs before any module import — `@testing-library/react` receives the mocked `act` instead of the broken production version.
+**Fix**: Use Vitest's `alias` config to redirect ALL imports of `react-dom/test-utils` to a mock file that imports the real module but overrides `act` with React's own `act` export (available in Vitest's bundled ESM environment, even when Vercel resolves CJS).
 
 ```typescript
-// src/test/setup.ts
-vi.mock('react-dom/test-utils', () => ({
-  act: (callback: () => unknown) => callback(),
-}));
+// vitest.config.ts — test.alias
+alias: {
+  'react-dom/test-utils': path.resolve(__dirname, './src/test/__mocks__/react-dom-test-utils.ts'),
+}
 ```
+
+```typescript
+// src/test/__mocks__/react-dom-test-utils.ts
+export * from 'react-dom/test-utils';  // re-export all original exports
+import * as React from 'react';
+export const act = React.act;          // override: use React's own act
+```
+
+This works at the module resolution level — ALL consumers (including `@testing-library/react`'s internal `act-compat.js`) resolve to the mock file, which delegates to React's working `act` instead of the broken CJS production `act`.
 
 Attempted alternative approaches that failed:
 
 | Approach | Failure Reason |
 |----------|---------------|
-| `React.act = (cb) => cb()` — direct assignment | Works locally but `react-dom/test-utils` loads before setup on Vercel |
-| `Object.defineProperty(React, 'act', ...)` | Property is non-configurable in Vercel's React production build |
-| `vi.mock` at top of setup file | **Works** — hoisted above all imports, replaces module before any consumer loads it |
+| `React.act = (cb) => cb()` — direct assignment | Property is read-only (`Cannot redefine property: act`) in Vercel's React production build |
+| `Object.defineProperty(React, 'act', ...)` | Property is non-configurable; `TypeError` thrown |
+| `vi.mock('react-dom/test-utils', ...)` in setup file | Vitest hoists `vi.mock` within the file, but `@testing-library/react` may resolve the module before the setup file executes on Vercel |
+| `test.alias` in vitest.config.ts | **Works** — module resolution is intercepted at the bundler level, before any consumer loads |
 
 ## 8.3 Security & Validation
 
