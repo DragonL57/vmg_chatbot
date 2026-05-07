@@ -134,6 +134,31 @@ pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build
 - `test:integration`: Vitest in node with `.env.local` (real services, 5 test files)
 - `next build`: TypeScript compilation + Next.js production build
 
+### 8.6.5 Vercel Build Compatibility
+
+Vercel's build environment resolves `react-dom` to the **production CJS bundle** (`react-dom/cjs/react-dom-test-utils.production.js`). This causes a conflict with `@testing-library/react@16`:
+
+- **Root cause**: `react-dom-test-utils.production.js` calls `React.act(callback)`, but React 19.2.5 production builds do not attach `act` as a writable function on the namespace object.
+- **Symptom**: All 67 test suites fail with `TypeError: React.act is not a function` or `TypeError: Cannot redefine property: act`.
+- **Why local passes**: Local development resolves the ESM development version of `react-dom`, which has a working `act`.
+
+**Fix**: `src/test/setup.ts` uses `vi.mock('react-dom/test-utils', ...)` to replace the broken production test-utils with a safe implementation. `vi.mock` is compiler-hoisted by Vitest, meaning it runs before any module import — `@testing-library/react` receives the mocked `act` instead of the broken production version.
+
+```typescript
+// src/test/setup.ts
+vi.mock('react-dom/test-utils', () => ({
+  act: (callback: () => unknown) => callback(),
+}));
+```
+
+Attempted alternative approaches that failed:
+
+| Approach | Failure Reason |
+|----------|---------------|
+| `React.act = (cb) => cb()` — direct assignment | Works locally but `react-dom/test-utils` loads before setup on Vercel |
+| `Object.defineProperty(React, 'act', ...)` | Property is non-configurable in Vercel's React production build |
+| `vi.mock` at top of setup file | **Works** — hoisted above all imports, replaces module before any consumer loads it |
+
 ## 8.3 Security & Validation
 
 - **Zod Boundaries:** All external data is parsed at the adapter layer before entering the application/domain layers.
