@@ -18,11 +18,12 @@ describe('GenerateTitleUseCase', () => {
     };
     mockChatRepo = {
       rename: vi.fn().mockResolvedValue(undefined),
+      upsert: vi.fn(),
+      listByUser: vi.fn(),
+      getById: vi.fn(),
       delete: vi.fn(),
       star: vi.fn(),
-      list: vi.fn(),
-      get: vi.fn(),
-      save: vi.fn(),
+      ensureExists: vi.fn(),
     };
 
     useCase = new GenerateTitleUseCase(mockLLM, mockChatRepo);

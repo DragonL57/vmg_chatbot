@@ -26,7 +26,7 @@ vi.mock('@core/infrastructure/adapters', () => {
 });
 
 vi.mock('@/env', () => ({
-  env: { POE_API_KEY: 'test', POE_BOT_NAME: 't', POE_REASONING_MODEL: 't', SUPABASE_URL: 'url', SUPABASE_KEY: 'k', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', INCEPTION_API_KEY: '', INCEPTION_MODEL: '', LLM_PROVIDER: 'poe', INDEXING_PROVIDER: 'poe' },
+  env: { POE_API_KEY: 'test', POE_BOT_NAME: 't', POE_REASONING_MODEL: 't', SUPABASE_URL: 'url', SUPABASE_KEY: 'k', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', INCEPTION_API_KEY: '', INCEPTION_MODEL: '' },
 }));
 
 vi.mock('@supabase/supabase-js', () => ({

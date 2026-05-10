@@ -53,7 +53,7 @@ describe('GenerateCollectionDescriptionUseCase', () => {
 
   it('returns empty string when no files match the collection', async () => {
     vi.mocked(mockKnowledgeRepo.listFiles).mockResolvedValue([
-      { id: '5', filename: 'other.md', collectionKey: 'other-collection', status: 'completed', summary: 'Other', progress: 100 },
+      { id: '5', filename: 'other.md', collectionKey: 'other-collection', status: 'completed', summary: 'Other', progress: 100, logs: [] },
     ]);
 
     const description = await useCase.execute('col-1', 'vstep');
@@ -63,7 +63,7 @@ describe('GenerateCollectionDescriptionUseCase', () => {
 
   it('returns empty string when no files have summaries', async () => {
     vi.mocked(mockKnowledgeRepo.listFiles).mockResolvedValue([
-      { id: '6', filename: 'empty.md', collectionKey: 'vstep', status: 'completed', summary: null, progress: 100 },
+      { id: '6', filename: 'empty.md', collectionKey: 'vstep', status: 'completed', summary: undefined, progress: 100, logs: [] },
     ]);
 
     const description = await useCase.execute('col-1', 'vstep');

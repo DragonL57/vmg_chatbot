@@ -10,9 +10,9 @@ vi.mock('next/link', () => ({
 }));
 
 const mockFiles: KnowledgeFile[] = [
-  { id: '1', filename: 'vstep_guide.pdf', status: 'completed', mode: 'vstep', progress: 100, summary: 'VSTEP guide', createdAt: new Date() },
-  { id: '2', filename: 'ielts_doc.md', status: 'indexing', mode: 'ielts', progress: 45, summary: null, createdAt: new Date() },
-  { id: '3', filename: 'course.pdf', status: 'failed', mode: 'general', progress: 0, summary: null, createdAt: new Date() },
+  { id: '1', filename: 'vstep_guide.pdf', status: 'completed', collectionKey: 'vstep', progress: 100, summary: 'VSTEP guide', logs: [] },
+  { id: '2', filename: 'ielts_doc.md', status: 'indexing', collectionKey: 'ielts', progress: 45, summary: undefined, logs: [] },
+  { id: '3', filename: 'course.pdf', status: 'failed', collectionKey: 'general', progress: 0, summary: undefined, logs: [] },
 ];
 
 describe('FileTable', () => {

@@ -38,7 +38,7 @@ vi.mock('@core/application/use-cases', () => ({
 
 vi.mock('@/core/db', () => ({ db: {} }));
 vi.mock('@/env', () => ({
-  env: { SUPABASE_URL: 'url', SUPABASE_KEY: 'k', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', POE_API_KEY: 'k', POE_BOT_NAME: 'b', POE_REASONING_MODEL: 'r', INCEPTION_API_KEY: '', INCEPTION_MODEL: '', LLM_PROVIDER: 'poe', INDEXING_PROVIDER: 'poe', NEXT_PUBLIC_SUPABASE_URL: 'url', NEXT_PUBLIC_SUPABASE_KEY: 'k' },
+  env: { SUPABASE_URL: 'url', SUPABASE_KEY: 'k', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', POE_API_KEY: 'k', POE_BOT_NAME: 'b', POE_REASONING_MODEL: 'r', INCEPTION_API_KEY: '', INCEPTION_MODEL: '', NEXT_PUBLIC_SUPABASE_URL: 'url', NEXT_PUBLIC_SUPABASE_KEY: 'k' },
 }));
 
 describe('User API routes', () => {

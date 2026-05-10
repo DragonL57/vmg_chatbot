@@ -48,8 +48,8 @@ describe('MarkdownContent', () => {
 
 describe('MessageList', () => {
   const messages = [
-    { id: '1', role: 'user' as const, content: 'Hello', timestamp: new Date().toISOString() },
-    { id: '2', role: 'assistant' as const, content: 'Hi!', timestamp: new Date().toISOString() },
+    { id: '1', role: 'user' as const, content: 'Hello', timestamp: new Date() },
+    { id: '2', role: 'assistant' as const, content: 'Hi!', timestamp: new Date() },
   ];
 
   it('given messages, renders user and assistant content', () => {

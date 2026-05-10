@@ -11,13 +11,13 @@ vi.mock('next/link', () => ({
 
 const mockCollections = [
   { id: '1', name: 'VSTEP', collectionKey: 'vstep', description: 'VSTEP info' },
-  { id: '2', name: 'IELTS', collectionKey: 'ielts', description: null },
+  { id: '2', name: 'IELTS', collectionKey: 'ielts', description: undefined },
 ];
 
 const mockFiles = [
-  { id: 'f1', filename: 'a.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100 },
-  { id: 'f2', filename: 'b.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100 },
-  { id: 'f3', filename: 'c.md', collectionKey: 'ielts', status: 'completed' as const, progress: 100 },
+  { id: 'f1', filename: 'a.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100, logs: [] },
+  { id: 'f2', filename: 'b.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100, logs: [] },
+  { id: 'f3', filename: 'c.md', collectionKey: 'ielts', status: 'completed' as const, progress: 100, logs: [] },
 ];
 
 describe('SiloTable', () => {

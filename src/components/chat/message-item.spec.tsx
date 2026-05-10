@@ -21,7 +21,7 @@ const createMessage = (overrides: Partial<Message> = {}): Message => ({
   id: 'msg-1',
   role: 'user',
   content: 'Hello',
-  timestamp: new Date().toISOString(),
+  timestamp: new Date(),
   ...overrides,
 });
 

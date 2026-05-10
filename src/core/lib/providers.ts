@@ -12,7 +12,7 @@ export interface ProviderResult {
 }
 
 /**
- * Poe Provider (Fallback/Indexing)
+ * Poe Provider (Fallback)
  */
 export function getPoeProvider(): ProviderResult {
   const client = new OpenAI({
@@ -46,38 +46,10 @@ export function getInceptionProvider(effort: ReasoningEffort = 'medium'): Provid
 }
 
 /**
- * Logic to get the model for indexing/uploading files.
- */
-export function getIndexingProvider(): ProviderResult {
-  if (env.INDEXING_PROVIDER === 'inception' && env.INCEPTION_API_KEY) {
-    return getInceptionProvider('low');
-  }
-  return getPoeProvider();
-}
-
-/**
- * Global Fast Provider (Agentic Steps: Router, Grader, Rewriter)
- * Using 'instant' effort for maximum speed.
- */
-export function getFastProvider(): ProviderResult {
-  if (env.INCEPTION_API_KEY) return getInceptionProvider('instant');
-  return getPoeProvider();
-}
-
-/**
  * Global Generation Provider (Final Answers)
  * Using 'high' effort for maximum quality and synthesis.
  */
 export function getGenerationProvider(): ProviderResult {
-  if (env.INCEPTION_API_KEY) return getInceptionProvider('high');
-  return getPoeProvider();
-}
-
-/**
- * Sleep-time Provider (Background Memory Reconciliation)
- * Using 'high' effort as accuracy is more important than speed.
- */
-export function getSleepTimeProvider(): ProviderResult {
   if (env.INCEPTION_API_KEY) return getInceptionProvider('high');
   return getPoeProvider();
 }

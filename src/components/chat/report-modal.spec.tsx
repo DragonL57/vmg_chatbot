@@ -11,7 +11,7 @@ global.fetch = vi.fn();
 
 const mockMessage: Message = {
   id: 'm1', role: 'assistant', content: 'Test response',
-  timestamp: new Date().toISOString(),
+  timestamp: new Date(),
 };
 
 describe('ReportModal', () => {

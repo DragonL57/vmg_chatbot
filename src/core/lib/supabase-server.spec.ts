@@ -12,8 +12,6 @@ vi.mock('@/env', () => ({
     DATABASE_URL: 'postgres://test',
     INCEPTION_API_KEY: '',
     INCEPTION_MODEL: '',
-    LLM_PROVIDER: 'poe',
-    INDEXING_PROVIDER: 'poe',
   },
 }));
 
