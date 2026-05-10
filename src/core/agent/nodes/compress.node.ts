@@ -15,7 +15,8 @@ export async function compressNode(state: AgentStateType, config: RunnableConfig
   // Skip synthesis if no docs or chit-chat
   if (!evidence.docs.length || isChitChat) return { reflection: "" };
 
-  const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
+  const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}${d.parentContent ? ` | Path: ${d.parentContent}` : ''}]
+${d.content}`).join("\n\n---\n\n");
 
   const res = await llmProvider.completion({
     messages: [
