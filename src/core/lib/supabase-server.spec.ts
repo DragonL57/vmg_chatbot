@@ -5,13 +5,10 @@ vi.mock('@/env', () => ({
     SUPABASE_URL: 'https://test.supabase.co',
     SUPABASE_SERVICE_KEY: 'test-service-key',
     NEXT_PUBLIC_SUPABASE_KEY: 'test-pub-key',
-    POE_API_KEY: 'test',
-    POE_BOT_NAME: 'test',
-    POE_REASONING_MODEL: 'test',
+    INCEPTION_API_KEY: 'test',
+    INCEPTION_MODEL: 'mercury-2',
     SUPABASE_KEY: 'test',
     DATABASE_URL: 'postgres://test',
-    INCEPTION_API_KEY: '',
-    INCEPTION_MODEL: '',
   },
 }));
 

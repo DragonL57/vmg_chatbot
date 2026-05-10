@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LLMProviderAdapter } from './llm-provider.adapter';
 import { ConsoleLoggerAdapter } from './console-logger.adapter';
 
-describe('LLMProviderAdapter - real Poe integration', () => {
+describe('LLMProviderAdapter - Inception Labs integration', () => {
   const adapter = new LLMProviderAdapter();
 
   it('makes a real completion call (instant effort)', async () => {

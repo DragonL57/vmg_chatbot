@@ -114,11 +114,29 @@ export async function POST(req: NextRequest) {
     });
 
     // 4. RUN IN BACKGROUND
-    const bgTask = createIndexingTask({
-      indexUseCase, supabaseBackend, logger, knowledgeRepo,
-      content, filename: normalizedFilename, mode, finalFileId, storagePath, oldStoragePath
-    });
-    waitUntil(bgTask());
+    waitUntil((async () => {
+      try {
+        await indexUseCase.execute({
+          markdown: content,
+          sourceFile: normalizedFilename,
+          collectionName: mode,
+          fileId: finalFileId,
+        });
+
+        if (oldStoragePath && oldStoragePath !== storagePath) {
+          try {
+            await supabaseBackend.storage.from('knowledge-sources').remove([oldStoragePath]);
+          } catch {
+            logger.warn('Failed to clean old storage file', { oldPath: oldStoragePath });
+          }
+        }
+      } catch (err: unknown) {
+        logger.error('Background Indexing Failed', err);
+        await knowledgeRepo.upsertFile({ id: finalFileId, status: 'failed', progress: 0 }).catch((dbErr) => {
+          logger.error('Failed to update file status after indexing failure', dbErr);
+        });
+      }
+    })());
 
     return NextResponse.json({ 
       success: true, 
@@ -132,40 +150,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function createIndexingTask(params: {
-  indexUseCase: IndexKnowledgeFileUseCase;
-  supabaseBackend: { storage: { from: (b: string) => { remove: (paths: string[]) => Promise<unknown> } } };
-  logger: ConsoleLoggerAdapter;
-  knowledgeRepo: DrizzleKnowledgeRepositoryAdapter;
-  content: string;
-  filename: string;
-  mode: string;
-  finalFileId: string;
-  storagePath: string;
-  oldStoragePath: string | undefined;
-}) {
-  const { indexUseCase, supabaseBackend, logger, knowledgeRepo, content, filename, mode, finalFileId, storagePath, oldStoragePath } = params;
-  return async () => {
-    try {
-      await indexUseCase.execute({
-        markdown: content,
-        sourceFile: filename,
-        collectionName: mode,
-        fileId: finalFileId,
-      });
-
-      if (oldStoragePath && oldStoragePath !== storagePath) {
-        try {
-          await supabaseBackend.storage.from('knowledge-sources').remove([oldStoragePath]);
-        } catch {
-          logger.warn('Failed to clean old storage file', { oldPath: oldStoragePath });
-        }
-      }
-    } catch (err: unknown) {
-      logger.error('Background Indexing Failed', err);
-      await knowledgeRepo.upsertFile({ id: finalFileId, status: 'failed', progress: 0 }).catch((dbErr) => {
-        logger.error('Failed to update file status after indexing failure', dbErr);
-      });
-    }
-  };
-}

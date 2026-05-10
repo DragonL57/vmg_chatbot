@@ -1,6 +1,5 @@
 import { ILLMProvider, LLMMessage, LLMResponse } from "../../application/ports/llm-provider.port";
-import { getInceptionProvider, getPoeProvider, ReasoningEffort } from "../../lib/providers";
-import { env } from "@/env";
+import { getInceptionProvider } from "../../lib/providers";
 
 export class LLMProviderAdapter implements ILLMProvider {
   public async completion(params: {
@@ -9,7 +8,7 @@ export class LLMProviderAdapter implements ILLMProvider {
     jsonMode?: boolean;
     effort?: 'instant' | 'low' | 'medium' | 'high';
   }): Promise<LLMResponse> {
-    const provider = this.getProvider(params.effort);
+    const provider = getInceptionProvider(params.effort || 'medium');
     const res = await provider.client.chat.completions.create({
       model: params.model || provider.model,
       messages: params.messages.map(m => ({ role: m.role, content: m.content })),
@@ -21,14 +20,7 @@ export class LLMProviderAdapter implements ILLMProvider {
       content: res.choices[0]?.message?.content || null,
       usage: this.mapUsage(res.usage),
       model: res.model || params.model || provider.model,
-      isBatch: provider.isBatch
     };
-  }
-
-  private getProvider(effort?: ReasoningEffort) {
-    return env.INCEPTION_API_KEY 
-      ? getInceptionProvider(effort || 'medium') 
-      : getPoeProvider();
   }
 
   private mapUsage(usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number; cache_creation_input_tokens?: number } } | null | undefined) {
