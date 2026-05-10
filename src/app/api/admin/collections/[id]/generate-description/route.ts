@@ -13,7 +13,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { qdrantName } = await req.json();
+    const { collectionKey } = await req.json();
 
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,7 +29,7 @@ export async function POST(
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
     const generateUseCase = new GenerateCollectionDescriptionUseCase(llmProvider, knowledgeRepo);
 
-    const description = await generateUseCase.execute(id, qdrantName);
+    const description = await generateUseCase.execute(id, collectionKey);
 
     return NextResponse.json({ description });
   } catch (error) {

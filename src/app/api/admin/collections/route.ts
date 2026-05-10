@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 const collectionSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(100),
-  qdrantName: z.string().trim().min(1, 'qdrantName is required').regex(/^[a-zA-Z0-9_-]+$/, 'Invalid qdrantName format'),
+  collectionKey: z.string().trim().min(1, 'collectionKey is required').regex(/^[a-zA-Z0-9_-]+$/, 'Invalid key format'),
   description: z.string().optional(),
 });
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const { name, qdrantName, description } = result.data;
+    const { name, collectionKey, description } = result.data;
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     }
 
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
-    const newCollection = await knowledgeRepo.createCollection({ name, qdrantName, description });
+    const newCollection = await knowledgeRepo.createCollection({ name, collectionKey, description });
     
     return NextResponse.json({ success: true, collection: newCollection });
   } catch (error) {

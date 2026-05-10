@@ -1,4 +1,5 @@
-export interface DocumentChunk {
+/** PageIndex-retrieved content passage — a section extracted from a document tree */
+export interface DocumentPassage {
   readonly id: string;
   readonly parentId?: string;
   readonly title: string;
@@ -8,10 +9,4 @@ export interface DocumentChunk {
   readonly metadata?: Record<string, unknown>;
   readonly score?: number;
   readonly collection?: string;
-}
-
-export interface TokenAccumulator {
-  prompt: number;
-  completion: number;
-  total: number;
 }

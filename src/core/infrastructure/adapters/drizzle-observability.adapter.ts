@@ -38,7 +38,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
     });
   }
 
-  public async finalizeTrace(traceId: string, error?: string): Promise<void> {
+  public async finalizeTrace(traceId: string, error?: string, searchPath?: string): Promise<void> {
     const spans = await db.select().from(agentSpans).where(eq(agentSpans.traceId, traceId));
     
     const totalTokens = spans.reduce((sum, s) => sum + s.promptTokens + s.completionTokens, 0);
@@ -50,6 +50,7 @@ export class DrizzleObservabilityAdapter implements IObservabilityPort {
       totalCostUsd: totalCost.toFixed(6),
       latencyMs: totalLatency,
       error: error || null,
+      searchPath: searchPath || null,
     }).where(eq(agentTraces.id, traceId));
   }
 

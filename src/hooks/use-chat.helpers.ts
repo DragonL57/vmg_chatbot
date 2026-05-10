@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction, MutableRefObject } from 'react';
 import { Message } from '@core/types/chat';
 import { v4 as uuidv4 } from 'uuid';
-import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import {
   createUserMessage,
   createAssistantMessage,
@@ -30,7 +29,6 @@ type SendMessageParams = {
   messages: Message[];
   urlId: string | undefined;
   sessionId: string;
-  selectedCollection: string;
   router: RouterLike;
   setMessages: Dispatch<SetStateAction<Message[]>>;
   setInput: Dispatch<SetStateAction<string>>;
@@ -41,26 +39,6 @@ type SendMessageParams = {
   tokenUsageRef: MutableRefObject<unknown>;
   isNewSessionLocalRef: MutableRefObject<boolean>;
   onStreamError: () => void;
-};
-
-
-
-export const useCollections = () => {
-  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
-  const [isCollectionsLoading, setIsCollectionsLoading] = useState(true);
-  const [selectedCollection, setSelectedCollection] = useState('auto');
-
-  useEffect(() => {
-    fetch('/api/collections')
-      .then(r => r.json())
-      .then(data => {
-        if (data && Array.isArray(data.collections)) setCollections(data.collections);
-      })
-      .catch(() => {})
-      .finally(() => setIsCollectionsLoading(false));
-  }, []);
-
-  return { collections, isCollectionsLoading, selectedCollection, setSelectedCollection };
 };
 
 export const useSessionId = (urlId?: string) => {
@@ -156,7 +134,6 @@ export const useSendMessage = ({
   messages,
   urlId,
   sessionId,
-  selectedCollection,
   router,
   setMessages,
   setInput,
@@ -190,7 +167,6 @@ export const useSendMessage = ({
       try {
         const response = await fetchChatResponse({
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
-          serviceMode: selectedCollection,
           conversationId: sessionId,
         });
         await streamChatResponse(response, {
@@ -223,7 +199,6 @@ export const useSendMessage = ({
       messages,
       urlId,
       sessionId,
-      selectedCollection,
       router,
       setMessages,
       setInput,

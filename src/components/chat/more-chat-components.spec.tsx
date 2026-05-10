@@ -59,7 +59,7 @@ describe('MessageList', () => {
   });
 
   it('given empty messages, shows hub view', () => {
-    render(<MessageList messages={[]} isLoading={false} collections={[]} />);
+    render(<MessageList messages={[]} isLoading={false} />);
     expect(screen.getByTestId('hub-view')).toBeInTheDocument();
   });
 

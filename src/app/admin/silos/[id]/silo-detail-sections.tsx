@@ -91,7 +91,7 @@ export const SiloMetadataForm = ({
     </div>
     <div className="flex items-center gap-2 pt-2">
       <span className="text-[11px] font-bold text-black/30 bg-black/[0.03] px-2 py-0.5 rounded">
-        Identifier: {activeSilo?.qdrantName}
+        Identifier: {activeSilo?.collectionKey}
       </span>
     </div>
   </div>

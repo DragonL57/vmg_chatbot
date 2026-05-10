@@ -8,8 +8,6 @@ vi.mock('@/env', () => ({
     POE_API_KEY: 'test',
     POE_BOT_NAME: 'test',
     POE_REASONING_MODEL: 'test',
-    QDRANT_URL: 'https://test.qdrant.io:6333',
-    QDRANT_API_KEY: 'test',
     SUPABASE_KEY: 'test',
     DATABASE_URL: 'postgres://test',
     INCEPTION_API_KEY: '',

@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/env';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { 
   DrizzleAuthRepositoryAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
-  QdrantVectorStoreAdapter,
   LLMProviderAdapter
 } from '@core/infrastructure/adapters';
-import { 
-  GetFullFileContentUseCase, 
-  GenerateFileSummaryUseCase 
-} from '@core/application/use-cases';
+import { GenerateFileSummaryUseCase } from '@core/application/use-cases';
+import { getStoragePath } from '@/core/lib/utils';
+
+const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 
 export async function POST(
   req: Request,
@@ -17,7 +18,6 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { filename, mode } = await req.json();
 
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -29,17 +29,29 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const vectorStore = new QdrantVectorStoreAdapter();
-    const llmProvider = new LLMProviderAdapter();
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    const allFiles = await knowledgeRepo.listFiles();
+    const file = allFiles.find(f => f.id === id);
+    if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
 
-    const getFullContent = new GetFullFileContentUseCase(vectorStore);
+    // Read content from Supabase Storage (same as ingest)
+    const storagePath = getStoragePath(file.metadata);
+    if (!storagePath) return NextResponse.json({ error: 'File storage path not found' }, { status: 404 });
+
+    const { data: fileData, error: downloadError } = await supabaseBackend.storage
+      .from('knowledge-sources')
+      .download(storagePath);
+
+    if (downloadError || !fileData) {
+      return NextResponse.json({ error: 'Failed to download file' }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+    const content = buffer.toString('utf-8');
+
+    const llmProvider = new LLMProviderAdapter();
     const generateSummary = new GenerateFileSummaryUseCase(llmProvider, knowledgeRepo);
-
-    const fullContent = await getFullContent.execute(filename, mode);
-    if (!fullContent) return NextResponse.json({ error: 'File content not found' }, { status: 404 });
-
-    const summary = await generateSummary.execute(id, fullContent);
+    const summary = await generateSummary.execute(id, content);
 
     return NextResponse.json({ summary });
   } catch (error) {

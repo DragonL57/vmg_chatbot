@@ -2,42 +2,44 @@
 
 The Runtime View describes how the building blocks interact to fulfill specific use cases.
 
-## 6.1 Scenario: Two-Phase RAG Execution
+## 6.1 Scenario: PageIndex RAG Execution
 
-VMG MATE executes queries in two distinct, sequential phases.
+VMG MATE executes queries in a single linear flow with three phases.
 
-### 6.1.1 Phase 1: Agentic Reasoning (LangGraph)
-The system determines "how" to answer by planning and retrieving evidence.
+### 6.1.1 Phase 1: History Summarization
+Compresses prior context to maintain conversation coherence without context overflow.
+
+### 6.1.2 Phase 2: Query Analysis & Retrieval
+Determines if the query is casual (skip retrieval) or knowledge-based, then performs PageIndex tree search.
 
 ```mermaid
 sequenceDiagram
     participant API as API Route
-    participant S as Summarizer
-    participant A as Analyze Query (Query Reconstruction)
-    participant R as Router/Expand
-    participant K as Retriever (URASys)
-    participant G as Meta-Grader
+    participant S as Summarize
+    participant A as Analyze Query
+    participant R as Retrieve (PageIndex)
+    participant FS as File System Layer
+    participant TS as Tree Searcher
+    participant C as Compress (Answer)
 
     API->>S: Distill History
     S->>A: Contextualized State
-    A->>R: Evaluates Intent
-    alt is RAG
-        R->>K: Retrieve Evidence
-        K->>G: Grade Evidence
-        alt is Irrelevant
-            G->>R: Trigger Rewrite Loop
-        end
+    A->>A: Is chitchat?
+    alt is Knowledge Query
+        A->>R: Trigger Retrieval
+        R->>FS: Build query-dependent topic tree
+        FS->>FS: Navigate file topics
+        FS->>R: Relevant document IDs
+        R->>TS: Search document trees (recursive)
+        TS->>TS: Layer-by-layer navigation
+        TS->>R: Content chunks + trace
     end
-    G-->>API: Reasoning State + Evidence
+    R->>C: Evidence + Reflection
+    C->>API: Final Answer
 ```
 
-### 6.1.2 Phase 2: Synthesis & Maintenance (API Route)
-The system generates the final answer and performs background maintenance.
-
-```mermaid
-sequenceDiagram
-    participant API as API Route
-    participant LLM as LLM Provider
+### 6.1.3 Phase 3: Background Maintenance
+Extracts user memories, saves conversation, generates title.
     participant M as Memory Extractor (Use Case)
     participant O as Observability Port
 

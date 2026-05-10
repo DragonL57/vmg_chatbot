@@ -39,13 +39,16 @@ Implementing the "Mate" that learns and remembers.
 - [x] **Memory Dashboard:** Users can view and edit their "remembered" facts in their profile.
 - [x] **Fact Deduplication:** Implemented semantic and exact checks for fact storage.
 
-## Phase 5: Feedback & Optimization (🟡 In Progress)
-Closed-loop improvement.
+## Phase 5: PageIndex Migration (🟢 Complete)
+Vectorless RAG, simplified architecture.
 
-- [x] **Chit-Chat Detection:** (🟢 Done) Bypasses RAG for greetings to reduce latency.
-- [x] **Report System:** (🟢 Done) Users can report messages; data is stored in `reports` table.
-- [ ] **Admin Reports Dashboard:** Dedicated `/admin/reports` page to resolve user feedback.
-- [ ] **Self-Correcting RAG:** Automatic re-search for low-confidence results (Meta-Grader loop).
+- [x] **Vectorless Retrieval:** Replaced Qdrant/chunking with PageIndex recursive tree search.
+- [x] **File System Layer:** Two-tier cluster selection + query-dependent topic tree for scalability.
+- [x] **Simplified Graph:** 7-node CRAG loop → 4-node linear pipeline (`summarize → analyze → retrieve → compress`).
+- [x] **DB Cleanup:** Dropped `retrieval_engine`, renamed `qdrant_name` → `collection_key`, added FK cascade + indexes.
+- [x] **Scalable Schema:** Composite unique `(folder, filename)`, `hasTree` boolean index, `searchPath` on traces.
+
+## Phase 6: Advanced Features (🟡 In Progress)
 
 ## Phase 6: Omnichannel & Workspace (⚪ Planned)
 Expanding MATE's reach.

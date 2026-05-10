@@ -1,35 +1,30 @@
 import React from 'react';
-import { SiloGrid } from './silo-grid';
 import { HubSkeleton } from './hub-skeleton';
-import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface HubViewProps {
-  collections: KnowledgeCollection[];
-  currentMode: string;
-  onCollectionSelect: (mode: string) => void;
   isLoading?: boolean;
 }
 
 /**
- * Orchestrates the "Empty State" dashboard view.
+ * Welcome state shown when no conversation is active.
+ * Collections are auto-routed — no manual selection needed.
  */
-export const HubView: React.FC<HubViewProps> = ({
-  collections,
-  currentMode,
-  onCollectionSelect,
-  isLoading
-}) => {
+export const HubView: React.FC<HubViewProps> = ({ isLoading }) => {
   if (isLoading) {
     return <HubSkeleton />;
   }
 
   return (
     <div className="flex-1 w-full max-w-5xl mx-auto px-6 py-10 md:py-16 space-y-12">
-      <SiloGrid 
-        collections={collections} 
-        currentMode={currentMode} 
-        onCollectionSelect={onCollectionSelect} 
-      />
+      <div className="space-y-6 text-center">
+        <h2 className="text-2xl md:text-3xl font-semibold text-black/70">
+          VMG MATE
+        </h2>
+        <p className="text-black/50 max-w-md mx-auto leading-relaxed">
+          Trợ lý thông minh cho trung tâm Anh ngữ VMG.
+          Hãy đặt câu hỏi về chương trình, chính sách hoặc thủ tục nội bộ.
+        </p>
+      </div>
     </div>
   );
 };

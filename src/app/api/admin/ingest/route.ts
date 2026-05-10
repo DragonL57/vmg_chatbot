@@ -8,13 +8,13 @@ import { waitUntil } from '@vercel/functions';
 // Clean Architecture Imports
 import { 
   LLMProviderAdapter, 
-  QdrantVectorStoreAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
   DrizzleAuthRepositoryAdapter,
   ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { IndexKnowledgeFileUseCase } from '@core/application/use-cases';
 import { ingestRequestSchema } from '@core/application/schemas/ingest-request-schema';
+import { getStoragePath } from '@/core/lib/utils';
 
 // Initialize backend Supabase client
 const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -84,26 +84,28 @@ export async function POST(req: NextRequest) {
 
     // 2. Composition Root for indexing
     const llmProvider = new LLMProviderAdapter();
-    const vectorStore = new QdrantVectorStoreAdapter();
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
-    const indexUseCase = new IndexKnowledgeFileUseCase(llmProvider, vectorStore, knowledgeRepo);
+    const indexUseCase = new IndexKnowledgeFileUseCase(llmProvider, knowledgeRepo);
 
+    // Normalize filename to lowercase to prevent case-duplicate records
+    const normalizedFilename = filename.toLowerCase();
+    
     // Ensure we have a valid fileId, reuse existing if filename matches
     let finalFileId = fileId;
     if (!finalFileId) {
-      const existing = await knowledgeRepo.getFileByFilename(filename);
+      const existing = await knowledgeRepo.getFileByFilename(normalizedFilename);
       finalFileId = existing ? existing.id : crypto.randomUUID();
     }
 
     // 3. Track old storage path for cleanup after re-index
-    const existing = await knowledgeRepo.getFileByFilename(filename);
+    const existing = await knowledgeRepo.getFileByFilename(normalizedFilename);
     const oldStoragePath = getStoragePath(existing?.metadata);
 
     // Initialize record (store current storagePath for future cleanup)
     await knowledgeRepo.upsertFile({
       id: finalFileId,
-      filename,
-      mode,
+      filename: normalizedFilename,
+      collectionKey: mode,
       folder: folder || 'root',
       status: 'indexing',
       progress: 0,
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest) {
     // 4. RUN IN BACKGROUND
     const bgTask = createIndexingTask({
       indexUseCase, supabaseBackend, logger, knowledgeRepo,
-      content, filename, mode, finalFileId, storagePath, oldStoragePath
+      content, filename: normalizedFilename, mode, finalFileId, storagePath, oldStoragePath
     });
     waitUntil(bgTask());
 
@@ -128,12 +130,6 @@ export async function POST(req: NextRequest) {
     logger.error('Ingest error', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-function getStoragePath(metadata: unknown): string | undefined {
-  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return undefined;
-  const m = metadata as Record<string, unknown>;
-  return typeof m.storagePath === 'string' ? m.storagePath : undefined;
 }
 
 function createIndexingTask(params: {
@@ -167,7 +163,9 @@ function createIndexingTask(params: {
       }
     } catch (err: unknown) {
       logger.error('Background Indexing Failed', err);
-      await knowledgeRepo.upsertFile({ id: finalFileId, status: 'failed', progress: 0 }).catch(() => {});
+      await knowledgeRepo.upsertFile({ id: finalFileId, status: 'failed', progress: 0 }).catch((dbErr) => {
+        logger.error('Failed to update file status after indexing failure', dbErr);
+      });
     }
   };
 }

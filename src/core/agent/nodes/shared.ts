@@ -1,13 +1,11 @@
 import { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 import { ILLMProvider } from "../../application/ports/llm-provider.port";
-import { IVectorStorePort } from "../../application/ports/vector-store.port";
 import { IObservabilityPort } from "../../application/ports/observability.port";
 import { ILoggerProvider } from "../../application/ports/logger.port";
 
 export interface GraphConfig {
   llmProvider: ILLMProvider;
-  vectorStore: IVectorStorePort;
   obsPort: IObservabilityPort;
   logger: ILoggerProvider;
 }

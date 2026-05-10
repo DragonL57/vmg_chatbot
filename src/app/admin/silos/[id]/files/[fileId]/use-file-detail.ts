@@ -215,7 +215,7 @@ export const useFileDetail = (siloId: string, fileId: string): FileDetailState &
 
   const handleSave = useSaveAction(fileId, filename, summary, refresh, setSaving);
   const handleDelete = useDeleteAction(fileId, siloId, router);
-  const handleRegenerateSummary = useRegenerateAction(fileId, filename, file?.mode ?? '', refresh, setSaving);
+  const handleRegenerateSummary = useRegenerateAction(fileId, filename, file?.collectionKey ?? '', refresh, setSaving);
 
   return {
     file,

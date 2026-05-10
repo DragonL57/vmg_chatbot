@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slugify, countTokens, estimateTokens, safeJsonParse } from './utils';
+import { slugify, countTokens, estimateTokens, safeJsonParse, getStoragePath } from './utils';
 
 describe('slugify', () => {
   it('converts to lowercase', () => {
@@ -143,5 +143,41 @@ describe('estimateTokens fallback', () => {
     const result = estimateTokens(text);
     // Whether via tiktoken or fallback, should return a positive number
     expect(result).toBeGreaterThan(0);
+  });
+});
+
+describe('getStoragePath', () => {
+  it('returns undefined for null metadata', () => {
+    expect(getStoragePath(null)).toBeUndefined();
+  });
+
+  it('returns undefined for non-object metadata', () => {
+    expect(getStoragePath('string')).toBeUndefined();
+    expect(getStoragePath(42)).toBeUndefined();
+    expect(getStoragePath(true)).toBeUndefined();
+  });
+
+  it('returns undefined for array metadata', () => {
+    expect(getStoragePath([])).toBeUndefined();
+  });
+
+  it('returns undefined when storagePath is not a string', () => {
+    expect(getStoragePath({ storagePath: 123 })).toBeUndefined();
+    expect(getStoragePath({ storagePath: true })).toBeUndefined();
+    expect(getStoragePath({ storagePath: null })).toBeUndefined();
+    expect(getStoragePath({ storagePath: ['path'] })).toBeUndefined();
+  });
+
+  it('returns the storage path when it is a string', () => {
+    expect(getStoragePath({ storagePath: 'sources/file.pdf' })).toBe('sources/file.pdf');
+  });
+
+  it('returns undefined when metadata is missing storagePath', () => {
+    expect(getStoragePath({})).toBeUndefined();
+    expect(getStoragePath({ otherKey: 'value' })).toBeUndefined();
+  });
+
+  it('handles metadata with extra properties', () => {
+    expect(getStoragePath({ storagePath: 'sources/doc.txt', extra: 'data' })).toBe('sources/doc.txt');
   });
 });

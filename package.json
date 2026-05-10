@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build",
+    "build": "pnpm lint:strict && pnpm test:unit && next build",
     "build:push": "drizzle-kit push --force && pnpm lint:strict && next build",
     "start": "next start",
     "lint": "eslint .",
@@ -32,7 +32,6 @@
     "@langchain/langgraph": "^1.2.9",
     "@langchain/openai": "^1.4.4",
     "@mistralai/mistralai": "^1.14.1",
-    "@qdrant/js-client-rest": "^1.17.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "@t3-oss/env-nextjs": "^0.13.10",

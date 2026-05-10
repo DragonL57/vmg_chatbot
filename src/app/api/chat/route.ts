@@ -12,10 +12,8 @@ import {
   DrizzleMemoryRepository, 
   LLMProviderAdapter, 
   DrizzleObservabilityAdapter,
-  QdrantVectorStoreAdapter,
   DrizzleAuthRepositoryAdapter,
   DrizzleChatRepositoryAdapter,
-  DrizzleKnowledgeRepositoryAdapter,
   ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { 
@@ -23,19 +21,17 @@ import {
   GetRecentMemoriesUseCase,
   GetInternalUserIdUseCase
 } from '@core/application/use-cases';
-import { DocumentChunk } from '@core/domain/entities/indexing';
+import { DocumentPassage } from '@core/domain/entities/indexing';
 import { TokenUsage } from '@core/domain/entities/chat';
 import { chatRequestSchema } from '@core/application/schemas/chat-request-schema';
 import { AgentStateType } from '@core/agent/state';
 import { ILoggerProvider } from '@core/application/ports/logger.port';
 import { IObservabilityPort } from '@core/application/ports/observability.port';
 import { ILLMProvider } from '@core/application/ports/llm-provider.port';
-import { IVectorStorePort } from '@core/application/ports/vector-store.port';
-import { KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 import { UserMemory } from '@core/domain/entities/memory';
 
 export interface RetrievalEvidence {
-  docs: DocumentChunk[];
+  docs: DocumentPassage[];
 }
 
 export const runtime = 'nodejs';
@@ -57,7 +53,7 @@ export async function POST(req: Request) {
       }), { status: 400 });
     }
 
-    const { messages, serviceMode, conversationId } = result.data;
+    const { messages, conversationId } = result.data;
 
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -68,7 +64,7 @@ export async function POST(req: Request) {
     if (!internalUserId) return new Response(JSON.stringify({ error: 'User not synced' }), { status: 403 });
 
     return new Response(createChatStream({
-      messages, serviceMode, conversationId, internalUserId, logger
+      messages, conversationId, internalUserId, logger
     }), { headers: { 'Content-Type': 'application/x-ndjson' } });
   } catch (error: unknown) {
     logger.error('[Chat API] Fatal Error', error);
@@ -78,19 +74,16 @@ export async function POST(req: Request) {
 
 interface StreamParams {
   messages: { role: string; content: string }[];
-  serviceMode: string;
   conversationId: string;
   internalUserId: string;
   logger: ILoggerProvider;
 }
 
 function createChatStream(params: StreamParams) {
-  const { messages, serviceMode, conversationId, internalUserId, logger } = params;
+  const { messages, conversationId, internalUserId, logger } = params;
   const memoryRepo = new DrizzleMemoryRepository();
   const llmProvider = new LLMProviderAdapter();
   const obsPort = new DrizzleObservabilityAdapter();
-  const vectorStore = new QdrantVectorStoreAdapter();
-  const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
   const getRecentMemories = new GetRecentMemoriesUseCase(memoryRepo);
   const extractUserMemories = new ExtractUserMemoriesUseCase(llmProvider, memoryRepo, obsPort, logger);
 
@@ -100,15 +93,8 @@ function createChatStream(params: StreamParams) {
         controller.enqueue(new TextEncoder().encode(JSON.stringify(obj) + '\n'));
 
       try {
-        const [allCollections, memories] = await Promise.all([
-          knowledgeRepo.listCollections().catch((err) => {
-            logger.error('List collections fail', err);
-            return [];
-          }),
-          getRecentMemories.execute(internalUserId, 20)
-        ]);
+        const memories = await getRecentMemories.execute(internalUserId, 20);
         
-        // Ensure conversation exists for agentTraces foreign key constraint
         await new DrizzleChatRepositoryAdapter().ensureExists(conversationId, internalUserId)
           .catch((err) => logger.error('Ensure conversation exists fail', err));
 
@@ -119,8 +105,8 @@ function createChatStream(params: StreamParams) {
         if (traceId) emit({ type: 'trace_id', value: traceId });
 
         const { finalState, earlyExit } = await runReasoningGraph(
-          { messages, serviceMode, allCollections, memories, traceId },
-          { llmProvider, vectorStore, obsPort, logger },
+          { messages, memories, traceId },
+          { llmProvider, obsPort, logger },
           emit
         );
 
@@ -145,8 +131,8 @@ function createChatStream(params: StreamParams) {
   });
 }
 
-async function runReasoningGraph(params: { messages: { role: string; content: string }[], serviceMode: string, allCollections: KnowledgeCollection[], memories: UserMemory[], traceId: string | null }, config: { llmProvider: ILLMProvider, vectorStore: IVectorStorePort, obsPort: IObservabilityPort, logger: ILoggerProvider }, emit: (obj: { type: string; value?: unknown; reflection?: string }) => void) {
-  const { messages, serviceMode, allCollections, memories, traceId } = params;
+async function runReasoningGraph(params: { messages: { role: string; content: string }[], memories: UserMemory[], traceId: string | null }, config: { llmProvider: ILLMProvider, obsPort: IObservabilityPort, logger: ILoggerProvider }, emit: (obj: { type: string; value?: unknown; reflection?: string }) => void) {
+  const { messages, memories, traceId } = params;
   const langchainMessages = messages.slice(-10).map((m) => 
     m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content)
   );
@@ -154,8 +140,6 @@ async function runReasoningGraph(params: { messages: { role: string; content: st
   let finalState: AgentStateType = {} as AgentStateType;
   const graphStream = await ragGraph.stream({
     messages: langchainMessages,
-    mode: serviceMode,
-    allCollections,
     userMemories: memories.map((m) => m.fact),
     traceId,
   }, { configurable: config });
@@ -210,7 +194,7 @@ async function runGenerationPhase(params: { finalState: AgentStateType, messages
     }
   }
 
-  finalizeObservability(obsPort, traceId, fullContent, finalUsage, systemPrompt.length, logger, Date.now() - startTime);
+  finalizeObservability(obsPort, traceId, fullContent, finalUsage, systemPrompt.length, logger, Date.now() - startTime, finalState.reflection);
   emitTotalTokens(finalState, finalUsage, emit);
 
   if (internalUserId) {
@@ -223,17 +207,15 @@ function buildSystemPrompt(state: AgentStateType, userMemories: string, lastUser
   const evidence = state.evidence;
   const contextSummary = state.context_summary;
   const isChitChat = !!state.isChitChat;
-  // Only include evidence if grade found it relevant (not a forced fallthrough from max retries)
-  const isRelevant = state.isRelevant !== false;
   let knowledgeBlock = '';
-  if (isRelevant && evidence?.docs?.length > 0) {
+  if (evidence?.docs?.length > 0) {
     knowledgeBlock = buildRetrievedContext(evidence);
     if (contextSummary) knowledgeBlock += `\n\n# CẤU TRÚC SỰ THẬT (FACT SHEET)\n${contextSummary}`;
   }
   return `
 ${MASTER_AGENT_IDENTITY}
 ${userMemories ? `\n# THÔNG TIN BỐI CẢNH VỀ NGƯỜI DÙNG\n<user_memories>\n${userMemories}\n</user_memories>\n` : ''}
-${isChitChat ? 'Tán gẫu.' : AGENT_ORCHESTRATOR_PROMPT(1, 3)}
+${isChitChat ? 'Tán gẫu.' : AGENT_ORCHESTRATOR_PROMPT()}
 ${MASTER_OUTPUT_CONSTRAINTS}
 # KNOWLEDGE CONTEXT
 ${knowledgeBlock || "No specific enterprise knowledge found."}
@@ -241,7 +223,7 @@ ${knowledgeBlock || "No specific enterprise knowledge found."}
   `.trim();
 }
 
-function finalizeObservability(obsPort: IObservabilityPort, traceId: string | null, content: string, usage: TokenUsage | null, promptLen: number, logger: ILoggerProvider, latencyMs: number) {
+function finalizeObservability(obsPort: IObservabilityPort, traceId: string | null, content: string, usage: TokenUsage | null, promptLen: number, logger: ILoggerProvider, latencyMs: number, searchPath?: string) {
   if (!traceId) return;
   const { model } = getGenerationProvider();
   waitUntil((async () => {
@@ -258,7 +240,7 @@ function finalizeObservability(obsPort: IObservabilityPort, traceId: string | nu
         latencyMs
       }).catch(err => logger.error('Final span fail', err));
     }
-    await obsPort.finalizeTrace(traceId).catch(err => logger.error('Finalize fail', err));
+    await obsPort.finalizeTrace(traceId, undefined, searchPath).catch(err => logger.error('Finalize fail', err));
   })());
 }
 
@@ -275,6 +257,6 @@ function emitTotalTokens(finalState: AgentStateType, usage: TokenUsage | null, e
   emit({ type: 'tokens', value });
 }
 
-function buildRetrievedContext(evidence: { docs: DocumentChunk[] }): string {
-  return `<retrieved_context>\n${evidence.docs.map((doc, i) => `  <document index="${i}">\n    <title>${doc.title}</title>\n    <source>${doc.source}</source>\n    <silo>${doc.collection}</silo>\n    <content>${doc.parentContent || doc.content}</content>\n  </document>`).join('\n')}\n</retrieved_context>`;
+function buildRetrievedContext(evidence: { docs: DocumentPassage[] }): string {
+  return `<retrieved_context>\n${evidence.docs.map((doc, i) => `  <document index="${i}">\n    <title>${doc.title}</title>\n    <source>${doc.source}</source>\n    <path>${doc.parentContent || ''}</path>\n    <content>${doc.content}</content>\n  </document>`).join('\n')}\n</retrieved_context>`;
 }

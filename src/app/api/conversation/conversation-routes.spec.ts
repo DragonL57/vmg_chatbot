@@ -29,7 +29,7 @@ vi.mock('@core/infrastructure/adapters', () => ({
   DrizzleChatRepositoryAdapter: MockChatRepo,
   ConsoleLoggerAdapter: MockLogger,
   DrizzleKnowledgeRepositoryAdapter: class { listCollections = vi.fn(() => []); listFiles = vi.fn(() => []); deleteFile = vi.fn(); },
-  QdrantVectorStoreAdapter: class { deleteBySource = vi.fn(); ensureCollection = vi.fn(); },
+  
   LLMProviderAdapter: class {},
   DrizzleMemoryRepositoryAdapter: class {},
   DrizzleObservabilityAdapter: class {},
@@ -37,7 +37,7 @@ vi.mock('@core/infrastructure/adapters', () => ({
 
 vi.mock('@/core/db', () => ({ db: {} }));
 vi.mock('@/env', () => ({
-  env: { SUPABASE_URL: 'url', SUPABASE_KEY: 'key', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', POE_API_KEY: 'k', POE_BOT_NAME: 'b', POE_REASONING_MODEL: 'r', QDRANT_URL: 'url', QDRANT_API_KEY: 'k', INCEPTION_API_KEY: '', INCEPTION_MODEL: '', LLM_PROVIDER: 'poe', INDEXING_PROVIDER: 'poe' },
+  env: { SUPABASE_URL: 'url', SUPABASE_KEY: 'key', SUPABASE_SERVICE_KEY: 'k', DATABASE_URL: 'db', POE_API_KEY: 'k', POE_BOT_NAME: 'b', POE_REASONING_MODEL: 'r', INCEPTION_API_KEY: '', INCEPTION_MODEL: '', LLM_PROVIDER: 'poe', INDEXING_PROVIDER: 'poe' },
 }));
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn().mockReturnValue({ storage: { from: () => ({ remove: vi.fn() }) } }),

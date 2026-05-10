@@ -1,7 +1,6 @@
 import { Annotation } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
-import { DocumentChunk } from "@core/domain/entities/indexing";
-import { KnowledgeCollection } from "@core/application/ports/knowledge-repository.port";
+import { DocumentPassage } from "@core/domain/entities/indexing";
 
 export const AgentState = Annotation.Root({
   /** Flag to indicate if the question is clear */
@@ -24,41 +23,16 @@ export const AgentState = Annotation.Root({
     default: () => null,
   }),
   /** Current evidence pool */
-  evidence: Annotation<{ docs: DocumentChunk[] }>({
+  evidence: Annotation<{ docs: DocumentPassage[] }>({
     reducer: (x, y) => ({
       docs: [...x.docs, ...y.docs],
     }),
     default: () => ({ docs: [] }),
   }),
-  /** Counter to prevent infinite loops */
-  iterations: Annotation<number>({
-    reducer: (x, y) => x + y,
-    default: () => 0,
-  }),
-  /** Flag to indicate if we have enough info */
-  isRelevant: Annotation<boolean>({
-    reducer: (x, y) => y,
-    default: () => false,
-  }),
   /** Summary of prior context or extracted facts */
   context_summary: Annotation<string>({
     reducer: (x, y) => y,
     default: () => "",
-  }),
-  /** Service mode (e.g. 'auto' or a specific collection ID) */
-  mode: Annotation<string>({
-    reducer: (x, y) => y,
-    default: () => '',
-  }),
-  /** The specific collection names identified by the router */
-  targetCollections: Annotation<string[]>({
-    reducer: (x, y) => y,
-    default: () => [],
-  }),
-  /** Metadata of all available collections for routing decisions */
-  allCollections: Annotation<KnowledgeCollection[]>({
-    reducer: (x, y) => y,
-    default: () => [],
   }),
   /** Flag to indicate casual conversation (skips RAG) */
   isChitChat: Annotation<boolean>({

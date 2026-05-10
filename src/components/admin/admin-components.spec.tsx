@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SiloTable } from './silo-table';
 import { UploadPanel } from './upload-panel';
-import { SiloGrid } from '../chat/silo-grid';
 
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
@@ -11,14 +10,14 @@ vi.mock('next/link', () => ({
 }));
 
 const mockCollections = [
-  { id: '1', name: 'VSTEP', qdrantName: 'vstep', description: 'VSTEP info' },
-  { id: '2', name: 'IELTS', qdrantName: 'ielts', description: null },
+  { id: '1', name: 'VSTEP', collectionKey: 'vstep', description: 'VSTEP info' },
+  { id: '2', name: 'IELTS', collectionKey: 'ielts', description: null },
 ];
 
 const mockFiles = [
-  { id: 'f1', filename: 'a.md', mode: 'vstep', status: 'completed' as const, progress: 100 },
-  { id: 'f2', filename: 'b.md', mode: 'vstep', status: 'completed' as const, progress: 100 },
-  { id: 'f3', filename: 'c.md', mode: 'ielts', status: 'completed' as const, progress: 100 },
+  { id: 'f1', filename: 'a.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100 },
+  { id: 'f2', filename: 'b.md', collectionKey: 'vstep', status: 'completed' as const, progress: 100 },
+  { id: 'f3', filename: 'c.md', collectionKey: 'ielts', status: 'completed' as const, progress: 100 },
 ];
 
 describe('SiloTable', () => {
@@ -79,34 +78,5 @@ describe('UploadPanel', () => {
     render(<UploadPanel selectedFile={file} onFileSelect={vi.fn()} onUpload={onUpload} uploading={false} disabled={false} />);
     fireEvent.click(screen.getByText('Bắt đầu xử lý'));
     expect(onUpload).toHaveBeenCalled();
-  });
-});
-
-describe('SiloGrid', () => {
-  it('renders auto mode and collections', () => {
-    render(<SiloGrid collections={mockCollections} currentMode="auto" onCollectionSelect={vi.fn()} />);
-    expect(screen.getByText('Tìm kiếm tự động')).toBeInTheDocument();
-    expect(screen.getByText('VSTEP')).toBeInTheDocument();
-    expect(screen.getByText('IELTS')).toBeInTheDocument();
-  });
-
-  it('filters collections by search', () => {
-    render(<SiloGrid collections={mockCollections} currentMode="auto" onCollectionSelect={vi.fn()} />);
-    const input = screen.getByPlaceholderText('Lọc nguồn tri thức...');
-    fireEvent.change(input, { target: { value: 'VSTEP' } });
-    expect(screen.getByText('VSTEP')).toBeInTheDocument();
-    expect(screen.queryByText('IELTS')).not.toBeInTheDocument();
-  });
-
-  it('calls onCollectionSelect when clicked', () => {
-    const onSelect = vi.fn();
-    render(<SiloGrid collections={mockCollections} currentMode="auto" onCollectionSelect={onSelect} />);
-    fireEvent.click(screen.getByText('VSTEP'));
-    expect(onSelect).toHaveBeenCalledWith('vstep');
-  });
-
-  it('shows active state for selected collection', () => {
-    render(<SiloGrid collections={mockCollections} currentMode="vstep" onCollectionSelect={vi.fn()} />);
-    expect(screen.getByText('ĐANG HOẠT ĐỘNG')).toBeInTheDocument();
   });
 });

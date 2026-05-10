@@ -1,7 +1,8 @@
 export interface KnowledgeFile {
   id: string;
   filename: string;
-  mode: string;
+  /** Matches KnowledgeCollection.collectionKey */
+  collectionKey: string;
   folder?: string;
   status: 'pending' | 'indexing' | 'completed' | 'failed';
   progress: number;
@@ -13,7 +14,8 @@ export interface KnowledgeFile {
 export interface KnowledgeCollection {
   id: string;
   name: string;
-  qdrantName: string;
+  /** Identifier used as file mode */
+  collectionKey: string;
   description?: string;
 }
 

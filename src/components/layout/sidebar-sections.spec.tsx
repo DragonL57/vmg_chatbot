@@ -4,7 +4,7 @@ import { SidebarHeader, SidebarNav, SidebarUserWorkspace, ChatContextMenu } from
 import { Home, Settings } from 'lucide-react';
 
 vi.mock('next/image', () => ({
-  // eslint-disable-next-line @next/next/no-img-element
+  // eslint-disable-next-line @next/next/no-img-element -- mocking next/image requires a plain <img>; production code still uses next/image
   default: ({ alt }: { alt: string }) => <img alt={alt} />,
 }));
 

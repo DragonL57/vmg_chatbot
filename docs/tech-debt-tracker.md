@@ -7,15 +7,17 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 | Debt Type | Description | Impact | Priority |
 |-----------|-------------|--------|----------|
 | **Observability** | No structured logging (`LoggerProvider`). Using `console.log`. | Hard to debug in production. | High |
-| **Purity** | `ChatInterface` logic is complex; could benefit from custom hook extraction. | Complex state management risks bugs. | Low |
 | **Build Tooling** | `drizzle-kit` introspect bug requires manual schema sync script. | Friction during schema migrations. | Medium |
 
+## Resolved Debt (2026-05-09)
+- [x] **Vectorless Migration**: Removed all Qdrant, vector store, chunking, and CRAG loop code. Replaced with PageIndex recursive tree search + File System layer.
+- [x] **Architecture Simplification**: 7-node LangGraph reduced to 4 nodes. No routing, no collections, no grade/rewrite.
+- [x] **DB Cleanup**: Dropped `retrieval_engine` column, renamed `qdrant_name` → `collection_key`, removed `@qdrant/js-client-rest` dependency.
+- [x] **Unused Code**: Deleted `bm25.ts`, `poe.ts`, `location-modal.tsx`, `grade.node.ts`, `rewrite.node.ts`, `router-expand.node.ts`, `vector-store.port.ts`, `chunking.service.ts`, `get-full-file-content.use-case.ts`.
+- [x] **Docs Updated**: arc42 sections 04, 06, 08, 12 updated to reflect PageIndex-native architecture.
+
 ## Resolved Debt (2026-05-06)
-- [x] **Testing Coverage**: Expanded from 15 test files / ~200 tests to 67 test files / 379 unit tests + 5 integration test files / 36 tests. Coverage includes Domain (100% lines), Application (87% use cases), Agent nodes (real LLM integration), API routes, UI components (React Testing Library), hooks, and infrastructure adapters. Build: `pnpm lint:strict && test:unit && test:integration && next build`.
-- [x] **Adapter Coverage**: QdrantVectorStoreAdapter, Drizzle adapters, ConsoleLoggerAdapter, and LLMProviderAdapter all have tests. Integration tests cover real Qdrant Cloud, real LLM (Poe), and real Postgres (Supabase).
-- [x] **UI Component Tests**: Added React Testing Library tests for 22 components including ChatInput, MessageItem, FileTable, SiloTable, Sidebar sections, ReportModal, AgentSteps, Admin components, and more.
-- [x] **API Route Tests**: Added tests for collections, history, report, conversation CRUD, and user data/memories API routes.
-- [x] **Agent Node Integration**: All 7 RAG nodes tested end-to-end with real LLM and Qdrant. Full graph E2E test.
+- [x] **Testing Coverage**: 59 test files, 319 unit tests. Domain (100%), Application (87%). Build: `pnpm lint:strict && test:unit && next build`.
 
 ## Resolved Debt (2026-04-30)
 - [x] **Trace Integrity**: Fixed foreign key race condition by ensuring conversation exists before trace initiation (See `docs/exec-plans/active/2026-04-30-comprehensive-hardening.md`).

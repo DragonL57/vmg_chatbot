@@ -50,43 +50,36 @@ To enable continuous learning, VMG MATE implements a **Knowledge Agent** pattern
 3. **Persistence:** Extracted facts are stored in the `user_memories` table, rewritten in the third person.
 4. **Augmentation:** Future sessions retrieve these memories and inject them into the `AgentState`, allowing MATE to be proactive (e.g., "Since you are preparing for IELTS 7.5...").
 
-### 8.2.3 Iterative Planning & Correction (CRAG Loop)
+### 8.2.3 PageIndex Retrieval (Vectorless RAG)
 
-VMG MATE implements **Corrective RAG (CRAG)** — an inline verification and correction loop that detects insufficient evidence and triggers re-retrieval.
+VMG MATE uses **PageIndex** — a vectorless, reasoning-based retrieval framework. Instead of embeddings and vector similarity, documents are organized as hierarchical trees and an LLM navigates them like a human expert reading a book.
 
-For a detailed breakdown of each node's logic, academic provenance, and rationale (including why CRAG was chosen over Naive RAG, Self-RAG, ReAct, and RECAP), see **§5.2.3 Node Deep-Dive** and **§5.2.4 Overall Architecture: The CRAG Loop**.
-
-#### CRAG Data Flow
+#### Architecture
 
 ```
-retrieve ──→ grade ──→ [relevant?] ──→ compress ──→ generate
-                      → [irrelevant?] ──→ rewrite ──→ router_expand ──→ retrieve (↻ loop)
-                      → [max retries?] ──→ compress ──→ generate (best-effort)
+Query → File System Layer (select documents by summary)
+     → Document Tree Search (recursive layer-by-layer navigation)
+     → Content Extraction (leaf nodes with matched content)
+     → Answer Synthesis
 ```
 
-1. **Retrieve** (k=10 per query): Broad initial recall using hybrid vector + keyword search.
-2. **Grade** (Meta-Grader): A lightweight evaluator scores claim↔evidence alignment. Outputs `is_relevant: YES/NO` with reasoning.
-3. **Rewrite** (corrective action): Generates improved queries (synonyms, alternative phrasings) when grade returns NO.
-4. **Loop back** to `router_expand` → `retrieve` with the new queries, up to `MAX_ITERATIONS` (3).
-5. **Best-effort synthesis**: After exhausting retries, compresses whatever evidence exists rather than returning empty.
-
-#### Why Always Grade
-
-Prior to the fix, the `retrieve→grade` edge conditionally skipped grading when retrieved content exceeded 3000 tokens (token compression threshold). This **bypassed the CRAG loop entirely** for large document sets — the system would compress irrelevant content and fail silently. The fix ensures `retrieve` **always** routes to `grade`, making the corrective loop reliable regardless of document size.
+1. **File System Layer**: One LLM call builds a query-dependent topic tree from all document summaries. The LLM then navigates this tree — at each node deciding whether to explore child topics (layer-wise) or collapse to document leaves (dynamic flattening).
+2. **Document Tree Search**: For each selected document, the LLM navigates the internal tree recursively. At each level, it sees only the immediate children (~5-15 nodes), never the entire tree. This prevents context overload on large documents (300+ nodes).
+3. **Content Extraction**: Leaf nodes reached through navigation return their full content. No embedding bottleneck, no top-K truncation.
 
 #### Key Properties
-- **Claim-level verification**: Grade decomposes the question into atomic claims and checks each against evidence
-- **Reconstructed queries**: Grade uses reconstructed intent (`rewrittenQuestions`/`subQueries`) instead of raw user message, enabling accurate context-aware grading
-- **Iterative refinement**: Each rewrite loop broadens the search with improved queries, increasing recall progressively
+- **Relevance classification, not similarity**: The LLM makes yes/no decisions at each node — "does this subtree contain the answer?" — using full document understanding.
+- **Recursive by default**: Always navigates layer-by-layer, matching how a human reads a table of contents.
+- **No fallback needed**: If the LLM finds nothing relevant, the answer generator naturally says "tôi không tìm thấy thông tin này."
 
-### 8.2.4 Mitigation of Context Failures
+### 8.2.4 Agent Graph (Linear Flow)
 
-To prevent common agentic failures, MATE employs the following architectural "guards":
+```
+START → summarize → analyze_query → retrieve → compress → END
+                   (chitchat skips retrieve)
+```
 
-- **Context Poisoning (Hallucination Loops):** Prevented by the **Meta-Grader** node. It validates retrieved evidence before it enters the synthesis stage. Low-quality evidence is quarantined, and a `rewrite` loop is triggered.
-- **Context Distraction (History Overload):** Mitigated by the **Summarization Pipeline**. By periodically compressing the context, we prevent the "Lost in the Middle" syndrome and ensure the LLM focuses on the current goal.
-- **Context Confusion (Tool Overload):** Controlled by the **Router/Expand** node. Instead of exposing all knowledge silos, the router selects only relevant `targetCollections` based on the query intent.
-- **Context Clash (Contradictory Input):** Resolved by **Query Reconstruction**. The `analyze_query` node reconciles previous instructions with new user inputs to generate a singular, consistent `rewrittenQuestions` set.
+The graph has no routing, no collections, no grade/rewrite corrective loop. PageIndex handles relevance at every step of tree navigation.
 
 ## 8.6 Automated Testing Strategy
 
@@ -121,18 +114,31 @@ Examples:
 - `'given a user message, does not show the report button'`
 - `'given a click handler, when user clicks suggestion, calls it with the label'`
 
-### 8.6.4 Build Pipeline Integration
+## Build Pipeline
 
-Tests are mandatory before compilation:
+The default `build` script runs hermetic checks only (lint + unit tests). Integration tests (real Qdrant/LLM calls) are excluded from the default pipeline because they require secrets and network access, making them non-hermetic and unsuitable for all CI/CD environments.
+
+### Default build (hermetic)
 
 ```bash
-pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build
+pnpm lint:strict && pnpm test:unit && next build
 ```
 
 - `lint:strict`: ESLint with `--max-warnings 0`
 - `test:unit`: Vitest in jsdom (fast, mocked, 67 test files)
-- `test:integration`: Vitest in node with `.env.local` (real services, 5 test files)
 - `next build`: TypeScript compilation + Next.js production build
+
+### Integration tests (optional, requires `.env.local`)
+
+Integration tests run against real external services and must be invoked explicitly:
+
+```bash
+pnpm test:integration
+```
+
+This script uses `vitest.integration.config.ts`, which loads credentials from `.env.local` and runs tests in a `node` environment with real service connectivity. It is intended for:
+- Local development verification before pushing
+- Dedicated CI jobs/stages with the required secrets and outbound access
 
 ### 8.6.5 Vercel Build Compatibility
 

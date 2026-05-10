@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthUser } from './use-auth-user';
 import {
-  useCollections,
   useSessionId,
   useConversationHistory,
   useConversationSaver,
@@ -32,7 +31,6 @@ export function useChat() {
   const tokenUsageRef = useRef<unknown>(null);
 
   const user = useAuthUser();
-  const { collections, isCollectionsLoading, selectedCollection, setSelectedCollection } = useCollections();
   const { sessionId } = useSessionId(urlId);
 
   const handleHistoryError = useCallback(() => {
@@ -58,7 +56,6 @@ export function useChat() {
     messages,
     urlId,
     sessionId,
-    selectedCollection,
     router,
     setMessages,
     setInput,
@@ -81,10 +78,6 @@ export function useChat() {
     loadingPhase,
     agentReflections,
     isHistoryLoading,
-    collections,
-    isCollectionsLoading,
-    selectedCollection,
-    setSelectedCollection,
     sendMessage,
   };
 }

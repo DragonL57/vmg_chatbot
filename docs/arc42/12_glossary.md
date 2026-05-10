@@ -1,26 +1,18 @@
 # 12. Glossary
 
-This chapter defines key terms and acronyms used in the VMG MATE ecosystem.
+Key terms and acronyms in the VMG MATE ecosystem.
 
 | Term | Definition |
 | :--- | :--- |
-| **Model Context Protocol (MCP)** | An open standard that provides a standardized way for applications to provide context and tools to LLMs. |
-| **MCP Host** | An LLM application (like VMG MATE) that initiates connections to MCP servers. |
-| **MCP Server** | A lightweight program that exposes Tools, Resources, and Prompts to an MCP Host. |
-| **Tool Use Design Pattern** | A design pattern that gives LLMs the ability to interact with external code or APIs through model-generated function calls. |
-| **Tool Schema** | A machine-readable definition (usually JSON/Zod) of a tool's purpose, input parameters, and expected outputs, allowing the model to understand and invoke the tool correctly. |
-| **Agentic RAG** | An emerging AI paradigm where LLMs autonomously plan their next steps while pulling information from external sources. It utilizes an iterative "Maker-Checker" loop and "owns" its reasoning process to ensure high-quality, grounded results. |
-| **Query Reconstruction** | A technique used to resolve pronouns, ellipsis, and incomplete follow-up questions in chat history. Produces self-contained queries from conversation context. Previously referred to as "RECAP" in older docs. |
-| **URASys** | **U**niversal **R**etrieval & **A**ugmentation **S**ystem. Our internal framework for hierarchical indexing (Parent/Child chunking). |
-| **StSQA** | **S**tructured **St**ance **Q**uality **A**ssessment. A prompt engineering technique using a single curated reasoning example to guide LLM output. Based on Zhang et al. (2023b). |
-| **Meta-Grading** | A reflection process where the AI evaluates the quality and relevance of retrieved evidence before using it to generate an answer. |
-| **"Glass Box"** | An architectural philosophy prioritizing observability and explainability of the AI's internal reasoning process. |
-| **Clean Architecture** | A design pattern that separates code into layers (Domain, Application, Infrastructure) to minimize dependencies on external frameworks. |
-| **HITL** | **H**uman-**i**n-the-**L**oop. Specialist evaluators who review and correct AI outputs to improve the knowledge base. |
-| **Zalo Webhook** | An HTTP callback used by Zalo to send real-time message events to the MATE platform. |
-| **AAA (Arrange-Act-Assert)** | A test structure pattern: set up preconditions (Arrange), execute the action under test (Act), verify the outcome (Assert). Equivalent to Given-When-Then. |
-| **Given-When-Then** | A test description convention: Given = initial context, When = triggering event, Then = expected observable result. Required for all test titles in this project. |
-| **Screen Query** | A Testing Library API (`screen.getByText`, `screen.getByRole`, etc.) that queries the rendered DOM as a user would perceive it. Preferred over `document.querySelector` in component tests. |
-| **Integration Test** | A test that combines multiple real units and verifies they work together correctly. In this project: tests using real Postgres, Qdrant, and LLM connections, run via `vitest.integration.config.ts`. |
-| **Unit Test** | A test covering the smallest unit of code (a single function, class, or component) with all dependencies mocked. Runs fast in jsdom environment via `vitest.config.ts`. |
-| **jsdom** | A JavaScript implementation of web standards used by Vitest to simulate a browser DOM for unit tests. Component tests render into jsdom, not a real browser. |
+| **PageIndex** | Vectorless RAG framework. Documents are organized as hierarchical trees; an LLM navigates them via recursive layer-by-layer search — no embeddings, no vector DB, no chunking. |
+| **File System Layer** | Query-dependent topic tree built from document summaries. The LLM selects relevant documents before descending into their internal trees. Supports layer-wise and dynamic flattening strategies. |
+| **Tree Search** | Recursive document navigation. At each level, the LLM sees only immediate children (~5-15 nodes), selects relevant branches, and descends. No flat JSON of the entire tree. |
+| **Query Reconstruction** | Resolves pronouns, ellipsis, and incomplete follow-ups in chat history. Produces self-contained queries from conversation context. |
+| **"Glass Box"** | Architectural philosophy prioritizing observability and explainability of the AI's internal reasoning process. Search traces are visible to users. |
+| **Clean Architecture** | Design pattern separating code into layers (Domain, Application, Infrastructure) to minimize dependencies on external frameworks. |
+| **HITL** | Human-in-the-Loop. Specialist evaluators who review and correct AI outputs to improve the knowledge base. |
+| **StSQA** | Structured Stance Quality Assessment. Prompt engineering technique using a single curated reasoning example to guide LLM output. |
+| **Given-When-Then** | Test description convention: Given = initial context, When = triggering event, Then = expected observable result. |
+| **Screen Query** | Testing Library API (`screen.getByText`, `screen.getByRole`) querying the rendered DOM as a user would perceive it. |
+| **Integration Test** | Test using real Postgres and LLM connections via `vitest.integration.config.ts`. |
+| **Unit Test** | Test covering the smallest unit of code with all dependencies mocked. Runs in jsdom via `vitest.config.ts`. |

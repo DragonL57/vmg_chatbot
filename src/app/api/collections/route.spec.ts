@@ -8,7 +8,7 @@ vi.mock('@/core/lib/supabase-server', () => ({
 
 vi.mock('@core/infrastructure/adapters', () => {
   class MockKnowledgeRepo {
-    listCollections = vi.fn().mockResolvedValue([{ id: '1', name: 'Test', qdrantName: 'test', description: 'desc' }]);
+    listCollections = vi.fn().mockResolvedValue([{ id: '1', name: 'Test', collectionKey: 'test', description: 'desc' }]);
   }
   class MockAuthRepo { getInternalId = vi.fn().mockResolvedValue('internal-1'); }
   return {

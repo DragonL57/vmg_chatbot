@@ -14,8 +14,6 @@ export const env = createEnv({
     LLM_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
     INDEXING_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
     
-    QDRANT_URL: z.string().min(1),
-    QDRANT_API_KEY: z.string().min(1),
     SUPABASE_URL: z.string().url(),
     SUPABASE_KEY: z.string().min(1),
     SUPABASE_SERVICE_KEY: z.string().min(1),

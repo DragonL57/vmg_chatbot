@@ -10,15 +10,13 @@ function makeLogger(): ILoggerProvider {
 describe('getConfig', () => {
   it('extracts configurable from RunnableConfig', () => {
     const mockLLM = { completion: vi.fn() };
-    const mockVectorStore = { search: vi.fn() };
     const mockObsPort = { log: vi.fn() };
     const mockLogger = makeLogger();
     const config: RunnableConfig = {
-      configurable: { llmProvider: mockLLM, vectorStore: mockVectorStore, obsPort: mockObsPort, logger: mockLogger },
+      configurable: { llmProvider: mockLLM, obsPort: mockObsPort, logger: mockLogger },
     };
     const result = getConfig(config);
     expect(result.llmProvider).toBe(mockLLM);
-    expect(result.vectorStore).toBe(mockVectorStore);
   });
 });
 

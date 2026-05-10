@@ -13,7 +13,7 @@ vi.mock('@core/infrastructure/adapters', () => {
     DrizzleAuthRepositoryAdapter: MockAuthRepo,
     DrizzleChatRepositoryAdapter: MockChatRepo,
     DrizzleKnowledgeRepositoryAdapter: class {},
-    QdrantVectorStoreAdapter: class {}, LLMProviderAdapter: class {},
+    LLMProviderAdapter: class {},
     ConsoleLoggerAdapter: class {}, DrizzleMemoryRepositoryAdapter: class {},
     DrizzleObservabilityAdapter: class {},
   };

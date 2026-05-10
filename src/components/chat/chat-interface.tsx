@@ -36,7 +36,7 @@ ChatHeader.displayName = 'ChatHeader';
 const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
   const {
     sessionId, messages, input, setInput, isLoading, loadingPhase,
-    isHistoryLoading, collections, isCollectionsLoading, selectedCollection, setSelectedCollection, sendMessage
+    isHistoryLoading, sendMessage
   } = useChat();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -55,9 +55,8 @@ const ChatContent: React.FC<ChatInterfaceProps> = ({ onToggleSidebar }) => {
         <MessageList 
           messages={messages} isLoading={isLoading} isHistoryLoading={isHistoryLoading}
           loadingPhase={loadingPhase}
-          currentMode={selectedCollection} sessionId={sessionId} collections={collections}
-          isCollectionsLoading={isCollectionsLoading}
-          onCollectionSelect={setSelectedCollection} onSuggestionClick={sendMessage} 
+          sessionId={sessionId}
+          onSuggestionClick={sendMessage} 
         />
       </div>
 

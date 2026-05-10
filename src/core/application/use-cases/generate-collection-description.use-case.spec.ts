@@ -18,10 +18,10 @@ describe('GenerateCollectionDescriptionUseCase', () => {
     };
     mockKnowledgeRepo = {
       listFiles: vi.fn().mockResolvedValue([
-        { id: '1', filename: 'vstep_speaking.md', mode: 'vstep', status: 'completed', summary: 'Speaking guide', progress: 100 },
-        { id: '2', filename: 'vstep_writing.md', mode: 'vstep', status: 'completed', summary: 'Writing guide', progress: 100 },
-        { id: '3', filename: 'vstep_reading.md', mode: 'vstep', status: 'completed', summary: null, progress: 100 },
-        { id: '4', filename: 'vstep_draft.md', mode: 'vstep', status: 'indexing', summary: null, progress: 45 },
+        { id: '1', filename: 'vstep_speaking.md', collectionKey: 'vstep', status: 'completed', summary: 'Speaking guide', progress: 100 },
+        { id: '2', filename: 'vstep_writing.md', collectionKey: 'vstep', status: 'completed', summary: 'Writing guide', progress: 100 },
+        { id: '3', filename: 'vstep_reading.md', collectionKey: 'vstep', status: 'completed', summary: null, progress: 100 },
+        { id: '4', filename: 'vstep_draft.md', collectionKey: 'vstep', status: 'indexing', summary: null, progress: 45 },
       ]),
       getFileByFilename: vi.fn(),
       upsertFile: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +53,7 @@ describe('GenerateCollectionDescriptionUseCase', () => {
 
   it('returns empty string when no files match the collection', async () => {
     vi.mocked(mockKnowledgeRepo.listFiles).mockResolvedValue([
-      { id: '5', filename: 'other.md', mode: 'other-collection', status: 'completed', summary: 'Other', progress: 100 },
+      { id: '5', filename: 'other.md', collectionKey: 'other-collection', status: 'completed', summary: 'Other', progress: 100 },
     ]);
 
     const description = await useCase.execute('col-1', 'vstep');
@@ -63,7 +63,7 @@ describe('GenerateCollectionDescriptionUseCase', () => {
 
   it('returns empty string when no files have summaries', async () => {
     vi.mocked(mockKnowledgeRepo.listFiles).mockResolvedValue([
-      { id: '6', filename: 'empty.md', mode: 'vstep', status: 'completed', summary: null, progress: 100 },
+      { id: '6', filename: 'empty.md', collectionKey: 'vstep', status: 'completed', summary: null, progress: 100 },
     ]);
 
     const description = await useCase.execute('col-1', 'vstep');

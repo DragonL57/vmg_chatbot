@@ -39,7 +39,7 @@ export const SiloTable: React.FC<SiloTableProps> = ({
                 </Link>
               </td>
               <td className="hidden sm:table-cell px-6 py-4 text-center text-[13px] font-medium text-black/60">
-                {files.filter(f => f.mode === col.qdrantName).length}
+                {files.filter(f => f.collectionKey === col.collectionKey).length}
               </td>
               <td className="px-6 py-4 text-right">
                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">

@@ -120,7 +120,6 @@ export const streamChatResponse = async (response: Response, handler: StreamHand
 
 export const fetchChatResponse = (payload: {
   messages: Array<{ role: string; content: string }>;
-  serviceMode: string;
   conversationId: string;
 }) =>
   fetch('/api/chat', {

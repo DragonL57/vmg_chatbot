@@ -136,7 +136,7 @@ export const FileDetailInfo = ({ file }: FileDetailInfoProps) => (
           <p className="text-[11px] font-bold text-black/30">Không gian (Mode)</p>
           <div className="flex items-center gap-2 text-black/60">
             <Database className="w-3.5 h-3.5" />
-            <span className="text-[13px] font-mono">{file?.mode}</span>
+            <span className="text-[13px] font-mono">{file?.collectionKey}</span>
           </div>
         </div>
         <div className="space-y-1">

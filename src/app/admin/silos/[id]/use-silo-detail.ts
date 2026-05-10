@@ -85,7 +85,7 @@ const useSiloRefresh = (
           setActiveSilo(currentSilo);
           setSiloName(currentSilo.name);
           setSiloDesc(currentSilo.description ?? '');
-          const siloFiles = fileData.files?.filter(file => file.mode === currentSilo.qdrantName) ?? [];
+          const siloFiles = fileData.files?.filter(file => file.collectionKey === currentSilo.collectionKey) ?? [];
           setFiles(siloFiles);
         }
       })
@@ -136,7 +136,7 @@ const useSiloRegenerate = (
       const res = await fetch(`/api/admin/collections/${id}/generate-description`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qdrantName: activeSilo.qdrantName }),
+        body: JSON.stringify({ collectionKey: activeSilo.collectionKey }),
       });
       if (res.ok) {
         refresh();
@@ -180,7 +180,7 @@ const useSiloUpload = (
     setUploading(true);
     try {
       const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${slugify(selectedFile.name.split('.')[0])}.${fileExt}`;
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}_${slugify(selectedFile.name.split('.')[0])}.${fileExt}`;
       const filePath = `sources/${fileName}`;
       const { error: uploadError } = await supabase.storage.from('knowledge-sources').upload(filePath, selectedFile);
       if (uploadError) throw new Error(uploadError.message);
@@ -188,7 +188,7 @@ const useSiloUpload = (
       const res = await fetch('/api/admin/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: selectedFile.name, storagePath: filePath, mode: activeSilo.qdrantName }),
+        body: JSON.stringify({ filename: selectedFile.name, storagePath: filePath, mode: activeSilo.collectionKey }),
       });
 
       if (res.status === 202) {
@@ -268,7 +268,7 @@ export const useSiloDetail = (id: string): SiloDetailState & SiloDetailActions =
     Promise.all([fetchCollections(), fetchFiles()]).then(([colData, fileData]) => {
       const silo = colData.collections?.find(c => c.id === id) ?? null;
       if (silo) {
-        const siloFiles = fileData.files?.filter(f => f.mode === silo.qdrantName) ?? [];
+        const siloFiles = fileData.files?.filter(f => f.collectionKey === silo.collectionKey) ?? [];
         setFiles(siloFiles);
         return siloFiles.find(f => f.status === 'indexing')?.progress;
       }

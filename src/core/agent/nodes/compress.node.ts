@@ -11,9 +11,9 @@ import { META_COMPRESSOR_PROMPT } from "../../prompts/rag-agents";
 export async function compressNode(state: AgentStateType, config: RunnableConfig) {
   const startTime = Date.now();
   const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
-  const { evidence, traceId, isChitChat, isRelevant } = state;
-  // Skip synthesis if no docs, chit-chat, or grade exhausted retries with irrelevant evidence
-  if (!evidence.docs.length || isChitChat || isRelevant === false) return { reflection: "" };
+  const { evidence, traceId, isChitChat } = state;
+  // Skip synthesis if no docs or chit-chat
+  if (!evidence.docs.length || isChitChat) return { reflection: "" };
 
   const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
 

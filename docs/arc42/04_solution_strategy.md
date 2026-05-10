@@ -2,39 +2,39 @@
 
 The solution strategy defines the high-level technical approaches to achieve our quality goals and manage our constraints.
 
-## 4.1 Multi-Agent Design Pattern (Hand-off & Specialization)
+## 4.1 PageIndex-Native Architecture
 
-Instead of a monolithic "Do-it-all" agent, VMG MATE adopts a **Multi-Agent Design Pattern** using the **Hand-off** and **Orchestrator-Worker** models.
+VMG MATE uses a streamlined agent graph optimized for PageIndex vectorless retrieval.
 
-### 4.1.1 Rationale for Multi-Agent Architecture
-- **Specialization:** Each node (Summarize, Grade, Rewrite) is a specialized "mini-agent" with a narrow scope. This prevents the LLM from getting confused by too many instructions or tools (Context Confusion).
-- **Fault Tolerance:** If the `Grade` node detects a failure, it can hand off back to the `Rewrite` node rather than failing the entire conversation.
-- **Agentic Maintenance:** Smaller, specialized prompts are easier for AI coding agents to maintain and optimize without unintended side effects on the rest of the system.
+### 4.1.1 Why No CRAG Loop
 
-### 4.1.2 The "Hand-off" Workflow
-The system orchestrates a linear-to-cyclic hand-off between specialized nodes:
-1. **Summarizer** (Context Specialist) → **Analyzer** (Intent Specialist)
-2. **Analyzer** → **Router** (Gateway Specialist)
-3. **Router** → **Retriever** (Knowledge Specialist) or **Compressor** (Synthesis Specialist)
-4. **Retriever** → **Grader** (Quality/Compliance Specialist)
+PageIndex performs relevance classification at every node during tree navigation — the LLM decides "does this subtree contain the answer?" before descending. A separate grade/rewrite loop is redundant. If nothing is found, the answer generator naturally handles it.
 
-## 4.2 Agentic RAG Principles (Ownership & Iteration)
+### 4.1.2 Agent Graph
 
-VMG MATE follows the **Agent-First Tool Design** philosophy (inspired by Anthropic's "Writing Effective Tools"):
-- **Deterministic Tools vs. Non-deterministic Agents:** While our specialized nodes (tools) are deterministic in implementation, they are designed to be "ergonomic" for the non-deterministic reasoning nodes that call them.
-- **Surface Area for Strategy:** We provide nodes with high-signal descriptions and structured schemas, allowing the agentic orchestrator to pursue a variety of successful strategies (e.g., deciding whether to broaden a search or synthesize existing data).
+```
+START → summarize → analyze_query → retrieve → compress → END
+                   (chitchat skips retrieve)
+```
 
-### 4.2.1 Owning the Reasoning Process
-The system is designed to "own" its reasoning. It does not follow a pre-defined, rigid chain-of-thought. Instead, the specialized nodes autonomously determine the next step based on the quality of retrieved information:
-- If evidence is insufficient, the system decides to **Rewrite** and re-query.
-- If the question is ambiguous, the system decides to **Analyze** and request clarification.
-- This autonomous orchestration is bounded by the **LangGraph** topology, ensuring agency is productive and governed.
+Four nodes, linear flow. No routing, no collections, no corrective loops.
 
-### 4.2.2 Iterative Maker-Checker Style
-MATE employs an iterative "Maker-Checker" loop to improve correctness:
-- **The Maker:** The `retrieve` and `rewrite` nodes act as the "producers" of information.
-- **The Checker:** The `grade` (Meta-Grader) node acts as the "evaluator."
-- **The Loop:** This cycle continues (up to `MAX_ITERATIONS`) until a high-quality, grounded answer is achieved, handling malformed queries and low-signal data effectively.
+- **summarize**: Compacts history to maintain coherence
+- **analyze_query**: Determines chitchat vs knowledge query, reconstructs intent
+- **retrieve**: Runs PageIndex File System + recursive tree search, returns evidence + trace
+- **compress**: Synthesizes final answer from evidence with citations
+
+## 4.2 Hybrid Adaptive-Corrective RAG
+
+The system combines two retrieval strategies:
+
+### 4.2.1 File System Layer (Adaptive)
+One LLM call builds a query-dependent topic tree from all document summaries. The LLM then navigates this tree — at each node deciding between:
+- **Layer-wise**: Present child topics, prune by labels (informative labels)
+- **Dynamic flattening**: Collapse to document leaves (uninformative labels)
+
+### 4.2.2 Recursive Tree Search (Corrective)
+For each selected document, the LLM navigates the internal tree recursively. At each level, it sees only immediate children. If branches are explored but nothing found, the node's own content is included as fallback context.
 
 ## 4.3 Model Context Protocol (MCP) Integration
 
