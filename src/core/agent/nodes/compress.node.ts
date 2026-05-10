@@ -12,9 +12,11 @@ export async function compressNode(state: AgentStateType, config: RunnableConfig
   const startTime = Date.now();
   const { llmProvider, obsPort, logger } = config.configurable as { llmProvider: ILLMProvider; obsPort: IObservabilityPort; logger: ILoggerProvider };
   const { evidence, traceId, isChitChat } = state;
+  // Skip synthesis if no docs or chit-chat
   if (!evidence.docs.length || isChitChat) return { reflection: "" };
 
-  const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}]\n${d.parentContent || d.content}`).join("\n\n---\n\n");
+  const rawTextWithSources = evidence.docs.map(d => `[Source: ${d.source || d.title}${d.parentContent ? ` | Path: ${d.parentContent}` : ''}]
+${d.content}`).join("\n\n---\n\n");
 
   const res = await llmProvider.completion({
     messages: [

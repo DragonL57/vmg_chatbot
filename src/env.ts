@@ -3,19 +3,10 @@ import { z } from "zod";
 
 export const env = createEnv({
   server: {
-    POE_API_KEY: z.string().min(1),
-    POE_BOT_NAME: z.string().min(1).default('grok-4.1-fast-non-reasoning'),
-    POE_REASONING_MODEL: z.string().min(1).default('grok-4.1-fast-reasoning'),
-    
     // Inception Labs configuration
-    INCEPTION_API_KEY: z.string().optional(),
+    INCEPTION_API_KEY: z.string().min(1),
     INCEPTION_MODEL: z.string().default('mercury-2'),
     
-    LLM_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
-    INDEXING_PROVIDER: z.enum(['poe', 'inception']).default('inception'),
-    
-    QDRANT_URL: z.string().min(1),
-    QDRANT_API_KEY: z.string().min(1),
     SUPABASE_URL: z.string().url(),
     SUPABASE_KEY: z.string().min(1),
     SUPABASE_SERVICE_KEY: z.string().min(1),

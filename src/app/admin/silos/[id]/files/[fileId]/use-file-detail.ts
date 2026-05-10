@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useIndexingPoll } from '@/hooks/use-indexing-poll';
 import { type KnowledgeCollection, type KnowledgeFile } from '@core/application/ports/knowledge-repository.port';
 
 type FileResponse = {
@@ -200,9 +201,21 @@ export const useFileDetail = (siloId: string, fileId: string): FileDetailState &
     queueMicrotask(() => refresh());
   }, [refresh]);
 
+  useIndexingPoll(file?.status === 'indexing', () =>
+    Promise.all([fetchCollections(), fetchFiles()]).then(([_colData, fileData]) => {
+      const currentFile = fileData.files?.find(f => f.id === fileId) ?? null;
+      if (currentFile) {
+        setFile(currentFile);
+        setFilename(currentFile.filename);
+        setSummary(currentFile.summary ?? '');
+        return currentFile.progress;
+      }
+    })
+  );
+
   const handleSave = useSaveAction(fileId, filename, summary, refresh, setSaving);
   const handleDelete = useDeleteAction(fileId, siloId, router);
-  const handleRegenerateSummary = useRegenerateAction(fileId, filename, file?.mode ?? '', refresh, setSaving);
+  const handleRegenerateSummary = useRegenerateAction(fileId, filename, file?.collectionKey ?? '', refresh, setSaving);
 
   return {
     file,

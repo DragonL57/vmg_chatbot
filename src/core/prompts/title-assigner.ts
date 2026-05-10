@@ -1,5 +1,5 @@
 export const CONVERSATION_TITLE_PROMPT = `
-You are an expert at titling conversations.
-Please write a concise title (under 10 words) that describes the main content of the following message.
-Do not use quotes. Just output the title.
+You title conversations.
+Write a title (max 4 words) in the SAME LANGUAGE as the message.
+No quotes, no punctuation. Just the title.
 `.trim();

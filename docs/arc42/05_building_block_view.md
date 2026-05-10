@@ -1,23 +1,19 @@
 # 5. Building Block View
 
-The Building Block View provides a static decomposition of the VMG MATE system into its constituent parts.
-
 ## 5.1 Level 1: Clean Architecture Layers
-
-VMG MATE follows a strict 3-layer Clean Architecture to ensure infrastructure portability (Law 91/2025 readiness).
 
 ```mermaid
 graph TD
     subgraph "Infrastructure Layer (Adapters)"
         UI[React / Next.js UI]
         API[API Routes]
-        Proxy[Security Proxy]
         DB[Drizzle + Postgres]
-        Vector[Qdrant]
+        Storage[Supabase Storage]
         LLM[LLM Adapters]
+        PageIndex[PageIndex Adapter]
     end
 
-    subgraph "Application Layer (Orchestration)"
+    subgraph "Application Layer"
         UC[Use Cases]
         Graph[LangGraph RAG Engine]
         Ports[Interfaces / Ports]
@@ -25,39 +21,58 @@ graph TD
 
     subgraph "Domain Layer (Pure Core)"
         Entities[Entities & Policies]
-        Services[Pure Services]
+        Tree[PageIndex Tree Logic]
     end
 
-    UI --> Proxy
-    Proxy --> API
+    UI --> API
     API --> UC
     UC --> Entities
-    UC --> Ports
-    Graph --> Ports
-    DB -- Implements --> Ports
-    Vector -- Implements --> Ports
-    LLM -- Implements --> Ports
+    Graph --> PageIndex
+    PageIndex --> Tree
+    PageIndex --> DB
+    LLM --> PageIndex
+    Storage --> API
 ```
 
 ### 5.1.1 Domain Layer
-Contains the core business logic, entities (User, Conversation, Memory), and pure transformation services. It has zero dependencies on frameworks or libraries.
+Pure business logic: entities (User, Conversation, Memory), PageIndex tree builder and searcher (no I/O).
 
 ### 5.1.2 Application Layer
-Orchestrates the flow of data. It contains the **LangGraph RAG Engine** and defines **Ports** (interfaces) that the infrastructure layer must implement.
-- **Structured State (AgentState):** The central communication bus. It uses a machine-readable schema (via LangGraph Annotations) to store sub-queries, evidence pools, and reflection notes. This ensures that every agent node has the context it needs to perform its specific subtask.
+Use cases + the LangGraph agent engine. The graph is a simple linear pipeline:
+`summarize → analyze_query → retrieve → compress`
 
 ### 5.1.3 Infrastructure Layer
-Implements the technical details. This includes the database adapters, vector search implementations, and the UI framework.
+Drizzle + Postgres, Supabase Storage, LLM providers, PageIndex adapter (bridges pure tree logic to DB).
 
-## 5.2 Level 2: Agentic RAG Engine (The "Brain")
-
-The system operates in two distinct execution phases:
-
-### 5.2.1 Phase 1: Agentic Reasoning (LangGraph)
-The `Graph` in the Application layer is decomposed into specialized reasoning nodes:
+## 5.2 Agent Graph (4 Nodes)
 
 | Node | Responsibility |
 | :--- | :--- |
+| **summarize** | Compacts conversation history to prevent context overflow. |
+| **analyze_query** | Determines chitchat vs knowledge query. Reconstructs intent. |
+| **retrieve** | Runs PageIndex two-tier search: cluster selection → FS tree → recursive document tree search. Returns evidence + navigation trace. |
+| **compress** | Synthesizes final answer from retrieved evidence with citations. |
+
+## 5.3 PageIndex Retrieval Pipeline
+
+### 5.3.1 Ingestion
+1. File uploaded to Supabase Storage → downloaded as buffer → extracted to text
+2. PageIndex tree builder: parses markdown headings → builds hierarchical tree → enriches nodes with LLM summaries
+3. Tree stored in `knowledge_files.metadata.pageindexTree` (jsonb)
+4. LLM generates file summary → stored in `knowledge_files.summary`
+5. LLM assigns 1-3 topic cluster labels → stored in `knowledge_files.metadata.clusters`
+
+### 5.3.2 Query-Time Retrieval
+1. **Cluster selection**: 1 LLM call — picks relevant topic clusters from cached labels (scales to 1000+ files)
+2. **Document filtering**: only files in selected clusters proceed
+3. **Recursive tree search**: per document, LLM navigates layer-by-layer — at each level sees only immediate children (~5-15 nodes), selects relevant branches, descends
+4. **Content extraction**: leaf nodes return full content. No embedding bottleneck, no top-K cutoff.
+
+### 5.3.3 Key Properties
+- **Vectorless**: No embeddings, no chunking, no vector DB.
+- **Relevance classification**: LLM judges each node — \"does this subtree contain the answer?\"
+- **Recursive by default**: Always navigates layer-by-layer like a human reading a table of contents.
+- **No corrective loop**: PageIndex already classifies relevance at every node. If nothing found, answer generator handles it.
 | **Summarize History** | Context Engineering: Distills chat history into "Working Memory Snapshots." |
 | **Analyze Query** | Query Reconstruction: Resolves ellipsis and intent shifts. |
 | **Router Expand** | Gateway: Determines if the query requires RAG, Chit-Chat, or a corrective loop. |

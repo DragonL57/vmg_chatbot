@@ -72,3 +72,13 @@ export function safeJsonParse<T>(str: string): T | null {
   }
   return null;
 }
+
+/**
+ * Safely extracts a storage path string from file metadata.
+ * Returns undefined if metadata is null, an array, or if storagePath is not a string.
+ */
+export function getStoragePath(metadata: unknown): string | undefined {
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return undefined;
+  const m = metadata as Record<string, unknown>;
+  return typeof m.storagePath === 'string' ? m.storagePath : undefined;
+}

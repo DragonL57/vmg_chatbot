@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/env';
 import { createServerSupabase } from '@/core/lib/supabase-server';
 import { 
   DrizzleAuthRepositoryAdapter, 
   DrizzleKnowledgeRepositoryAdapter,
-  QdrantVectorStoreAdapter
+  ConsoleLoggerAdapter
 } from '@core/infrastructure/adapters';
 import { DeleteKnowledgeFileUseCase } from '@core/application/use-cases/delete-knowledge-file.use-case';
+import { getStoragePath } from '@/core/lib/utils';
 import { z } from 'zod';
+
+const supabaseBackend = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
 
 const patchSchema = z.object({
   filename: z.string().trim().min(1).optional(),
@@ -22,9 +27,11 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let fileId: string | undefined;
   try {
     const { id } = await params;
-    
+    fileId = id;
+
     const supabase = await createServerSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -38,19 +45,30 @@ export async function DELETE(
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
     const allFiles = await knowledgeRepo.listFiles();
     const file = allFiles.find(f => f.id === id);
-    
+
     if (!file) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    const vectorStore = new QdrantVectorStoreAdapter();
-    const deleteUseCase = new DeleteKnowledgeFileUseCase(vectorStore, knowledgeRepo);
+    const deleteUseCase = new DeleteKnowledgeFileUseCase(knowledgeRepo);
+    const logger = new ConsoleLoggerAdapter();
 
-    await deleteUseCase.execute(id, file.filename, file.mode);
+    await deleteUseCase.execute(id);
+
+    // Clean up Supabase Storage file
+    const storagePath = getStoragePath(file.metadata);
+    if (storagePath) {
+      try {
+        await supabaseBackend.storage.from('knowledge-sources').remove([storagePath]);
+      } catch {
+        logger.warn('Storage file cleanup failed', { fileId: id, storagePath });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Admin File Delete API] Error:', error);
+    const logger = new ConsoleLoggerAdapter();
+    logger.error('Admin file delete failed', error, { fileId });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

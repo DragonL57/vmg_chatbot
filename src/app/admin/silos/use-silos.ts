@@ -41,7 +41,7 @@ function useCreateCollection(
       const res = await fetch('/api/admin/collections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: state.newColName, qdrantName: safeId, description: state.newColDesc }),
+        body: JSON.stringify({ name: state.newColName, collectionKey: safeId, description: state.newColDesc }),
       });
       if (res.ok) {
         setters.setNewColName('');

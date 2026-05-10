@@ -7,15 +7,29 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+      NEXT_PUBLIC_SUPABASE_KEY: 'sb_test_key',
+    },
+    setupFiles: ['./src/test/setup.ts'],
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@core': path.resolve(__dirname, './src/core'),
     },
+    exclude: ['**/*.integration.spec.ts', 'node_modules', '.next'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/core/domain/**', 'src/core/application/**'],
-      exclude: ['**/*.spec.ts', '**/*.test.ts'],
+      include: [
+        'src/core/domain/**',
+        'src/core/application/**',
+        'src/core/lib/**',
+        'src/core/agent/**',
+        'src/hooks/**',
+        'src/components/**',
+        'src/app/api/**',
+      ],
+      exclude: ['**/*.spec.ts', '**/*.test.ts', '**/*.integration.spec.ts'],
     },
   },
 });

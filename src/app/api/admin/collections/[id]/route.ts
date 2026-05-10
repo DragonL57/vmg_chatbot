@@ -46,6 +46,20 @@ export async function DELETE(
     }
 
     const knowledgeRepo = new DrizzleKnowledgeRepositoryAdapter();
+    
+    // Find the collection to get its collectionKey for cascading file deletion
+    const collections = await knowledgeRepo.listCollections();
+    const col = collections.find(c => c.id === id);
+    
+    // Delete all files in this silo first
+    if (col) {
+      const allFiles = await knowledgeRepo.listFiles();
+      const siloFiles = allFiles.filter(f => f.collectionKey === col.collectionKey);
+      for (const f of siloFiles) {
+        await knowledgeRepo.deleteFile(f.id);
+      }
+    }
+    
     await knowledgeRepo.deleteCollection(id);
 
     return NextResponse.json({ success: true });

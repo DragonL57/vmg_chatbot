@@ -36,6 +36,66 @@ The codebase follows strict layer separation:
 
 ---
 
+## Behavioral Guidelines (Reduce LLM Coding Mistakes)
+
+These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### 1. Think Before Coding
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### 2. Simplicity First
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+**The test**: Every changed line should trace directly to the user's request.
+
+**Exception — Garbage Collection mode**: When explicitly performing maintenance (weekly scans, tech-debt sessions), broader cleanup is allowed. Distinguish between task-focused work and maintenance work. If you see dead code during a task, note it for the next GC pass rather than expanding scope mid-task.
+
+### 4. Goal-Driven Execution
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
 ## Golden Principles (Non-Negotiable)
 
 ### 1. Validate at Boundaries (Agent-First + Clean Arch)
@@ -62,14 +122,14 @@ The codebase follows strict layer separation:
 - If you detect a pattern repeated 3+ times, extract to shared domain utility
 - Use repository-embedded concurrency helpers rather than importing generic libraries that bypass observability
 
-### 4. Agent Legibility First
+### 5. Agent Legibility First
 - Optimize code for **agent comprehension** over human stylistic preferences
 - File size limit: **300 lines max** (enforced by linter)
 - Function parameters: **max 3**, use objects for configuration
 - Function length: **Do one thing** at one level of abstraction (<40 lines preferred)
 - Naming must reveal intent clearly for future agent runs
 
-### 5. Architecture Enforcement
+### 6. Architecture Enforcement
 **Strict Layer Rules** (enforced mechanically):
 - Domain: No imports from outer layers
 - Application: Only imports Domain
@@ -81,14 +141,14 @@ The codebase follows strict layer separation:
 - Domain depending on framework-specific code
 - Adapters exposing raw external types to inner layers
 
-### 6. Repository as System of Record
+### 7. Repository as System of Record
 - All design decisions must be encoded in `docs/` as markdown
 - Execution plans for complex work live in `docs/exec-plans/active/`
 - **Golden Rule**: If you can't find it in the repo, it doesn't exist
 - Update `docs/ARCHITECTURE.md` if you change domain boundaries
 - Update `docs/QUALITY_SCORE.md` if you improve/refactor domains
 
-### 7. Mechanical Taste
+### 8. Mechanical Taste
 Enforced by custom linters (not optional):
 - **Structured logging only**: No `console.log`, use injected LoggerProvider
 - **No emojis in code or logs**: Emojis can cause encoding issues in log pipelines and terminal scrollback. Use plain text markers (e.g., `[ok]`, `[error]`) instead.
@@ -98,12 +158,71 @@ Enforced by custom linters (not optional):
 - **Composition over Inheritance**: No extends for "has-a" relationships
 - **No unsupervised commits or pushes**: You must NEVER `git commit`, `git push`, or `git merge` without explicit human permission. Wait for "commit" or "push" before proceeding.
 
-### 8. Holistic Constraint Resolution
+### 9. Holistic Constraint Resolution
 When you hit a lint or architecture constraint (file too long, function too complex, max-lines-per-function exceeded):
 - **Don't patch**: Do NOT add `// eslint-disable-next-line` comments, do NOT minimally inline code to squeeze under the limit
 - **Step back**: Recognize the constraint as a signal that the code needs proper refactoring
 - **Refactor holistically**: Split the file, extract components, create proper abstractions — solve the root cause, not the symptom
 - **Rule of thumb**: If you're fighting a linter rule, you're fighting the wrong battle. The rule is right. Change the structure.
+
+### 10. Test Standards (Test-First, User-Centric)
+
+All code must be testable and tested. Tests are the safety net that prevents regressions and serve as living documentation for future agent runs.
+
+#### 10.1 Testable Code First
+- **Separate view from business logic**: React components render UI; business logic lives in pure functions, domain entities, and use cases independent of any framework.
+- **No monolithic files**: If a function or component is hard to test, it is too coupled. Refactor before writing tests.
+- **Inject dependencies**: Use constructor injection or parameter passing. Never import and call external services directly from domain or application code.
+
+#### 10.2 Test Structure (AAA / Given-When-Then)
+Every test description must follow the **Given-When-Then** pattern:
+
+```typescript
+// GOOD
+it('given an empty input, when form is submitted, disables the submit button', () => { ... });
+
+// BAD — describes what but not the condition or outcome
+it('renders user message with red bubble', () => { ... });
+```
+
+- **Given**: precondition / initial state
+- **When**: the action or event
+- **Then**: the expected outcome visible to the user
+
+#### 10.3 Component Tests: User Perspective Only
+Component tests must test what the **user sees and does**, never implementation details.
+
+- **Use `screen` queries**: `getByText`, `getByRole`, `getByLabelText`, `getByPlaceholderText` — these mirror what users perceive.
+- **Forbidden in component tests**:
+  - `document.querySelector` / `document.querySelectorAll` (brittle CSS class selectors)
+  - `document.body.textContent` (too broad, false positives)
+  - Assertions on component state, props, or internal variables
+  - Counting DOM elements instead of asserting on visible content
+- **Exception**: `container.querySelector` is acceptable only for presentational components with no text (e.g., skeleton loaders, icon-only buttons). Even then, prefer `container` over `document`.
+
+#### 10.4 Mocking: Prefer Real, Mock Only When Necessary
+- **Real implementations are better than mocks**. Mock only when the real dependency:
+  - Makes network calls (external APIs, databases)
+  - Is non-deterministic (Date.now, Math.random)
+  - Would make tests slow or flaky
+- **Mock at module level** with `vi.mock` for external dependencies.
+- **Never mock the code under test** — mock the adapters, keep the domain and application real.
+
+#### 10.5 Test Independence
+- Each test must be independent: no test depends on another test's side effects.
+- Use `beforeEach`/`vi.clearAllMocks()` to reset state.
+- Tests must pass in any order, in isolation, or as a suite.
+
+#### 10.6 Don't Test Configuration
+- Do NOT write tests that merely assert constant values equal themselves. These add zero protection.
+- Test **behavior** that uses the configuration, not the configuration values themselves.
+
+#### 10.7 Coverage Targets (Enforced in Build)
+- **Domain**: 100% lines, branches, functions
+- **Application use cases**: >85% lines
+- **Adapters**: Integration tests for real services; unit tests verify error paths
+- **Components**: User-visible behavior covered (render + interaction)
+- Build runs: `pnpm lint:strict && pnpm test:unit && pnpm test:integration && next build`
 
 ---
 

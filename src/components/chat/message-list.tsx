@@ -2,24 +2,18 @@ import React, { useEffect, useRef, memo, useMemo } from 'react';
 import { Message } from '@core/types/chat';
 import { MessageItem } from './message-item';
 import { HubView } from './hub-view';
-import { type KnowledgeCollection } from '@core/application/ports/knowledge-repository.port';
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   isHistoryLoading?: boolean;
-  isCollectionsLoading?: boolean;
   loadingPhase?: string;
-  currentMode?: string;
   sessionId?: string;
-  collections?: KnowledgeCollection[];
-  onCollectionSelect?: (mode: string) => void;
   onSuggestionClick?: (content: string) => void;
 }
 
 export const MessageList = memo(({ 
-  messages, isLoading, isHistoryLoading, isCollectionsLoading, loadingPhase, currentMode, sessionId, 
-  collections = [], onCollectionSelect 
+  messages, isLoading, isHistoryLoading, loadingPhase, sessionId, 
 }: MessageListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -72,12 +66,7 @@ export const MessageList = memo(({
   if (messages.length === 0 && (!isLoading || (isLoading && messages.length === 0))) {
     return (
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-white custom-scrollbar">
-        <HubView 
-          collections={collections}
-          currentMode={currentMode || 'auto'}
-          onCollectionSelect={onCollectionSelect || (() => {})}
-          isLoading={isCollectionsLoading}
-        />
+        <HubView isLoading={isHistoryLoading} />
       </div>
     );
   }

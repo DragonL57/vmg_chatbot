@@ -7,9 +7,17 @@ This document logs known technical debt and tracks its resolution as per `GEMINI
 | Debt Type | Description | Impact | Priority |
 |-----------|-------------|--------|----------|
 | **Observability** | No structured logging (`LoggerProvider`). Using `console.log`. | Hard to debug in production. | High |
-| **Testing** | Low coverage for Adapter layer. | High risk of regression on DB/API changes. | Medium |
-| **Purity** | `ChatInterface` logic is complex; could benefit from custom hook extraction. | Complex state management risks bugs. | Low |
 | **Build Tooling** | `drizzle-kit` introspect bug requires manual schema sync script. | Friction during schema migrations. | Medium |
+
+## Resolved Debt (2026-05-09)
+- [x] **Vectorless Migration**: Removed all Qdrant, vector store, chunking, and CRAG loop code. Replaced with PageIndex recursive tree search + File System layer.
+- [x] **Architecture Simplification**: 7-node LangGraph reduced to 4 nodes. No routing, no collections, no grade/rewrite.
+- [x] **DB Cleanup**: Dropped `retrieval_engine` column, renamed `qdrant_name` → `collection_key`, removed `@qdrant/js-client-rest` dependency.
+- [x] **Unused Code**: Deleted `bm25.ts`, `poe.ts`, `location-modal.tsx`, `grade.node.ts`, `rewrite.node.ts`, `router-expand.node.ts`, `vector-store.port.ts`, `chunking.service.ts`, `get-full-file-content.use-case.ts`.
+- [x] **Docs Updated**: arc42 sections 04, 06, 08, 12 updated to reflect PageIndex-native architecture.
+
+## Resolved Debt (2026-05-06)
+- [x] **Testing Coverage**: 59 test files, 319 unit tests. Domain (100%), Application (87%). Build: `pnpm lint:strict && test:unit && next build`.
 
 ## Resolved Debt (2026-04-30)
 - [x] **Trace Integrity**: Fixed foreign key race condition by ensuring conversation exists before trace initiation (See `docs/exec-plans/active/2026-04-30-comprehensive-hardening.md`).

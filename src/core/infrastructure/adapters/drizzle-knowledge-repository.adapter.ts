@@ -9,7 +9,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     return results.map(r => ({
       id: r.id,
       filename: r.filename,
-      mode: r.mode,
+      collectionKey: r.collectionKey,
       folder: r.folder || undefined,
       status: r.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: r.progress || 0,
@@ -25,7 +25,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     return {
       id: result.id,
       filename: result.filename,
-      mode: result.mode,
+      collectionKey: result.collectionKey,
       folder: result.folder || undefined,
       status: result.status as 'pending' | 'indexing' | 'completed' | 'failed',
       progress: result.progress || 0,
@@ -45,11 +45,11 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     if (file.summary !== undefined) updateData.summary = file.summary;
     if (file.logs !== undefined) updateData.logs = file.logs;
     if (file.filename !== undefined) updateData.filename = file.filename;
-    if (file.mode !== undefined) updateData.mode = file.mode;
+    if (file.collectionKey !== undefined) updateData.collectionKey = file.collectionKey;
     if (file.folder !== undefined) updateData.folder = file.folder;
     if (file.metadata !== undefined) updateData.metadata = file.metadata;
 
-    if (file.filename && file.mode) {
+    if (file.filename && file.collectionKey) {
       await this.insertOrUpdate(file, updateData);
     } else {
       await db.update(knowledgeFiles).set(updateData).where(eq(knowledgeFiles.id, file.id));
@@ -60,7 +60,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     await db.insert(knowledgeFiles).values({
       id: file.id,
       filename: file.filename!,
-      mode: file.mode!,
+      collectionKey: file.collectionKey!,
       folder: file.folder ?? 'root',
       status: file.status ?? 'pending',
       progress: file.progress ?? 0,
@@ -68,7 +68,7 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
       logs: file.logs ?? [],
       metadata: file.metadata ?? {},
       updatedAt: new Date(),
-    }).onConflictDoUpdate({ target: knowledgeFiles.filename, set: updateData });
+    }).onConflictDoUpdate({ target: [knowledgeFiles.folder, knowledgeFiles.filename], set: updateData });
   }
 
   public async deleteFile(id: string): Promise<void> {
@@ -80,20 +80,20 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     return results.map(r => ({
       id: r.id,
       name: r.name,
-      qdrantName: r.qdrantName,
-      description: r.description || undefined
+      collectionKey: r.collectionKey,
+      description: r.description || undefined,
     }));
   }
 
   public async createCollection(data: Omit<KnowledgeCollection, 'id'>): Promise<KnowledgeCollection> {
     const [result] = await db.insert(knowledgeCollections).values({
       name: data.name,
-      qdrantName: data.qdrantName,
+      collectionKey: data.collectionKey,
       description: data.description,
     }).onConflictDoUpdate({
       target: knowledgeCollections.name,
       set: {
-        qdrantName: data.qdrantName,
+        collectionKey: data.collectionKey,
         description: data.description,
       }
     }).returning();
@@ -101,8 +101,8 @@ export class DrizzleKnowledgeRepositoryAdapter implements IKnowledgeRepositoryPo
     return {
       id: result.id,
       name: result.name,
-      qdrantName: result.qdrantName,
-      description: result.description || undefined
+      collectionKey: result.collectionKey,
+      description: result.description || undefined,
     };
   }
 

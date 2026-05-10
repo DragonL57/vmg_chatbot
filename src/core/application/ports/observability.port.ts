@@ -14,5 +14,5 @@ export interface SpanData {
 export interface IObservabilityPort {
   startTrace(userId: string, conversationId: string): Promise<string>;
   emitSpan(traceId: string, data: SpanData): Promise<void>;
-  finalizeTrace(traceId: string, error?: string): Promise<void>;
+  finalizeTrace(traceId: string, error?: string, searchPath?: string): Promise<void>;
 }

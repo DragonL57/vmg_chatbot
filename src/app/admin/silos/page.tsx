@@ -5,6 +5,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { useRouter } from 'next/navigation';
 import { SilosContent, SilosHeader, SilosModal } from './silos-sections';
 import { useSilos } from './use-silos';
+import { FileSystemTreeView } from '@/components/admin/file-system-tree-view';
 
 export default function SilosPage() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function SilosPage() {
         <div className="max-w-6xl mx-auto px-8 py-10">
           <div className="space-y-10 animate-in fade-in duration-500">
             <SilosHeader onCreate={() => setShowColModal(true)} />
+            <FileSystemTreeView />
             <SilosContent
               collections={collections}
               files={files}

@@ -7,9 +7,16 @@ This chapter identifies the architectural risks and technical debt that must be 
 | Debt | Description | Impact | Priority |
 | :--- | :--- | :--- | :--- |
 | **Unsigned Traces** | `agent_traces` and `spans` are currently stored as plain JSON without cryptographic signatures or hash chaining. | High (Audit Integrity Risk) | High |
-| **Data Residency** | Core data is stored in Singapore (Supabase) and Global Qdrant Cloud. Law 91 requires "Sensitive Data" to reside in Vietnam. | High (Sovereignty Risk) | **Critical** |
+| **Data Residency** | Core data stored in Supabase (Singapore). Law 91 requires sensitive data in Vietnam. | High | **Critical** |
 | **AI Auditability Export** | `agent_traces` exist but there is no mechanism to export a "Compliance Report" for Article 21 of Law 134/2025/QH15. | Medium (Audit Failure) | High |
 | **Privacy Policy Linkage** | No link to a detailed, compliant Privacy Policy on the login/onboarding screen. | Low (Transparency Risk) | High |
+
+### Resolved Debt (2026-05-10)
+
+| Debt | Resolution |
+| :--- | :--- |
+| **Vector RAG Complexity** | Replaced Qdrant + chunking + CRAG loop with PageIndex recursive tree search. 7-node graph → 4 nodes. |
+| **Schema Legacy** | Dropped `retrieval_engine`, `source_url`, `error_message`. Renamed `qdrant_name` → `collection_key`. Added FK cascade + indexes. |
 
 ### Resolved Debt (2026-05-04)
 

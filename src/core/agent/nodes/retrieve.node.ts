@@ -1,24 +1,20 @@
-import { RunnableConfig } from "@langchain/core/runnables";
 import { AgentStateType } from "../state";
-import { IVectorStorePort } from "../../application/ports/vector-store.port";
+import { searchAllFiles } from "../../infrastructure/adapters/pageindex.adapter";
+import { RunnableConfig } from "@langchain/core/runnables";
+import { getConfig } from "./shared";
 
-/**
- * Node 3: Retrieve evidence
- */
 export async function retrieveNode(state: AgentStateType, config: RunnableConfig) {
-  const { vectorStore } = config.configurable as { vectorStore: IVectorStorePort };
-  const { subQueries, targetCollections } = state;
-  const queries = (subQueries && subQueries.length > 0) ? subQueries : [state.messages[state.messages.length - 1].content as string];
+  const { llmProvider } = getConfig(config);
+  const mainQuery = state.messages[state.messages.length - 1].content as string;
 
-  const allResults = await Promise.all(
-    targetCollections.map(col => 
-      Promise.all(queries.map(q => vectorStore.search(q, col, 10).catch(() => [])))
-    )
-  );
+  const stepLog: string[] = [];
 
-  const rawDocs = allResults.flat(2);
+  const { passages, trace } = await searchAllFiles(mainQuery, llmProvider, 10, (step) => {
+    stepLog.push(step);
+  }).catch((e) => { console.error('[PageIndex] searchAllFiles error:', e); return { passages: [], trace: 'Search failed' }; });
+
   const seenParents = new Set<string>();
-  const deduplicated = rawDocs.filter(doc => {
+  const deduplicated = passages.filter(doc => {
     const pid = doc.parentId || doc.content;
     if (seenParents.has(pid)) return false;
     seenParents.add(pid);
@@ -27,8 +23,11 @@ export async function retrieveNode(state: AgentStateType, config: RunnableConfig
 
   const rankedDocs = deduplicated.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 10);
 
-  return { 
+  // Build detailed reflection: steps + final summary
+  const fullTrace = [...stepLog, trace].join('\n');
+
+  return {
     evidence: { docs: rankedDocs },
-    reflection: `Scanning ${targetCollections.length} silos with ${queries.length} query variations...` 
+    reflection: fullTrace || 'PageIndex tree search across all files...',
   };
 }
