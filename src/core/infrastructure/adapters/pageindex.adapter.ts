@@ -33,19 +33,58 @@ function treeToPassages(tree: PageIndexTree, results: TreeSearchResult[]): Docum
   }));
 }
 
+// ─── Per-document tree search ───────────────────────────────────────────────
+
+async function searchDocumentTree(
+  file: { id: string; filename: string; summary?: string | null },
+  query: string,
+  llm: ILLMProvider,
+  onStep?: (step: string) => void,
+): Promise<{ passages: DocumentPassage[]; trace: string }> {
+  const fileRecord = await db.select({ metadata: knowledgeFiles.metadata, summary: knowledgeFiles.summary })
+    .from(knowledgeFiles).where(eq(knowledgeFiles.id, file.id)).limit(1);
+  const meta = (fileRecord[0]?.metadata || {}) as Record<string, unknown>;
+  const tree = meta.pageindexTree as PageIndexTree | undefined;
+  if (!tree) return { passages: [], trace: '' };
+
+  onStep?.(`Đang đọc sâu: ${file.filename}...`);
+  try {
+    const results = await searchTree(query, tree, llm, {
+      maxResults: 5, maxBranchesPerLevel: 5, documentContext: file.summary || undefined,
+      onStep: (step) => { onStep?.(`  ${file.filename}: ${step}`); },
+    });
+    if (results.length === 0) return { passages: [], trace: '' };
+    const sections = [...new Set(results.map(r => r.path[r.path.length - 1]))];
+    return {
+      passages: treeToPassages(tree, results),
+      trace: `${file.filename}: ${sections.slice(0, 3).join(', ')}${sections.length > 3 ? ` +${sections.length - 3} more` : ''}`,
+    };
+  } catch {
+    return { passages: [], trace: '' };
+  }
+}
+
 // ─── Search ─────────────────────────────────────────────────────────────────
 
 export async function searchAllFiles(
   query: string,
   llm: ILLMProvider,
   maxResults: number = 10,
+  onStep?: (step: string) => void,
 ): Promise<{ passages: DocumentPassage[]; trace: string }> {
   const candidates = await selectDocumentsByCluster(query, llm);
   if (candidates.length === 0) return { passages: [], trace: 'No indexed documents found.' };
 
   const docs = candidates.slice(0, 5);
+  onStep?.(`Chọn ${docs.length}/${candidates.length} tài liệu phù hợp nhất từ cluster`);
+
   const fsTree = await buildFileSystemTree(query, docs, llm);
+  onStep?.(`Đã sắp xếp ${docs.length} tài liệu vào cây chủ đề`);
   const fsResults = await searchFileSystem(query, fsTree, llm);
+
+  onStep?.(fsResults.length > 0
+    ? `Lọc còn ${fsResults.length} tài liệu để đọc sâu: ${fsResults.map(r => docs.find(f => f.id === r.documentId)?.filename || '').join(', ')}`
+    : 'Không chọn được tài liệu nào để đọc sâu');
 
   const traceParts: string[] = [`Searched ${candidates.length} document${candidates.length > 1 ? 's' : ''}`];
   if (fsResults.length > 0) {
@@ -61,28 +100,14 @@ export async function searchAllFiles(
   for (const result of fsResults) {
     if (seenIds.has(result.documentId)) continue;
     seenIds.add(result.documentId);
-
     const file = docs.find(f => f.id === result.documentId);
     if (!file) continue;
 
-    const fileRecord = await db.select({ metadata: knowledgeFiles.metadata, summary: knowledgeFiles.summary })
-      .from(knowledgeFiles).where(eq(knowledgeFiles.id, file.id)).limit(1);
-    const meta = (fileRecord[0]?.metadata || {}) as Record<string, unknown>;
-    const tree = meta.pageindexTree as PageIndexTree | undefined;
-    if (!tree) continue;
-
-    try {
-      const llmResults = await searchTree(query, tree, llm, {
-        maxResults: 5,
-        maxBranchesPerLevel: 5,
-        documentContext: file.summary || undefined,
-      });
-      if (llmResults.length > 0) {
-        allPassages.push(...treeToPassages(tree, llmResults));
-        const sections = [...new Set(llmResults.map(r => r.path[r.path.length - 1]))];
-        traceParts.push(`${file.filename}: ${sections.slice(0, 3).join(', ')}${sections.length > 3 ? ` +${sections.length - 3} more` : ''}`);
-      }
-    } catch { /* skip */ }
+    const { passages: docPassages, trace: docTrace } = await searchDocumentTree(file, query, llm, onStep);
+    if (docPassages.length > 0) {
+      allPassages.push(...docPassages);
+      traceParts.push(docTrace);
+    }
   }
 
   return { passages: allPassages.slice(0, maxResults), trace: traceParts.join(' → ') };

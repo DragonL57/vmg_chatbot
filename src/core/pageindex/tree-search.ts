@@ -67,6 +67,11 @@ async function selectBranches(
       : [];
     console.warn('[PageIndex] branch:', children[0]?.title?.slice(0, 30), '→ selected', indices.length, 'of', children.length,
       '|', (parsed.reasoning || '').slice(0, 80));
+    if (options.onStep) {
+      const branchName = children[0]?.title?.slice(0, 50) || '(root)';
+      const selectedNames = indices.map(i => children[i].title).join(', ');
+      options.onStep(`[${branchName}] chọn ${indices.length}/${children.length}: ${selectedNames || '(bỏ qua)'}`);
+    }
     return indices;
   } catch {
     // On error, be permissive — explore all

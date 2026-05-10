@@ -57,6 +57,8 @@ export interface BuildTreeOptions {
   enableSummaries?: boolean;
 }
 
+export type SearchStepCallback = (step: string) => void;
+
 export interface SearchOptions {
   /** Maximum branches to explore at each level */
   maxBranchesPerLevel?: number;
@@ -66,4 +68,6 @@ export interface SearchOptions {
   model?: string;
   /** Document-level summary for context-aware navigation */
   documentContext?: string;
+  /** Callback for real-time step reporting */
+  onStep?: SearchStepCallback;
 }
