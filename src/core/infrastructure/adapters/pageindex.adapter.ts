@@ -47,7 +47,7 @@ async function searchDocumentTree(
   const tree = meta.pageindexTree as PageIndexTree | undefined;
   if (!tree) return { passages: [], trace: '' };
 
-  onStep?.(`Đang đọc sâu: ${file.filename}...`);
+  onStep?.(file.filename);
   try {
     const results = await searchTree(query, tree, llm, {
       maxResults: 5, maxBranchesPerLevel: 5, documentContext: file.summary || undefined,
@@ -76,15 +76,9 @@ export async function searchAllFiles(
   if (candidates.length === 0) return { passages: [], trace: 'No indexed documents found.' };
 
   const docs = candidates.slice(0, 5);
-  onStep?.(`Chọn ${docs.length}/${candidates.length} tài liệu phù hợp nhất từ cluster`);
 
   const fsTree = await buildFileSystemTree(query, docs, llm);
-  onStep?.(`Đã sắp xếp ${docs.length} tài liệu vào cây chủ đề`);
   const fsResults = await searchFileSystem(query, fsTree, llm);
-
-  onStep?.(fsResults.length > 0
-    ? `Lọc còn ${fsResults.length} tài liệu để đọc sâu: ${fsResults.map(r => docs.find(f => f.id === r.documentId)?.filename || '').join(', ')}`
-    : 'Không chọn được tài liệu nào để đọc sâu');
 
   const traceParts: string[] = [`Searched ${candidates.length} document${candidates.length > 1 ? 's' : ''}`];
   if (fsResults.length > 0) {
